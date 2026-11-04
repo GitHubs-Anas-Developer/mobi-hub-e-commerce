@@ -1,14 +1,31 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+
 import {
   createRefreshToken,
   generateAccessToken,
   consumeRefreshToken,
   revokeRefreshToken,
 } from "../services/refresh-token.service.js";
+
 import User from "../models/user.model.js";
 
+// Cookie configuration
+const getCookieOptions = (path) => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax",
+  path,
+});
+
+// Clear authentication cookies
+const clearAuthCookies = (res) => {
+  res.clearCookie("accessToken", getCookieOptions("/api/v1"));
+  res.clearCookie("refreshToken", getCookieOptions("/api/v1/auth"));
+};
+
+// Generate legacy access token for existing registration flow
 const generateToken = (userId) => {
   const secret = process.env.JWT_SECRET;
   const expiresIn = process.env.JWT_EXPIRES_IN;
@@ -16,12 +33,16 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, secret, { expiresIn });
 };
 
+// Remove password from user response
 const sanitizeUser = (user) => {
   const data = user.toObject ? user.toObject() : { ...user };
+
   delete data.password;
+
   return data;
 };
 
+// Register User
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone } = req.body || {};
@@ -50,7 +71,9 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (existingUser) {
       return res.status(409).json({
@@ -79,6 +102,7 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
+// Login User
 export const loginUser = async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
@@ -91,9 +115,10 @@ export const loginUser = async (req, res, next) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail }).select(
-      "+password",
-    );
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    }).select("+password");
 
     if (!user) {
       return res.status(401).json({
@@ -117,18 +142,19 @@ export const loginUser = async (req, res, next) => {
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = await createRefreshToken(user._id);
 
+    res.cookie("accessToken", accessToken, {
+      ...getCookieOptions("/api/v1"),
+      maxAge: 15 * 60 * 1000,
+    });
+
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...getCookieOptions("/api/v1/auth"),
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/api/v1/auth",
     });
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      token: accessToken,
       user: sanitizeUser(user),
     });
   } catch (error) {
@@ -136,6 +162,7 @@ export const loginUser = async (req, res, next) => {
   }
 };
 
+// Refresh Access Token
 export const refreshAccessToken = async (req, res, next) => {
   try {
     const oldRefreshToken = req.cookies?.refreshToken;
@@ -150,12 +177,7 @@ export const refreshAccessToken = async (req, res, next) => {
     const user = await consumeRefreshToken(oldRefreshToken);
 
     if (!user) {
-      res.clearCookie("refreshToken", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/api/v1/auth",
-      });
+      clearAuthCookies(res);
 
       return res.status(401).json({
         success: false,
@@ -166,24 +188,26 @@ export const refreshAccessToken = async (req, res, next) => {
     const accessToken = generateAccessToken(user._id, user.role);
     const newRefreshToken = await createRefreshToken(user._id);
 
+    res.cookie("accessToken", accessToken, {
+      ...getCookieOptions("/api/v1"),
+      maxAge: 15 * 60 * 1000,
+    });
+
     res.cookie("refreshToken", newRefreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      ...getCookieOptions("/api/v1/auth"),
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/api/v1/auth",
     });
 
     return res.status(200).json({
       success: true,
       message: "Token refreshed successfully",
-      token: accessToken,
     });
   } catch (error) {
     return next(error);
   }
 };
 
+// Logout User
 export const logoutUser = async (req, res, next) => {
   try {
     const refreshToken = req.cookies?.refreshToken;
@@ -192,12 +216,7 @@ export const logoutUser = async (req, res, next) => {
       await revokeRefreshToken(refreshToken);
     }
 
-    res.clearCookie("refreshToken", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/api/v1/auth",
-    });
+    clearAuthCookies(res);
 
     return res.status(200).json({
       success: true,
@@ -208,6 +227,7 @@ export const logoutUser = async (req, res, next) => {
   }
 };
 
+// Forgot Password
 export const forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body || {};
@@ -220,7 +240,10 @@ export const forgotPassword = async (req, res, next) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+    });
 
     if (!user) {
       return res.status(200).json({
@@ -231,6 +254,7 @@ export const forgotPassword = async (req, res, next) => {
     }
 
     const resetToken = crypto.randomBytes(32).toString("hex");
+
     const hashedToken = crypto
       .createHash("sha256")
       .update(resetToken)
@@ -238,6 +262,7 @@ export const forgotPassword = async (req, res, next) => {
 
     user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
+
     await user.save({ validateBeforeSave: false });
 
     return res.status(200).json({
@@ -251,6 +276,7 @@ export const forgotPassword = async (req, res, next) => {
   }
 };
 
+// Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
     const { token, password } = req.body || {};
@@ -270,6 +296,7 @@ export const resetPassword = async (req, res, next) => {
     }
 
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: Date.now() },
@@ -285,6 +312,7 @@ export const resetPassword = async (req, res, next) => {
     user.password = password;
     user.resetPasswordToken = null;
     user.resetPasswordExpires = null;
+
     await user.save();
 
     return res.status(200).json({
