@@ -1,12 +1,17 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
+import {
+  createRefreshToken,
+  generateAccessToken,
+  consumeRefreshToken,
+  revokeRefreshToken,
+} from "../services/refresh-token.service.js";
 import User from "../models/user.model.js";
 
 const generateToken = (userId) => {
-  const secret = process.env.JWT_SECRET
-  const expiresIn = process.env.JWT_EXPIRES_IN
+  const secret = process.env.JWT_SECRET;
+  const expiresIn = process.env.JWT_EXPIRES_IN;
 
   return jwt.sign({ userId }, secret, { expiresIn });
 };
@@ -21,7 +26,6 @@ export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, phone } = req.body || {};
 
-
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -31,7 +35,6 @@ export const registerUser = async (req, res, next) => {
 
     const trimmedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
-
 
     if (trimmedName.length < 2) {
       return res.status(400).json({
@@ -49,7 +52,6 @@ export const registerUser = async (req, res, next) => {
 
     const existingUser = await User.findOne({ email: normalizedEmail });
 
-
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -63,7 +65,6 @@ export const registerUser = async (req, res, next) => {
       password,
       phone: phone ? phone.trim() : null,
     });
-    
 
     const token = generateToken(user._id);
 
@@ -90,7 +91,9 @@ export const loginUser = async (req, res, next) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail }).select("+password");
+    const user = await User.findOne({ email: normalizedEmail }).select(
+      "+password",
+    );
 
     if (!user) {
       return res.status(401).json({
@@ -111,13 +114,94 @@ export const loginUser = async (req, res, next) => {
     user.lastLoginAt = new Date();
     await user.save();
 
-    const token = generateToken(user._id);
+    const accessToken = generateAccessToken(user._id, user.role);
+    const refreshToken = await createRefreshToken(user._id);
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/v1/auth",
+    });
 
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      token,
+      token: accessToken,
       user: sanitizeUser(user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const refreshAccessToken = async (req, res, next) => {
+  try {
+    const oldRefreshToken = req.cookies?.refreshToken;
+
+    if (!oldRefreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: "Refresh token is required",
+      });
+    }
+
+    const user = await consumeRefreshToken(oldRefreshToken);
+
+    if (!user) {
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/api/v1/auth",
+      });
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired refresh token",
+      });
+    }
+
+    const accessToken = generateAccessToken(user._id, user.role);
+    const newRefreshToken = await createRefreshToken(user._id);
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/v1/auth",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Token refreshed successfully",
+      token: accessToken,
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const logoutUser = async (req, res, next) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken);
+    }
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/api/v1/auth",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Logout successful",
     });
   } catch (error) {
     return next(error);
@@ -141,7 +225,8 @@ export const forgotPassword = async (req, res, next) => {
     if (!user) {
       return res.status(200).json({
         success: true,
-        message: "If an account exists for that email, a reset link has been generated.",
+        message:
+          "If an account exists for that email, a reset link has been generated.",
       });
     }
 
