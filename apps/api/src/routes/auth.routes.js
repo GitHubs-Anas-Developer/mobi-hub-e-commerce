@@ -3,6 +3,8 @@ import { Router } from "express";
 import {
   forgotPassword,
   loginUser,
+  logoutUser,
+  refreshAccessToken,
   registerUser,
   resetPassword,
 } from "../controllers/auth.controller.js";
@@ -12,8 +14,9 @@ const router = Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/refresh", refreshAccessToken);
+router.post("/logout", logoutUser);
+
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 
