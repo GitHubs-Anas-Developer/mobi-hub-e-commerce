@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 
+import authRoutes from "./routes/auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health Check
 app.use("/api/v1/health", healthRoutes);
+app.use("/api/v1/auth", authRoutes);
 
 // Default route
 app.get("/", (req, res) => {
