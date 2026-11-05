@@ -2,10 +2,12 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 
+import { errorMiddleware } from "./middlewares/error.middleware.js";
+
 import authRoutes from "./routes/auth.routes.js";
 import healthRoutes from "./routes/health.routes.js";
-import categoryRoutes from "./routes/category.routes.js"
-import { errorMiddleware } from "./middlewares/error.middleware.js";
+import categoryRoutes from "./routes/category.routes.js";
+import productRoutes from "./routes/product.routes.js";
 
 const app = express();
 
@@ -23,11 +25,9 @@ app.use(
 // Health Check
 app.use("/api/v1/health", healthRoutes);
 
-// Authentication Routes
 app.use("/api/v1/auth", authRoutes);
-
-// Category Routes
 app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/products", productRoutes);
 
 // Default route
 app.get("/", (req, res) => {
