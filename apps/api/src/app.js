@@ -13,6 +13,8 @@ import wishlistRoutes from "./routes/wishlist.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import reviewRoutes from "./routes/review.routes.js";
+import couponRoutes from "./routes/coupon.routes.js";
+
 
 const app = express();
 
@@ -37,6 +39,7 @@ app.use("/api/v1/wishlist", wishlistRoutes);
 app.use("/api/v1/addresses", addressRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/coupons", couponRoutes);
 
 // Default route
 app.get("/", (req, res) => {

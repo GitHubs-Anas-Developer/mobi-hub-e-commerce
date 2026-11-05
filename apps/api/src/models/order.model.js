@@ -72,6 +72,35 @@ const shippingAddressSchema = new mongoose.Schema(
   { _id: false },
 );
 
+const couponSnapshotSchema = new mongoose.Schema(
+  {
+    couponId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Coupon",
+      default: null,
+    },
+    code: {
+      type: String,
+      default: null,
+    },
+    discountType: {
+      type: String,
+      enum: ["Percentage", "Fixed"],
+      default: null,
+    },
+    discountValue: {
+      type: Number,
+      default: null,
+    },
+    discountAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+  },
+  { _id: false },
+);
+
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: {
@@ -111,6 +140,16 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    coupon: {
+      type: couponSnapshotSchema,
+      default: () => ({
+        couponId: null,
+        code: null,
+        discountType: null,
+        discountValue: null,
+        discountAmount: 0,
+      }),
     },
     totalAmount: {
       type: Number,

@@ -7,6 +7,13 @@ const objectIdSchema = z
 export const createOrderSchema = z.object({
   addressId: objectIdSchema,
   paymentMethod: z.enum(["COD", "Online"]),
+  couponCode: z
+    .string()
+    .trim()
+    .min(3)
+    .max(30)
+    .transform((value) => value.toUpperCase())
+    .optional(),
 });
 
 export const orderIdSchema = z.object({

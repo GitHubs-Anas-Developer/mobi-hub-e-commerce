@@ -5,6 +5,8 @@ import Order from "../models/order.model.js";
 import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import Address from "../models/address.model.js";
+import Coupon from "../models/coupon.model.js";
+import CouponUsage from "../models/coupon-usage.model.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -17,13 +19,14 @@ const generateOrderNumber = () => {
 
   return `MH-${Date.now()}-${randomPart}`;
 };
+
 export const createOrder = async (userId, data) => {
   const session = await mongoose.startSession();
 
   try {
     session.startTransaction();
 
-    const { addressId, paymentMethod } = data;
+    const { addressId, paymentMethod, couponCode } = data;
 
     // 1. Validate shipping address
     const address = await Address.findOne({
@@ -89,7 +92,84 @@ export const createOrder = async (userId, data) => {
       });
     }
 
-    // 4. Deduct product stock atomically
+    // 4. Calculate coupon discount
+    let discount = 0;
+
+    const couponSnapshot = {
+      couponId: null,
+      code: null,
+      discountType: null,
+      discountValue: null,
+      discountAmount: 0,
+    };
+
+    let appliedCoupon = null;
+
+    if (couponCode) {
+      const normalizedCode = couponCode.trim().toUpperCase();
+      const now = new Date();
+
+      appliedCoupon = await Coupon.findOne({
+        code: normalizedCode,
+        isActive: true,
+        startDate: { $lte: now },
+        expiryDate: { $gte: now },
+      }).session(session);
+
+      if (!appliedCoupon) {
+        throw createError("Invalid or expired coupon", 400);
+      }
+
+      if (
+        appliedCoupon.usageLimit !== null &&
+        appliedCoupon.usedCount >= appliedCoupon.usageLimit
+      ) {
+        throw createError("Coupon usage limit reached", 400);
+      }
+
+      if (subtotal < appliedCoupon.minOrderAmount) {
+        throw createError(
+          `Minimum order amount for this coupon is ${appliedCoupon.minOrderAmount}`,
+          400,
+        );
+      }
+
+      // Check per-user usage
+      const existingUsage = await CouponUsage.findOne({
+        coupon: appliedCoupon._id,
+        user: userId,
+      }).session(session);
+
+      if (
+        existingUsage &&
+        existingUsage.usedCount >= appliedCoupon.perUserLimit
+      ) {
+        throw createError("You have reached this coupon's usage limit", 400);
+      }
+
+      // Calculate discount
+      if (appliedCoupon.discountType === "Percentage") {
+        discount = (subtotal * appliedCoupon.discountValue) / 100;
+      } else {
+        discount = appliedCoupon.discountValue;
+      }
+
+      if (appliedCoupon.maxDiscountAmount !== null) {
+        discount = Math.min(discount, appliedCoupon.maxDiscountAmount);
+      }
+
+      // Discount cannot exceed subtotal
+      discount = Math.min(discount, subtotal);
+      discount = Math.round(discount * 100) / 100;
+
+      couponSnapshot.couponId = appliedCoupon._id;
+      couponSnapshot.code = appliedCoupon.code;
+      couponSnapshot.discountType = appliedCoupon.discountType;
+      couponSnapshot.discountValue = appliedCoupon.discountValue;
+      couponSnapshot.discountAmount = discount;
+    }
+
+    // 5. Deduct product stock atomically
     for (const item of cart.items) {
       const product = item.product;
       const variant = product.variants.id(item.variantId);
@@ -120,12 +200,75 @@ export const createOrder = async (userId, data) => {
       }
     }
 
-    // 5. Calculate order amount
+    // 6. Update coupon usage inside transaction
+    if (appliedCoupon) {
+      // Increment global coupon usage safely
+      const couponFilter = {
+        _id: appliedCoupon._id,
+        isActive: true,
+      };
+
+      if (appliedCoupon.usageLimit !== null) {
+        couponFilter.usedCount = {
+          $lt: appliedCoupon.usageLimit,
+        };
+      }
+
+      const updatedCoupon = await Coupon.findOneAndUpdate(
+        couponFilter,
+        {
+          $inc: { usedCount: 1 },
+        },
+        {
+          new: true,
+          session,
+        },
+      );
+
+      if (!updatedCoupon) {
+        throw createError("Coupon usage limit reached", 400);
+      }
+
+      // Increment per-user usage
+      const existingUsage = await CouponUsage.findOne({
+        coupon: appliedCoupon._id,
+        user: userId,
+      }).session(session);
+
+      if (existingUsage) {
+        const usageUpdate = await CouponUsage.updateOne(
+          {
+            _id: existingUsage._id,
+            usedCount: { $lt: appliedCoupon.perUserLimit },
+          },
+          {
+            $inc: { usedCount: 1 },
+          },
+          { session },
+        );
+
+        if (usageUpdate.modifiedCount !== 1) {
+          throw createError("You have reached this coupon's usage limit", 400);
+        }
+      } else {
+        await CouponUsage.create(
+          [
+            {
+              coupon: appliedCoupon._id,
+              user: userId,
+              usedCount: 1,
+            },
+          ],
+          { session },
+        );
+      }
+    }
+
+    // 7. Calculate final order amount
     const shippingFee = 0;
-    const discount = 0;
     const totalAmount = subtotal + shippingFee - discount;
 
-    // 6. Create order inside transaction
+    // 8. Create order inside transaction
     const [order] = await Order.create(
       [
         {
@@ -147,6 +290,7 @@ export const createOrder = async (userId, data) => {
           subtotal,
           shippingFee,
           discount,
+          coupon: couponSnapshot,
           totalAmount,
           paymentMethod,
         },
@@ -154,11 +298,11 @@ export const createOrder = async (userId, data) => {
       { session },
     );
 
-    // 7. Clear cart inside transaction
+    // 9. Clear cart inside transaction
     cart.items = [];
     await cart.save({ session });
 
-    // 8. Commit transaction
+    // 10. Commit transaction
     await session.commitTransaction();
 
     return order;
@@ -172,7 +316,6 @@ export const createOrder = async (userId, data) => {
     await session.endSession();
   }
 };
-
 export const getUserOrders = async (userId, query = {}) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
@@ -264,13 +407,47 @@ export const cancelOrder = async (orderId, userId) => {
       }
     }
 
-    // 4. Update order status
+    // 4. Restore coupon usage if coupon was applied
+    if (order.coupon?.couponId) {
+      const couponUpdate = await Coupon.updateOne(
+        {
+          _id: order.coupon.couponId,
+          usedCount: { $gt: 0 },
+        },
+        {
+          $inc: { usedCount: -1 },
+        },
+        { session },
+      );
+
+      if (couponUpdate.modifiedCount !== 1) {
+        throw createError("Unable to restore coupon usage", 400);
+      }
+
+      const usageUpdate = await CouponUsage.updateOne(
+        {
+          coupon: order.coupon.couponId,
+          user: userId,
+          usedCount: { $gt: 0 },
+        },
+        {
+          $inc: { usedCount: -1 },
+        },
+        { session },
+      );
+
+      if (usageUpdate.modifiedCount !== 1) {
+        throw createError("Unable to restore user coupon usage", 400);
+      }
+    }
+
+    // 5. Update order status
     order.orderStatus = "Cancelled";
     order.cancelledAt = new Date();
 
     await order.save({ session });
 
-    // 5. Commit transaction
+    // 6. Commit transaction
     await session.commitTransaction();
 
     return order;
