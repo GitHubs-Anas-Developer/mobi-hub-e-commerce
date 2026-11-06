@@ -25,6 +25,12 @@ const variantSchema = z.object({
 
   stock: z.coerce.number().int().min(0).default(0),
 
+  lowStockThreshold: z.coerce
+    .number()
+    .int("Low stock threshold must be an integer")
+    .min(0, "Low stock threshold cannot be negative")
+    .default(5),
+
   images: z.array(imageSchema).default([]),
 
   isActive: z.boolean().default(true),

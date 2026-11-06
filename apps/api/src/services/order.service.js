@@ -7,6 +7,7 @@ import Product from "../models/product.model.js";
 import Address from "../models/address.model.js";
 import Coupon from "../models/coupon.model.js";
 import CouponUsage from "../models/coupon-usage.model.js";
+import { updateVariantStock } from "./inventory.service.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -158,7 +159,6 @@ export const createOrder = async (userId, data) => {
         discount = Math.min(discount, appliedCoupon.maxDiscountAmount);
       }
 
-      // Discount cannot exceed subtotal
       discount = Math.min(discount, subtotal);
       discount = Math.round(discount * 100) / 100;
 
@@ -169,40 +169,8 @@ export const createOrder = async (userId, data) => {
       couponSnapshot.discountAmount = discount;
     }
 
-    // 5. Deduct product stock atomically
-    for (const item of cart.items) {
-      const product = item.product;
-      const variant = product.variants.id(item.variantId);
-
-      const stockUpdate = await Product.updateOne(
-        {
-          _id: product._id,
-          isActive: true,
-          variants: {
-            $elemMatch: {
-              _id: variant._id,
-              isActive: true,
-              stock: { $gte: item.quantity },
-            },
-          },
-        },
-        {
-          $inc: {
-            "variants.$.stock": -item.quantity,
-            totalStock: -item.quantity,
-          },
-        },
-        { session },
-      );
-
-      if (stockUpdate.matchedCount !== 1) {
-        throw createError(`Insufficient stock for ${product.name}`, 400);
-      }
-    }
-
-    // 6. Update coupon usage inside transaction
+    // 5. Update coupon usage inside transaction
     if (appliedCoupon) {
-      // Increment global coupon usage safely
       const couponFilter = {
         _id: appliedCoupon._id,
         isActive: true,
@@ -264,11 +232,11 @@ export const createOrder = async (userId, data) => {
       }
     }
 
-    // 7. Calculate final order amount
+    // 6. Calculate final order amount
     const shippingFee = 0;
     const totalAmount = subtotal + shippingFee - discount;
 
-    // 8. Create order inside transaction
+    // 7. Create order inside transaction
     const [order] = await Order.create(
       [
         {
@@ -298,6 +266,24 @@ export const createOrder = async (userId, data) => {
       { session },
     );
 
+    // 8. Deduct stock and create inventory history
+    for (const [index, item] of order.items.entries()) {
+      await updateVariantStock({
+        productId: item.product,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        direction: "OUT",
+        type: "Order",
+        referenceType: "Order",
+        referenceId: order._id,
+        performedBy: userId,
+        note: `Stock deducted for order ${order.orderNumber}`,
+        idempotencyKey: `order:${order._id}:${index}`,
+        requireActive: true,
+        session,
+      });
+    }
+
     // 9. Clear cart inside transaction
     cart.items = [];
     await cart.save({ session });
@@ -316,6 +302,7 @@ export const createOrder = async (userId, data) => {
     await session.endSession();
   }
 };
+
 export const getUserOrders = async (userId, query = {}) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
@@ -383,28 +370,21 @@ export const cancelOrder = async (orderId, userId) => {
       throw createError("This order cannot be cancelled at this stage", 400);
     }
 
-    // 3. Restore stock for each order item
-    for (const item of order.items) {
-      const stockUpdate = await Product.updateOne(
-        {
-          _id: item.product,
-          "variants._id": item.variantId,
-        },
-        {
-          $inc: {
-            "variants.$.stock": item.quantity,
-            totalStock: item.quantity,
-          },
-        },
-        { session },
-      );
-
-      if (stockUpdate.matchedCount !== 1) {
-        throw createError(
-          `Unable to restore stock for ${item.productName}`,
-          400,
-        );
-      }
+    // 3. Restore stock and create inventory history
+    for (const [index, item] of order.items.entries()) {
+      await updateVariantStock({
+        productId: item.product,
+        variantId: item.variantId,
+        quantity: item.quantity,
+        direction: "IN",
+        type: "Cancellation",
+        referenceType: "Order",
+        referenceId: order._id,
+        performedBy: userId,
+        note: `Stock restored for cancelled order ${order._id}`,
+        idempotencyKey: `order-cancel:${order._id}:${index}`,
+        session,
+      });
     }
 
     // 4. Restore coupon usage if coupon was applied

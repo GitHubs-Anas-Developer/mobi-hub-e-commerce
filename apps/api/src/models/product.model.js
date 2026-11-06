@@ -31,6 +31,12 @@ const variantSchema = new mongoose.Schema(
       min: [0, "Stock cannot be negative"],
       default: 0,
     },
+    lowStockThreshold: {
+      type: Number,
+      required: true,
+      min: [0, "Low stock threshold cannot be negative"],
+      default: 5,
+    },
     images: [
       {
         url: { type: String, required: true },
