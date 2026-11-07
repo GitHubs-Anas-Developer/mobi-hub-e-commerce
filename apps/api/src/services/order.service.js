@@ -8,6 +8,8 @@ import Address from "../models/address.model.js";
 import Coupon from "../models/coupon.model.js";
 import CouponUsage from "../models/coupon-usage.model.js";
 import { updateVariantStock } from "./inventory.service.js";
+import User from "../models/user.model.js";
+import { createNotification } from "./notification.service.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -19,6 +21,62 @@ const generateOrderNumber = () => {
   const randomPart = crypto.randomBytes(4).toString("hex").toUpperCase();
 
   return `MH-${Date.now()}-${randomPart}`;
+};
+
+const sendOrderNotifications = async ({
+  customerId,
+  order,
+  type,
+  title,
+  message,
+  notifyAdmins = false,
+}) => {
+  try {
+    const notifications = [
+      createNotification({
+        recipient: customerId,
+        title,
+        message,
+        type,
+        relatedId: order._id,
+        relatedModel: "Order",
+      }),
+    ];
+
+    if (notifyAdmins) {
+      const admins = await User.find({
+        role: "admin",
+        isActive: true,
+      })
+        .select("_id")
+        .lean();
+
+      for (const admin of admins) {
+        notifications.push(
+          createNotification({
+            recipient: admin._id,
+            title: "New Order Received",
+            message: `New order ${order.orderNumber} has been placed.`,
+            type,
+            relatedId: order._id,
+            relatedModel: "Order",
+          }),
+        );
+      }
+    }
+
+    const results = await Promise.allSettled(notifications);
+
+    const failedCount = results.filter(
+      (result) => result.status === "rejected",
+    ).length;
+
+    if (failedCount > 0) {
+      console.error(`Failed to create ${failedCount} order notification(s)`);
+    }
+  } catch (error) {
+    console.error("Order notification error:", error.message);
+  }
 };
 
 export const createOrder = async (userId, data) => {
@@ -289,7 +347,18 @@ export const createOrder = async (userId, data) => {
     await cart.save({ session });
 
     // 10. Commit transaction
+    // 10. Commit transaction
     await session.commitTransaction();
+
+    // 11. Send notifications after successful transaction
+    await sendOrderNotifications({
+      customerId: userId,
+      order,
+      type: "ORDER_PLACED",
+      title: "Order Placed Successfully",
+      message: `Your order ${order.orderNumber} has been placed successfully.`,
+      notifyAdmins: true,
+    });
 
     return order;
   } catch (error) {
@@ -429,6 +498,14 @@ export const cancelOrder = async (orderId, userId) => {
 
     // 6. Commit transaction
     await session.commitTransaction();
+    // Send order cancellation notification
+    await sendOrderNotifications({
+      customerId: userId,
+      order,
+      type: "ORDER_CANCELLED",
+      title: "Order Cancelled",
+      message: `Your order ${order.orderNumber} has been cancelled.`,
+    });
 
     return order;
   } catch (error) {
@@ -508,6 +585,39 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   }
 
   await order.save();
+  
+  const notificationByStatus = {
+    Confirmed: {
+      type: "ORDER_CONFIRMED",
+      title: "Order Confirmed",
+      message: `Your order ${order.orderNumber} has been confirmed.`,
+    },
+    Processing: {
+      type: "SYSTEM",
+      title: "Order Processing",
+      message: `Your order ${order.orderNumber} is being processed.`,
+    },
+    Shipped: {
+      type: "ORDER_SHIPPED",
+      title: "Order Shipped",
+      message: `Your order ${order.orderNumber} has been shipped.`,
+    },
+    Delivered: {
+      type: "ORDER_DELIVERED",
+      title: "Order Delivered",
+      message: `Your order ${order.orderNumber} has been delivered.`,
+    },
+  };
+
+  const notification = notificationByStatus[orderStatus];
+
+  if (notification) {
+    await sendOrderNotifications({
+      customerId: order.user,
+      order,
+      ...notification,
+    });
+  }
 
   return order;
 };

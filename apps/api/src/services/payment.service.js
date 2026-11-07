@@ -6,11 +6,27 @@ import Payment from "../models/payment.model.js";
 import Order from "../models/order.model.js";
 import razorpay from "../config/razorpay.js";
 import WebhookEvent from "../models/webhook-event.model.js";
+import { createNotification } from "./notification.service.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+};
+
+const sendPaymentNotification = async ({ payment, type, title, message }) => {
+  try {
+    await createNotification({
+      recipient: payment.user,
+      title,
+      message,
+      type,
+      relatedId: payment._id,
+      relatedModel: "Payment",
+    });
+  } catch (error) {
+    console.error("Payment notification error:", error.message);
+  }
 };
 
 export const initiatePayment = async (orderId, userId) => {
@@ -236,6 +252,13 @@ export const verifyPayment = async (userId, paymentData) => {
       updatedPayment = currentPayment;
     });
 
+    await sendPaymentNotification({
+      payment: updatedPayment,
+      type: "PAYMENT_SUCCESS",
+      title: "Payment Successful",
+      message: "Your payment has been successfully completed.",
+    });
+
     return updatedPayment;
   } finally {
     await session.endSession();
@@ -345,6 +368,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
   }
 
   try {
+    let refundNotification = null;
     // Handle Refund Webhooks
     if (["refund.processed", "refund.failed"].includes(event.event)) {
       const refund = event.payload?.refund?.entity;
@@ -352,7 +376,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       if (!refund?.payment_id || !refund?.id) {
         throw createError("Invalid refund webhook data", 400);
       }
-
+      let paymentNotification = null;
       const session = await mongoose.startSession();
 
       try {
@@ -376,11 +400,20 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
               throw createError("Refund amount mismatch", 400);
             }
 
-            payment.status = "Refunded";
-            payment.refundId = refund.id;
-            payment.refundedAt = new Date();
+            if (payment.status !== "Refunded") {
+              payment.status = "Refunded";
+              payment.refundId = refund.id;
+              payment.refundedAt = new Date();
 
-            order.paymentStatus = "Refunded";
+              order.paymentStatus = "Refunded";
+
+              refundNotification = {
+                payment,
+                type: "REFUND_PROCESSED",
+                title: "Refund Processed",
+                message: "Your refund has been successfully processed.",
+              };
+            }
           }
 
           if (event.event === "refund.failed") {
@@ -410,6 +443,10 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
         });
       } finally {
         await session.endSession();
+      }
+
+      if (refundNotification) {
+        await sendPaymentNotification(refundNotification);
       }
 
       await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
@@ -491,7 +528,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             await payment.save({ session });
             return;
           }
-
           if (payment.status !== "Paid") {
             payment.razorpayPaymentId = razorpayPayment.id;
             payment.paymentMethod = razorpayPayment.method;
@@ -499,6 +535,13 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             payment.verifiedAt = new Date();
 
             await payment.save({ session });
+
+            paymentNotification = {
+              payment,
+              type: "PAYMENT_SUCCESS",
+              title: "Payment Successful",
+              message: "Your payment has been successfully completed.",
+            };
           }
 
           if (order.paymentStatus !== "Paid") {
@@ -520,15 +563,30 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             razorpayPayment.error_description || "Payment failed";
 
           await payment.save({ session });
+          if (payment.status !== "Paid") {
+            payment.razorpayPaymentId = razorpayPayment.id;
+            payment.paymentMethod = razorpayPayment.method;
+            payment.status = "Paid";
+            payment.verifiedAt = new Date();
 
-          order.paymentStatus = "Failed";
-          await order.save({ session });
+            await payment.save({ session });
+
+            paymentNotification = {
+              payment,
+              type: "PAYMENT_SUCCESS",
+              title: "Payment Successful",
+              message: "Your payment has been successfully completed.",
+            };
+          }
         }
       });
     } finally {
       await session.endSession();
     }
 
+    if (paymentNotification) {
+      await sendPaymentNotification(paymentNotification);
+    }
     // Automatically refund captured payments for cancelled orders.
     if (event.event === "payment.captured") {
       const payment = await Payment.findOne({
@@ -677,7 +735,6 @@ export const refundPayment = async (paymentId, reason = "Customer refund") => {
   const razorpayPayment = await razorpay.payments.fetch(
     payment.razorpayPaymentId,
   );
-
 
   // Use the same idempotency key and request body for retries.
   const response = await fetch(
