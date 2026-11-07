@@ -18,6 +18,7 @@ import paymentRoutes from "./routes/payment.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import returnRoutes from "./routes/return.routes.js";
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
 app.use("/api/v1/admin/inventory", inventoryRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/returns", returnRoutes);
 
 // Default route
 app.get("/", (req, res) => {

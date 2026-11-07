@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MOBI HUB - Razorpay Test</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  </head>
+  <body>
+    <h2>MOBI HUB - Payment Test</h2>
+
+    <input
+      type="text"
+      id="token"
+      placeholder="Customer Bearer Token"
+      style="width: 350px; padding: 10px"
+    />
+
+    <br /><br />
+
+    <input
+      type="text"
+      id="orderId"
+      placeholder="Online Order ID"
+      style="width: 350px; padding: 10px"
+    />
+
+    <br /><br />
+
+    <button id="payButton">Pay Now</button>
+
+    <pre id="result"></pre>
+
+    <script>
+      const API_URL = "http://localhost:5000/api/v1";
+
+      const result = document.getElementById("result");
+
+      document
+        .getElementById("payButton")
+        .addEventListener("click", async () => {
+          const token = document.getElementById("token").value.trim();
+          const orderId = document.getElementById("orderId").value.trim();
+
+          if (!token || !orderId) {
+            result.textContent = "Token and Order ID are required.";
+            return;
+          }
+
+          try {
+            result.textContent = "Creating Razorpay order...";
+
+            const response = await fetch(`${API_URL}/payments/initiate`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ orderId }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+              throw new Error(data.message || "Payment initiation failed");
+            }
+
+            const paymentData = data.data;
+
+            const options = {
+              key: paymentData.keyId,
+              amount: paymentData.amount * 100,
+              currency: paymentData.currency,
+              name: "MOBI HUB",
+              description: "Test Order Payment",
+              order_id: paymentData.razorpayOrderId,
+
+              handler: async function (paymentResponse) {
+                result.textContent = "Verifying payment...";
+
+                const verifyResponse = await fetch(
+                  `${API_URL}/payments/verify`,
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(paymentResponse),
+                  },
+                );
+
+                const verifyData = await verifyResponse.json();
+
+                result.textContent = JSON.stringify(verifyData, null, 2);
+              },
+
+              modal: {
+                ondismiss: function () {
+                  result.textContent =
+                    "Checkout closed. Payment status is not confirmed.";
+                },
+              },
+
+              theme: {
+                color: "#1D4ED8",
+              },
+            };
+
+            const checkout = new Razorpay(options);
+
+            checkout.on("payment.failed", function (response) {
+              result.textContent = JSON.stringify(response.error, null, 2);
+            });
+
+            checkout.open();
+          } catch (error) {
+            result.textContent = error.message;
+          }
+        });
+    </script>
+  </body>
+</html>

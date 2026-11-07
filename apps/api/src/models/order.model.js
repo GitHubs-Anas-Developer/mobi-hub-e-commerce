@@ -108,12 +108,14 @@ const orderSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
       index: true,
     },
+
     items: {
       type: [orderItemSchema],
       required: true,
@@ -122,25 +124,30 @@ const orderSchema = new mongoose.Schema(
         message: "Order must contain at least one item",
       },
     },
+
     shippingAddress: {
       type: shippingAddressSchema,
       required: true,
     },
+
     subtotal: {
       type: Number,
       required: true,
       min: 0,
     },
+
     shippingFee: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     discount: {
       type: Number,
       default: 0,
       min: 0,
     },
+
     coupon: {
       type: couponSnapshotSchema,
       default: () => ({
@@ -151,21 +158,25 @@ const orderSchema = new mongoose.Schema(
         discountAmount: 0,
       }),
     },
+
     totalAmount: {
       type: Number,
       required: true,
       min: 0,
     },
+
     paymentMethod: {
       type: String,
       enum: ["COD", "Online"],
       required: true,
     },
+
     paymentStatus: {
       type: String,
-      enum: ["Pending", "Paid", "Failed", "Refunded"],
+      enum: ["Pending", "Paid", "Failed", "PartiallyRefunded", "Refunded"],
       default: "Pending",
     },
+
     orderStatus: {
       type: String,
       enum: [
@@ -178,13 +189,20 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "Pending",
     },
+
     cancelledAt: {
       type: Date,
       default: null,
     },
+
     deliveredAt: {
       type: Date,
       default: null,
+    },
+    returnRequestVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
     },
   },
   { timestamps: true },

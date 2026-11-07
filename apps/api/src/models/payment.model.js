@@ -49,7 +49,14 @@ const paymentSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Created", "Paid", "Failed", "RefundPending", "Refunded"],
+      enum: [
+        "Created",
+        "Paid",
+        "Failed",
+        "RefundPending",
+        "PartiallyRefunded",
+        "Refunded",
+      ],
       default: "Created",
     },
 
@@ -73,6 +80,21 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Aggregate amount refunded across all refund transactions.
+    refundedAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    reservedRefundAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    // Legacy full-refund fields.
+    // Keep these until the existing refund workflow is migrated.
     refundIdempotencyKey: {
       type: String,
       default: null,

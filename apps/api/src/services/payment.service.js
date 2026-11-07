@@ -7,11 +7,42 @@ import Order from "../models/order.model.js";
 import razorpay from "../config/razorpay.js";
 import WebhookEvent from "../models/webhook-event.model.js";
 import { createNotification } from "./notification.service.js";
+import PaymentRefund from "../models/payment-refund.model.js";
+import Return from "../models/return.model.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+};
+
+const fetchRazorpayRefund = async (refundId) => {
+  const response = await fetch(
+    `https://api.razorpay.com/v1/refunds/${refundId}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`,
+        ).toString("base64")}`,
+      },
+    },
+  );
+
+  const refundData = await response.json();
+
+  if (!response.ok) {
+    throw createError("Unable to verify current Razorpay refund status", 502);
+  }
+
+  if (
+    !refundData.id ||
+    !["pending", "processed", "failed"].includes(refundData.status)
+  ) {
+    throw createError("Invalid Razorpay refund response", 502);
+  }
+
+  return refundData;
 };
 
 const sendPaymentNotification = async ({ payment, type, title, message }) => {
@@ -276,7 +307,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
     throw createError("Webhook secret is not configured", 500);
   }
 
-  // Verify webhook signature
+  // 1. Verify webhook signature
   const expectedSignature = crypto
     .createHmac("sha256", webhookSecret)
     .update(rawBody)
@@ -306,7 +337,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
     throw createError("Invalid webhook event", 400);
   }
 
-  // Register webhook event and prevent duplicates
+  // 2. Register webhook event and prevent duplicates
   let webhookRecord;
 
   try {
@@ -369,84 +400,390 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
   try {
     let refundNotification = null;
-    // Handle Refund Webhooks
-    if (["refund.processed", "refund.failed"].includes(event.event)) {
-      const refund = event.payload?.refund?.entity;
+    let paymentNotification = null;
 
-      if (!refund?.payment_id || !refund?.id) {
+    // 3. Handle refund webhooks
+    if (["refund.processed", "refund.failed"].includes(event.event)) {
+      const refundEntity = event.payload?.refund?.entity;
+
+      if (!refundEntity?.id || !refundEntity.payment_id) {
         throw createError("Invalid refund webhook data", 400);
       }
-      let paymentNotification = null;
+
+      // Always verify the latest provider status.
+      const providerRefund = await fetchRazorpayRefund(refundEntity.id);
+
+      if (
+        providerRefund.id !== refundEntity.id ||
+        providerRefund.payment_id !== refundEntity.payment_id
+      ) {
+        throw createError("Razorpay refund verification mismatch", 409);
+      }
+
       const session = await mongoose.startSession();
 
       try {
         await session.withTransaction(async () => {
-          const payment = await Payment.findOne({
-            razorpayPaymentId: refund.payment_id,
+          let refundRecord = await PaymentRefund.findOne({
+            providerRefundId: providerRefund.id,
+            provider: "Razorpay",
           }).session(session);
 
-          if (!payment) {
-            throw createError("Payment not found", 404);
+          // Fallback lookup using Razorpay refund notes.
+          if (!refundRecord) {
+            const returnId = providerRefund.notes?.returnId;
+            const attempt = Number(providerRefund.notes?.attempt);
+
+            if (returnId && Number.isInteger(attempt) && attempt > 0) {
+              refundRecord = await PaymentRefund.findOne({
+                referenceType: "Return",
+                referenceId: returnId,
+                attempt,
+                provider: "Razorpay",
+              }).session(session);
+            }
           }
 
-          const order = await Order.findById(payment.order).session(session);
-
-          if (!order) {
-            throw createError("Order not found", 404);
-          }
-
-          if (event.event === "refund.processed") {
-            if (refund.amount !== Math.round(payment.amount * 100)) {
-              throw createError("Refund amount mismatch", 400);
+          // ------------------------------------
+          // RETURN REFUND FLOW
+          // ------------------------------------
+          if (refundRecord) {
+            if (!refundRecord.payment) {
+              throw createError("Refund payment reference is missing", 409);
             }
 
-            if (payment.status !== "Refunded") {
+            const payment = await Payment.findById(
+              refundRecord.payment,
+            ).session(session);
+
+            if (
+              !payment ||
+              payment.razorpayPaymentId !== providerRefund.payment_id
+            ) {
+              throw createError("Refund payment mismatch", 409);
+            }
+
+            if (
+              providerRefund.amount !== Math.round(refundRecord.amount * 100)
+            ) {
+              throw createError("Refund amount mismatch", 409);
+            }
+
+            const previousStatus = refundRecord.status;
+            const wasAlreadyProcessed = previousStatus === "Processed";
+
+            const reconciliationReasons = [];
+
+            let returnRequest = null;
+            let isCurrentReturnAttempt = true;
+
+            if (refundRecord.referenceType === "Return") {
+              returnRequest = await Return.findById(
+                refundRecord.referenceId,
+              ).session(session);
+
+              if (
+                returnRequest &&
+                returnRequest.paymentRefund?.toString() !==
+                  refundRecord._id.toString()
+              ) {
+                isCurrentReturnAttempt = false;
+              }
+            }
+
+            // ------------------------------------
+            // PROVIDER REFUND PENDING
+            // ------------------------------------
+            if (providerRefund.status === "pending") {
+              // Never downgrade terminal refund states.
+              if (
+                previousStatus === "Processed" ||
+                previousStatus === "Failed"
+              ) {
+                reconciliationReasons.push(
+                  `Provider returned pending for a locally ${previousStatus} refund attempt ${refundRecord.attempt}.`,
+                );
+              } else {
+                refundRecord.status = "Processing";
+                refundRecord.providerStatus = "pending";
+                refundRecord.providerStatusCheckedAt = new Date();
+              }
+
+              refundRecord.providerRefundId = providerRefund.id;
+
+              await refundRecord.save({ session });
+
+              if (reconciliationReasons.length > 0) {
+                payment.refundReconciliationRequired = true;
+
+                payment.refundReconciliationReason = [
+                  payment.refundReconciliationReason,
+                  ...reconciliationReasons,
+                ]
+                  .filter(Boolean)
+                  .join(" | ");
+
+                payment.refundReconciliationAt = new Date();
+
+                await payment.save({ session });
+              }
+
+              return;
+            }
+
+            // ------------------------------------
+            // PROVIDER REFUND FAILED
+            // ------------------------------------
+            if (providerRefund.status === "failed") {
+              // A processed refund must never be downgraded.
+              if (previousStatus === "Processed") {
+                reconciliationReasons.push(
+                  `Razorpay reported failed for an already processed refund attempt ${refundRecord.attempt}.`,
+                );
+              } else {
+                // Keep reservation until processReturnRefund()
+                // verifies failure before allowing a retry.
+                refundRecord.status = "Failed";
+                refundRecord.providerStatus = "failed";
+                refundRecord.failureReason =
+                  providerRefund.error_description ||
+                  "Razorpay confirmed refund failure";
+
+                refundRecord.providerStatusCheckedAt = new Date();
+              }
+
+              refundRecord.providerRefundId = providerRefund.id;
+
+              await refundRecord.save({ session });
+
+              if (reconciliationReasons.length > 0) {
+                payment.refundReconciliationRequired = true;
+
+                payment.refundReconciliationReason = [
+                  payment.refundReconciliationReason,
+                  ...reconciliationReasons,
+                ]
+                  .filter(Boolean)
+                  .join(" | ");
+
+                payment.refundReconciliationAt = new Date();
+
+                await payment.save({ session });
+              }
+
+              return;
+            }
+
+            // ------------------------------------
+            // PROVIDER REFUND PROCESSED
+            // ------------------------------------
+            if (providerRefund.status === "processed") {
+              const wasPreviouslyFailedAndReleased =
+                previousStatus === "Failed" &&
+                Boolean(refundRecord.reservationReleasedAt);
+
+              // An old attempt processed after a retry was started.
+              if (wasPreviouslyFailedAndReleased || !isCurrentReturnAttempt) {
+                reconciliationReasons.push(
+                  `Late processed refund detected for return ${refundRecord.referenceId}, attempt ${refundRecord.attempt}. Manual reconciliation is required.`,
+                );
+              }
+
+              refundRecord.providerRefundId = providerRefund.id;
+              refundRecord.status = "Processed";
+              refundRecord.providerStatus = "processed";
+              refundRecord.processedAt = refundRecord.processedAt || new Date();
+              refundRecord.providerStatusCheckedAt = new Date();
+
+              // Release reservation exactly once.
+              if (!refundRecord.reservationReleasedAt) {
+                const releasedPayment = await Payment.findOneAndUpdate(
+                  {
+                    _id: payment._id,
+                    reservedRefundAmount: {
+                      $gte: refundRecord.amount,
+                    },
+                  },
+                  {
+                    $inc: {
+                      reservedRefundAmount: -refundRecord.amount,
+                    },
+                  },
+                  {
+                    new: true,
+                    session,
+                  },
+                );
+
+                if (releasedPayment) {
+                  refundRecord.reservationReleasedAt = new Date();
+                } else {
+                  // Do not lose the fact that Razorpay actually refunded.
+                  // Record the refund and flag reconciliation instead.
+                  reconciliationReasons.push(
+                    `Unable to release reservation for refund attempt ${refundRecord.attempt}.`,
+                  );
+                }
+              }
+
+              await refundRecord.save({ session });
+
+              // Update Return only if this attempt is still current.
+              if (
+                refundRecord.referenceType === "Return" &&
+                returnRequest &&
+                isCurrentReturnAttempt &&
+                returnRequest.status === "RefundProcessing"
+              ) {
+                returnRequest.status = "Refunded";
+                returnRequest.refundedAt = new Date();
+                returnRequest.refundProcessedAt = new Date();
+
+                await returnRequest.save({ session });
+
+                refundNotification = {
+                  recipient: returnRequest.user,
+                  title: "Return Refund Completed",
+                  message: `Your refund for return ${returnRequest.returnNumber} has been processed.`,
+                  type: "REFUND_SUCCESS",
+                  relatedId: returnRequest._id,
+                  relatedModel: "Return",
+                };
+              }
+
+              // Recalculate refunded amount from processed records.
+              const processedRefunds = await PaymentRefund.find({
+                payment: payment._id,
+                status: "Processed",
+              }).session(session);
+
+              const totalRefunded = Number(
+                processedRefunds
+                  .reduce((sum, item) => sum + item.amount, 0)
+                  .toFixed(2),
+              );
+
+              const latestPayment = await Payment.findById(payment._id).session(
+                session,
+              );
+
+              if (!latestPayment) {
+                throw createError("Payment record not found", 404);
+              }
+
+              const reservedAmount = Number(
+                (latestPayment.reservedRefundAmount || 0).toFixed(2),
+              );
+
+              // Detect refund total exceeding captured payment.
+              if (
+                Number((totalRefunded + reservedAmount).toFixed(2)) >
+                latestPayment.amount
+              ) {
+                reconciliationReasons.push(
+                  "Processed refunds plus reserved refunds exceed the captured payment amount.",
+                );
+              }
+
+              latestPayment.refundedAmount = totalRefunded;
+
+              if (totalRefunded >= latestPayment.amount) {
+                latestPayment.status = "Refunded";
+              } else if (totalRefunded > 0) {
+                latestPayment.status = "PartiallyRefunded";
+              }
+
+              // Never automatically clear this flag.
+              if (reconciliationReasons.length > 0) {
+                latestPayment.refundReconciliationRequired = true;
+
+                latestPayment.refundReconciliationReason = [
+                  latestPayment.refundReconciliationReason,
+                  ...reconciliationReasons,
+                ]
+                  .filter(Boolean)
+                  .join(" | ");
+
+                latestPayment.refundReconciliationAt = new Date();
+              }
+
+              await latestPayment.save({ session });
+
+              // Update order payment status.
+              const order = await Order.findById(latestPayment.order).session(
+                session,
+              );
+
+              if (order) {
+                if (latestPayment.status === "Refunded") {
+                  order.paymentStatus = "Refunded";
+                } else if (latestPayment.status === "PartiallyRefunded") {
+                  order.paymentStatus = "PartiallyRefunded";
+                }
+
+                await order.save({ session });
+              }
+            }
+          } else {
+            // ------------------------------------
+            // LEGACY FULL-ORDER REFUND
+            // ------------------------------------
+            const payment = await Payment.findOne({
+              razorpayPaymentId: providerRefund.payment_id,
+            }).session(session);
+
+            if (!payment || payment.refundId !== providerRefund.id) {
+              throw createError("Refund record not found", 404);
+            }
+
+            if (providerRefund.status === "processed") {
               payment.status = "Refunded";
-              payment.refundId = refund.id;
               payment.refundedAt = new Date();
+              payment.refundId = providerRefund.id;
 
-              order.paymentStatus = "Refunded";
+              await payment.save({ session });
 
-              refundNotification = {
-                payment,
-                type: "REFUND_PROCESSED",
-                title: "Refund Processed",
-                message: "Your refund has been successfully processed.",
-              };
-            }
-          }
-
-          if (event.event === "refund.failed") {
-            // Never downgrade an already refunded payment.
-            if (payment.status === "Refunded") {
-              return;
-            }
-
-            // Ignore unrelated or outdated refund events.
-            if (payment.refundId && payment.refundId !== refund.id) {
-              return;
-            }
-
-            // Update only an active refund request.
-            if (payment.status === "RefundPending") {
+              await Order.updateOne(
+                { _id: payment.order },
+                {
+                  $set: {
+                    paymentStatus: "Refunded",
+                  },
+                },
+                { session },
+              );
+            } else if (providerRefund.status === "failed") {
               payment.status = "Paid";
               payment.refundId = null;
               payment.refundIdempotencyKey = null;
-              payment.failureReason = "Razorpay refund failed";
+              payment.failureReason =
+                providerRefund.error_description || "Razorpay refund failed";
 
-              order.paymentStatus = "Paid";
+              await payment.save({ session });
+
+              await Order.updateOne(
+                { _id: payment.order },
+                {
+                  $set: {
+                    paymentStatus: "Paid",
+                  },
+                },
+                { session },
+              );
             }
           }
-
-          await payment.save({ session });
-          await order.save({ session });
         });
       } finally {
         await session.endSession();
       }
 
+      // Send notification outside the transaction.
       if (refundNotification) {
-        await sendPaymentNotification(refundNotification);
+        try {
+          await createNotification(refundNotification);
+        } catch (error) {
+          console.error("Refund notification error:", error.message);
+        }
       }
 
       await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
@@ -462,7 +799,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       };
     }
 
-    // Ignore unsupported events safely
+    // 4. Ignore unsupported events safely.
     if (!["payment.captured", "payment.failed"].includes(event.event)) {
       await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
         $set: {
@@ -477,6 +814,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       };
     }
 
+    // 5. Handle payment webhooks.
     const razorpayPayment = event.payload?.payment?.entity;
 
     if (!razorpayPayment?.order_id || !razorpayPayment?.id) {
@@ -501,6 +839,9 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           throw createError("Order not found", 404);
         }
 
+        // ------------------------------------
+        // PAYMENT CAPTURED
+        // ------------------------------------
         if (event.event === "payment.captured") {
           if (
             razorpayPayment.amount !== Math.round(payment.amount * 100) ||
@@ -510,7 +851,11 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           }
 
           // Never change a refund-related payment status.
-          if (["RefundPending", "Refunded"].includes(payment.status)) {
+          if (
+            ["RefundPending", "PartiallyRefunded", "Refunded"].includes(
+              payment.status,
+            )
+          ) {
             return;
           }
 
@@ -528,6 +873,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             await payment.save({ session });
             return;
           }
+
           if (payment.status !== "Paid") {
             payment.razorpayPaymentId = razorpayPayment.id;
             payment.paymentMethod = razorpayPayment.method;
@@ -550,32 +896,39 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           }
         }
 
-        if (
-          event.event === "payment.failed" &&
-          payment.status !== "Paid" &&
-          payment.status !== "Refunded" &&
-          order.paymentStatus !== "Paid" &&
-          order.paymentStatus !== "Refunded"
-        ) {
+        // ------------------------------------
+        // PAYMENT FAILED
+        // ------------------------------------
+        if (event.event === "payment.failed") {
+          if (
+            ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"].includes(
+              payment.status,
+            ) ||
+            ["Paid", "PartiallyRefunded", "Refunded"].includes(
+              order.paymentStatus,
+            )
+          ) {
+            return;
+          }
+
+          const alreadyFailed = payment.status === "Failed";
+
           payment.status = "Failed";
           payment.razorpayPaymentId = razorpayPayment.id;
           payment.failureReason =
             razorpayPayment.error_description || "Payment failed";
 
           await payment.save({ session });
-          if (payment.status !== "Paid") {
-            payment.razorpayPaymentId = razorpayPayment.id;
-            payment.paymentMethod = razorpayPayment.method;
-            payment.status = "Paid";
-            payment.verifiedAt = new Date();
 
-            await payment.save({ session });
+          order.paymentStatus = "Failed";
+          await order.save({ session });
 
+          if (!alreadyFailed) {
             paymentNotification = {
               payment,
-              type: "PAYMENT_SUCCESS",
-              title: "Payment Successful",
-              message: "Your payment has been successfully completed.",
+              type: "PAYMENT_FAILED",
+              title: "Payment Failed",
+              message: "Your payment could not be completed. Please try again.",
             };
           }
         }
@@ -587,7 +940,8 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
     if (paymentNotification) {
       await sendPaymentNotification(paymentNotification);
     }
-    // Automatically refund captured payments for cancelled orders.
+
+    // 6. Automatically refund captured payments for cancelled orders.
     if (event.event === "payment.captured") {
       const payment = await Payment.findOne({
         razorpayOrderId: razorpayPayment.order_id,
