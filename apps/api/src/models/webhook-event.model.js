@@ -21,7 +21,12 @@ const webhookEventSchema = new mongoose.Schema(
 
     processingStartedAt: {
       type: Date,
-      default: Date.now,
+      default: null,
+    },
+
+    processingToken: {
+      type: String,
+      default: null,
     },
 
     processedAt: {

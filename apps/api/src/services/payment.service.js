@@ -147,7 +147,6 @@ export const verifyPayment = async (userId, paymentData) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     paymentData;
 
-  // Validate required fields
   if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
     throw createError("Payment verification details are required", 400);
   }
@@ -171,25 +170,7 @@ export const verifyPayment = async (userId, paymentData) => {
     throw createError("Payment record not found", 404);
   }
 
-  // Already paid
-  if (payment.status === "Paid") {
-    if (payment.razorpayPaymentId !== razorpay_payment_id) {
-      throw createError("Payment ID mismatch", 400);
-    }
-
-    return payment;
-  }
-
-  // Prevent verification of refunded payments
-  if (["RefundPending", "Refunded"].includes(payment.status)) {
-    throw createError("Payment cannot be verified in its current status");
-  }
-
-  if (payment.status !== "Created") {
-    throw createError("Payment is not available for verification");
-  }
-
-  // Verify Razorpay signature
+  // Verify Razorpay signature.
   const generatedSignature = crypto
     .createHmac("sha256", keySecret)
     .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -205,7 +186,7 @@ export const verifyPayment = async (userId, paymentData) => {
     throw createError("Invalid payment signature", 400);
   }
 
-  // Verify payment directly with Razorpay
+  // Verify payment directly with Razorpay.
   const razorpayPayment = await razorpay.payments.fetch(razorpay_payment_id);
 
   if (razorpayPayment.order_id !== razorpay_order_id) {
@@ -227,6 +208,7 @@ export const verifyPayment = async (userId, paymentData) => {
 
   try {
     let updatedPayment;
+    let notificationRequired = false;
 
     await session.withTransaction(async () => {
       const currentPayment = await Payment.findById(payment._id).session(
@@ -237,22 +219,30 @@ export const verifyPayment = async (userId, paymentData) => {
         throw createError("Payment record not found", 404);
       }
 
-      // Handle concurrent verification or webhook update
+      // Idempotent verification.
       if (currentPayment.status === "Paid") {
         if (currentPayment.razorpayPaymentId !== razorpay_payment_id) {
-          throw createError("Payment ID mismatch", 400);
+          throw createError("Payment ID mismatch", 409);
         }
 
         updatedPayment = currentPayment;
         return;
       }
 
-      if (["RefundPending", "Refunded"].includes(currentPayment.status)) {
-        throw createError("Payment cannot be verified in its current status");
+      // Never downgrade refund-related payment states.
+      if (
+        ["RefundPending", "PartiallyRefunded", "Refunded"].includes(
+          currentPayment.status,
+        )
+      ) {
+        throw createError(
+          "Payment cannot be verified in its current status",
+          409,
+        );
       }
 
-      if (currentPayment.status !== "Created") {
-        throw createError("Payment is not available for verification");
+      if (!["Created", "Failed"].includes(currentPayment.status)) {
+        throw createError("Payment is not available for verification", 409);
       }
 
       const order = await Order.findById(currentPayment.order).session(session);
@@ -261,34 +251,75 @@ export const verifyPayment = async (userId, paymentData) => {
         throw createError("Order not found", 404);
       }
 
-      if (order.orderStatus === "Cancelled") {
-        throw createError("Order is already cancelled");
+      // Check whether another payment attempt has already succeeded.
+      const anotherSuccessfulPayment = await Payment.findOne({
+        order: order._id,
+        _id: { $ne: currentPayment._id },
+        status: {
+          $in: ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"],
+        },
+      }).session(session);
+
+      const reconciliationReasons = [];
+
+      if (anotherSuccessfulPayment) {
+        reconciliationReasons.push(
+          `Duplicate successful payment detected. Existing payment: ${anotherSuccessfulPayment._id}. New payment: ${currentPayment._id}.`,
+        );
       }
 
-      if (order.paymentStatus === "Refunded") {
-        throw createError("Order payment is already refunded");
+      // Cancelled orders must not be silently marked as paid.
+      if (order.orderStatus === "Cancelled") {
+        reconciliationReasons.push(
+          "Payment was captured for a cancelled order. Refund or manual reconciliation is required.",
+        );
       }
 
       currentPayment.razorpayPaymentId = razorpay_payment_id;
       currentPayment.signature = razorpay_signature;
-      currentPayment.paymentMethod = razorpayPayment.method;
+      currentPayment.paymentMethod = razorpayPayment.method || null;
       currentPayment.status = "Paid";
       currentPayment.verifiedAt = new Date();
+      currentPayment.failureReason = null;
+
+      if (reconciliationReasons.length > 0) {
+        currentPayment.refundReconciliationRequired = true;
+        currentPayment.refundReconciliationReason = [
+          currentPayment.refundReconciliationReason,
+          ...reconciliationReasons,
+        ]
+          .filter(Boolean)
+          .join(" | ");
+        currentPayment.refundReconciliationAt = new Date();
+      }
 
       await currentPayment.save({ session });
 
-      order.paymentStatus = "Paid";
-      await order.save({ session });
+      // Update order only if it is active and no other
+      // successful payment attempt exists.
+      if (
+        order.orderStatus !== "Cancelled" &&
+        !anotherSuccessfulPayment &&
+        order.paymentStatus !== "Paid"
+      ) {
+        order.paymentStatus = "Paid";
+        await order.save({ session });
+      }
+
+      notificationRequired =
+        !anotherSuccessfulPayment && order.orderStatus !== "Cancelled";
 
       updatedPayment = currentPayment;
     });
 
-    await sendPaymentNotification({
-      payment: updatedPayment,
-      type: "PAYMENT_SUCCESS",
-      title: "Payment Successful",
-      message: "Your payment has been successfully completed.",
-    });
+    if (notificationRequired) {
+      await sendPaymentNotification({
+        payment: updatedPayment,
+        type: "PAYMENT_SUCCESS",
+        title: "Payment Successful",
+        message: "Your payment has been successfully completed.",
+      });
+    }
 
     return updatedPayment;
   } finally {
@@ -339,12 +370,15 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
   // 2. Register webhook event and prevent duplicates
   let webhookRecord;
+  const processingToken = crypto.randomUUID();
 
   try {
     webhookRecord = await WebhookEvent.create({
       eventId,
       event: event.event,
       status: "Processing",
+      processingToken,
+      processingStartedAt: new Date(),
     });
   } catch (error) {
     if (error.code !== 11000) {
@@ -386,6 +420,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       {
         $set: {
           status: "Processing",
+          processingToken,
           processingStartedAt: new Date(),
           processedAt: null,
         },
@@ -397,6 +432,50 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       throw createError("Webhook event is already processing", 503);
     }
   }
+
+  // Update webhook status only if this worker still owns the event.
+  const updateWebhookStatus = async (status) => {
+    const update = { status };
+
+    if (status === "Processed") {
+      update.processedAt = new Date();
+    }
+
+    const result = await WebhookEvent.updateOne(
+      {
+        _id: webhookRecord._id,
+        processingToken,
+        status: "Processing",
+      },
+      {
+        $set: update,
+      },
+    );
+
+    if (result.matchedCount !== 1) {
+      throw createError("Webhook processing ownership lost", 409);
+    }
+  };
+
+  const assertWebhookOwnership = async (session) => {
+    const result = await WebhookEvent.updateOne(
+      {
+        _id: webhookRecord._id,
+        processingToken,
+        status: "Processing",
+      },
+      {
+        $set: {
+          processingStartedAt: new Date(),
+        },
+      },
+      { session },
+    );
+
+    if (result.matchedCount !== 1) {
+      throw createError("Webhook processing ownership lost", 409);
+    }
+  };
 
   try {
     let refundNotification = null;
@@ -424,6 +503,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
       try {
         await session.withTransaction(async () => {
+          await assertWebhookOwnership(session);
           let refundRecord = await PaymentRefund.findOne({
             providerRefundId: providerRefund.id,
             provider: "Razorpay",
@@ -470,8 +550,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             }
 
             const previousStatus = refundRecord.status;
-            const wasAlreadyProcessed = previousStatus === "Processed";
-
             const reconciliationReasons = [];
 
             let returnRequest = null;
@@ -541,8 +619,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                   `Razorpay reported failed for an already processed refund attempt ${refundRecord.attempt}.`,
                 );
               } else {
-                // Keep reservation until processReturnRefund()
-                // verifies failure before allowing a retry.
                 refundRecord.status = "Failed";
                 refundRecord.providerStatus = "failed";
                 refundRecord.failureReason =
@@ -582,7 +658,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 previousStatus === "Failed" &&
                 Boolean(refundRecord.reservationReleasedAt);
 
-              // An old attempt processed after a retry was started.
               if (wasPreviouslyFailedAndReleased || !isCurrentReturnAttempt) {
                 reconciliationReasons.push(
                   `Late processed refund detected for return ${refundRecord.referenceId}, attempt ${refundRecord.attempt}. Manual reconciliation is required.`,
@@ -618,8 +693,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 if (releasedPayment) {
                   refundRecord.reservationReleasedAt = new Date();
                 } else {
-                  // Do not lose the fact that Razorpay actually refunded.
-                  // Record the refund and flag reconciliation instead.
                   reconciliationReasons.push(
                     `Unable to release reservation for refund attempt ${refundRecord.attempt}.`,
                   );
@@ -675,7 +748,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 (latestPayment.reservedRefundAmount || 0).toFixed(2),
               );
 
-              // Detect refund total exceeding captured payment.
               if (
                 Number((totalRefunded + reservedAmount).toFixed(2)) >
                 latestPayment.amount
@@ -786,12 +858,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
         }
       }
 
-      await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
-        $set: {
-          status: "Processed",
-          processedAt: new Date(),
-        },
-      });
+      await updateWebhookStatus("Processed");
 
       return {
         received: true,
@@ -801,12 +868,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
     // 4. Ignore unsupported events safely.
     if (!["payment.captured", "payment.failed"].includes(event.event)) {
-      await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
-        $set: {
-          status: "Processed",
-          processedAt: new Date(),
-        },
-      });
+      await updateWebhookStatus("Processed");
 
       return {
         received: true,
@@ -817,7 +879,12 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
     // 5. Handle payment webhooks.
     const razorpayPayment = event.payload?.payment?.entity;
 
-    if (!razorpayPayment?.order_id || !razorpayPayment?.id) {
+    if (
+      !razorpayPayment?.order_id ||
+      !razorpayPayment?.id ||
+      !Number.isFinite(razorpayPayment.amount) ||
+      !razorpayPayment.currency
+    ) {
       throw createError("Invalid payment webhook data", 400);
     }
 
@@ -825,6 +892,8 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
     try {
       await session.withTransaction(async () => {
+        await assertWebhookOwnership(session);
+
         const payment = await Payment.findOne({
           razorpayOrderId: razorpayPayment.order_id,
         }).session(session);
@@ -839,48 +908,137 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           throw createError("Order not found", 404);
         }
 
+        // Validate amount and currency.
+        if (
+          razorpayPayment.amount !== Math.round(payment.amount * 100) ||
+          razorpayPayment.currency !== payment.currency
+        ) {
+          throw createError("Payment amount or currency mismatch", 400);
+        }
+
         // ------------------------------------
         // PAYMENT CAPTURED
         // ------------------------------------
         if (event.event === "payment.captured") {
+          const capturedPaymentId = razorpayPayment.id;
+
+          // Same payment already processed.
           if (
-            razorpayPayment.amount !== Math.round(payment.amount * 100) ||
-            razorpayPayment.currency !== payment.currency
+            payment.status === "Paid" &&
+            payment.razorpayPaymentId === capturedPaymentId
           ) {
-            throw createError("Payment amount or currency mismatch", 400);
+            return;
           }
 
-          // Never change a refund-related payment status.
+          // Check whether another payment attempt for this
+          // order has already been successfully paid.
+          const anotherSuccessfulPayment = await Payment.findOne({
+            order: order._id,
+            _id: { $ne: payment._id },
+            status: {
+              $in: ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"],
+            },
+          }).session(session);
+
+          const reconciliationReasons = [];
+
+          if (anotherSuccessfulPayment) {
+            reconciliationReasons.push(
+              `Duplicate successful payment detected. Existing payment: ${anotherSuccessfulPayment._id}. Captured payment: ${payment._id}. Razorpay payment ID: ${capturedPaymentId}.`,
+            );
+          }
+
+          if (
+            payment.razorpayPaymentId &&
+            payment.razorpayPaymentId !== capturedPaymentId &&
+            payment.status !== "Failed"
+          ) {
+            reconciliationReasons.push(
+              `Different Razorpay payment ID detected for the same payment record. Previous: ${payment.razorpayPaymentId}, New: ${capturedPaymentId}.`,
+            );
+          }
+
+          // A previously captured payment must not be overwritten
+          // with a different payment ID.
+          if (
+            payment.status === "Paid" &&
+            payment.razorpayPaymentId !== capturedPaymentId
+          ) {
+            reconciliationReasons.push(
+              "A second captured payment was detected for an already paid payment record.",
+            );
+
+            payment.refundReconciliationRequired = true;
+            payment.refundReconciliationReason = [
+              payment.refundReconciliationReason,
+              ...reconciliationReasons,
+            ]
+              .filter(Boolean)
+              .join(" | ");
+
+            payment.refundReconciliationAt = new Date();
+
+            await payment.save({ session });
+            return;
+          }
+
+          // Refund-related states must not be downgraded.
           if (
             ["RefundPending", "PartiallyRefunded", "Refunded"].includes(
               payment.status,
             )
           ) {
+            if (reconciliationReasons.length > 0) {
+              payment.refundReconciliationRequired = true;
+              payment.refundReconciliationReason = [
+                payment.refundReconciliationReason,
+                ...reconciliationReasons,
+              ]
+                .filter(Boolean)
+                .join(" | ");
+
+              payment.refundReconciliationAt = new Date();
+
+              await payment.save({ session });
+            }
+
             return;
           }
 
-          if (payment.status === "Failed") {
-            throw createError("Failed payment cannot be marked as paid", 409);
+          // A Failed payment can become Paid if Razorpay confirms
+          // that the payment was actually captured.
+          payment.razorpayPaymentId = capturedPaymentId;
+          payment.paymentMethod = razorpayPayment.method || null;
+          payment.status = "Paid";
+          payment.verifiedAt = payment.verifiedAt || new Date();
+          payment.failureReason = null;
+
+          if (reconciliationReasons.length > 0) {
+            payment.refundReconciliationRequired = true;
+            payment.refundReconciliationReason = [
+              payment.refundReconciliationReason,
+              ...reconciliationReasons,
+            ]
+              .filter(Boolean)
+              .join(" | ");
+
+            payment.refundReconciliationAt = new Date();
           }
 
-          // Store captured payment even if the order was cancelled.
+          await payment.save({ session });
+
+          // Cancelled orders must retain their cancelled status.
+          // Automatic refund is handled after this transaction.
           if (order.orderStatus === "Cancelled") {
-            payment.razorpayPaymentId = razorpayPayment.id;
-            payment.paymentMethod = razorpayPayment.method;
-            payment.status = "Paid";
-            payment.verifiedAt = new Date();
-
-            await payment.save({ session });
             return;
           }
 
-          if (payment.status !== "Paid") {
-            payment.razorpayPaymentId = razorpayPayment.id;
-            payment.paymentMethod = razorpayPayment.method;
-            payment.status = "Paid";
-            payment.verifiedAt = new Date();
-
-            await payment.save({ session });
+          // Do not overwrite an order already paid by another attempt.
+          if (!anotherSuccessfulPayment) {
+            if (order.paymentStatus !== "Paid") {
+              order.paymentStatus = "Paid";
+              await order.save({ session });
+            }
 
             paymentNotification = {
               payment,
@@ -889,25 +1047,33 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
               message: "Your payment has been successfully completed.",
             };
           }
-
-          if (order.paymentStatus !== "Paid") {
-            order.paymentStatus = "Paid";
-            await order.save({ session });
-          }
         }
 
         // ------------------------------------
         // PAYMENT FAILED
         // ------------------------------------
         if (event.event === "payment.failed") {
+          // Never downgrade a successful or refund-related payment.
           if (
             ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"].includes(
               payment.status,
-            ) ||
-            ["Paid", "PartiallyRefunded", "Refunded"].includes(
-              order.paymentStatus,
             )
           ) {
+            return;
+          }
+
+          // Do not overwrite a payment record already associated
+          // with a different Razorpay payment ID.
+          if (
+            payment.razorpayPaymentId &&
+            payment.razorpayPaymentId !== razorpayPayment.id
+          ) {
+            return;
+          }
+
+          // Only update an attempt that is still Created or
+          // already Failed. Old attempts must not affect newer ones.
+          if (!["Created", "Failed"].includes(payment.status)) {
             return;
           }
 
@@ -920,10 +1086,27 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
           await payment.save({ session });
 
-          order.paymentStatus = "Failed";
-          await order.save({ session });
+          // Check whether another attempt has already succeeded.
+          const successfulPayment = await Payment.findOne({
+            order: order._id,
+            _id: { $ne: payment._id },
+            status: {
+              $in: ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"],
+            },
+          }).session(session);
 
-          if (!alreadyFailed) {
+          // Only update order status when no successful attempt exists.
+          if (
+            !successfulPayment &&
+            !["Paid", "PartiallyRefunded", "Refunded"].includes(
+              order.paymentStatus,
+            )
+          ) {
+            order.paymentStatus = "Failed";
+            await order.save({ session });
+          }
+
+          if (!alreadyFailed && !successfulPayment) {
             paymentNotification = {
               payment,
               type: "PAYMENT_FAILED",
@@ -959,23 +1142,18 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
       }
     }
 
-    await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
-      $set: {
-        status: "Processed",
-        processedAt: new Date(),
-      },
-    });
+    await updateWebhookStatus("Processed");
 
     return {
       received: true,
       processed: true,
     };
   } catch (error) {
-    await WebhookEvent.findByIdAndUpdate(webhookRecord._id, {
-      $set: {
-        status: "Failed",
-      },
-    });
+    try {
+      await updateWebhookStatus("Failed");
+    } catch (updateError) {
+      console.error("Webhook status update error:", updateError.message);
+    }
 
     throw error;
   }
@@ -1085,10 +1263,6 @@ export const refundPayment = async (paymentId, reason = "Customer refund") => {
   }
 
   const idempotencyKey = payment.refundIdempotencyKey;
-
-  const razorpayPayment = await razorpay.payments.fetch(
-    payment.razorpayPaymentId,
-  );
 
   // Use the same idempotency key and request body for retries.
   const response = await fetch(

@@ -93,6 +93,23 @@ const paymentSchema = new mongoose.Schema(
       min: 0,
     },
 
+    // Refund reconciliation tracking.
+    refundReconciliationRequired: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    refundReconciliationReason: {
+      type: String,
+      default: null,
+    },
+
+    refundReconciliationAt: {
+      type: Date,
+      default: null,
+    },
+
     // Legacy full-refund fields.
     // Keep these until the existing refund workflow is migrated.
     refundIdempotencyKey: {
