@@ -93,6 +93,20 @@ export const getProductById = async (req, res, next) => {
   }
 };
 
+// 4. Get Single Product by Slug
+export const getProductBySlug = async (req, res, next) => {
+  try {
+    const product = await productService.getProductBySlug(req.params.slug);
+
+    res.status(200).json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // 4. Update Product
 export const updateProduct = async (req, res, next) => {
   try {

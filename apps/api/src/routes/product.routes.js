@@ -4,6 +4,7 @@ import {
   createProduct,
   getAllProducts,
   getProductById,
+  getProductBySlug,
   updateProduct,
   deleteProduct,
   toggleProductStatus,
@@ -24,6 +25,10 @@ const router = express.Router();
 // Public routes
 router.get("/", getAllProducts);
 
+// Get product by slug
+router.get("/slug/:slug", getProductBySlug);
+
+// Get product by ID
 router.get("/:productId", validate(productIdSchema, "params"), getProductById);
 
 // Admin routes

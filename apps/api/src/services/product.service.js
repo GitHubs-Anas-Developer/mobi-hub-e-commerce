@@ -182,6 +182,24 @@ export const getProductById = async (productId) => {
   return product;
 };
 
+// 4. Get Single Active Product by Slug (Public)
+export const getProductBySlug = async (slug) => {
+  if (!slug || typeof slug !== "string") {
+    throw createError("Invalid product slug");
+  }
+
+  const product = await Product.findOne({
+    slug: slug.toLowerCase().trim(),
+    isActive: true,
+  }).populate("category", "name slug");
+
+  if (!product) {
+    throw createError("Product not found", 404);
+  }
+
+  return product;
+};
+
 // 4. Update Product (Admin)
 export const updateProduct = async (productId, updateData) => {
   if (!mongoose.isValidObjectId(productId)) {
