@@ -142,8 +142,7 @@ export default function Footer() {
 
         {/* Bottom Footer */}
         <div className="mt-12 flex flex-col gap-4 border-t border-slate-700 pt-6 text-center text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:text-left">
-          <p>© {new Date().getFullYear()} MOBI HUB. All rights reserved.</p>
-
+          <p>© 2026 MOBI HUB. All rights reserved.</p>
           <div className="flex justify-center gap-5">
             <Link href="/privacy-policy" className="hover:text-white">
               Privacy Policy
