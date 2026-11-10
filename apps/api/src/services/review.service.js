@@ -1,6 +1,7 @@
 import Review from "../models/review.model.js";
 import Product from "../models/product.model.js";
 import Order from "../models/order.model.js";
+import mongoose from "mongoose";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -8,6 +9,18 @@ const createError = (message, statusCode = 400) => {
   return error;
 };
 
+const getPagination = (query = {}) => {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
+
+  return {
+    page,
+    limit,
+    skip: (page - 1) * limit,
+  };
+};
+
+// Create Review
 export const createReview = async (userId, data) => {
   const { productId, rating, title, comment } = data;
 
@@ -26,51 +39,90 @@ export const createReview = async (userId, data) => {
     throw createError("You have already reviewed this product", 409);
   }
 
-  // Check whether the user purchased and received this product
   const hasPurchased = await Order.exists({
     user: userId,
     orderStatus: "Delivered",
     "items.product": productId,
   });
 
-  const review = await Review.create({
-    product: productId,
-    user: userId,
-    rating,
-    title,
-    comment,
-    isVerifiedPurchase: Boolean(hasPurchased),
-  });
+  try {
+    const review = await Review.create({
+      product: productId,
+      user: userId,
+      rating,
+      title,
+      comment,
+      isVerifiedPurchase: Boolean(hasPurchased),
+    });
 
-  return review;
+    return review;
+  } catch (error) {
+    // Handle duplicate review caused by concurrent requests
+    if (error.code === 11000) {
+      throw createError("You have already reviewed this product", 409);
+    }
+
+    throw error;
+  }
 };
 
+// Get Product Reviews + Rating Statistics
+
 export const getProductReviews = async (productId, query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
+  const { page, limit, skip } = getPagination(query);
+
+  const { sort = "newest", rating } = query;
 
   const filter = {
     product: productId,
     isVisible: true,
   };
 
-  const [reviews, total, ratingStats] = await Promise.all([
+  // Apply rating filter only to the review list.
+  if (rating) {
+    filter.rating = rating;
+  }
+
+  // Aggregation does not automatically cast string IDs.
+  const aggregateFilter = {
+    product: new mongoose.Types.ObjectId(productId),
+    isVisible: true,
+  };
+
+  // Sorting options.
+  const sortOptions = {
+    newest: { createdAt: -1 },
+    highest: { rating: -1, createdAt: -1 },
+    lowest: { rating: 1, createdAt: -1 },
+  };
+
+  const [reviews, total, ratingStats, distributionStats] = await Promise.all([
     Review.find(filter)
       .populate("user", "name")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .sort(sortOptions[sort] || sortOptions.newest)
+      .skip(skip)
       .limit(limit)
       .lean(),
 
     Review.countDocuments(filter),
 
     Review.aggregate([
-      { $match: filter },
+      { $match: aggregateFilter },
       {
         $group: {
           _id: null,
           averageRating: { $avg: "$rating" },
           totalReviews: { $sum: 1 },
+        },
+      },
+    ]),
+
+    Review.aggregate([
+      { $match: aggregateFilter },
+      {
+        $group: {
+          _id: "$rating",
+          count: { $sum: 1 },
         },
       },
     ]),
@@ -81,12 +133,28 @@ export const getProductReviews = async (productId, query = {}) => {
     totalReviews: 0,
   };
 
+  const ratingDistribution = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
+
+  distributionStats.forEach((item) => {
+    ratingDistribution[item._id] = item.count;
+  });
+
   return {
     reviews,
+
+    // Overall rating summary remains independent of filters.
     rating: {
-      averageRating: Number(stats.averageRating.toFixed(1)),
+      averageRating: Number((stats.averageRating || 0).toFixed(1)),
       totalReviews: stats.totalReviews,
+      ratingDistribution,
     },
+
     pagination: {
       total,
       page,
@@ -96,9 +164,9 @@ export const getProductReviews = async (productId, query = {}) => {
   };
 };
 
+// Get My Reviews
 export const getMyReviews = async (userId, query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
+  const { page, limit, skip } = getPagination(query);
 
   const filter = { user: userId };
 
@@ -106,7 +174,7 @@ export const getMyReviews = async (userId, query = {}) => {
     Review.find(filter)
       .populate("product", "name slug thumbnail")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .skip(skip)
       .limit(limit)
       .lean(),
 
@@ -115,6 +183,7 @@ export const getMyReviews = async (userId, query = {}) => {
 
   return {
     reviews,
+
     pagination: {
       total,
       page,
@@ -124,6 +193,7 @@ export const getMyReviews = async (userId, query = {}) => {
   };
 };
 
+// Update Review
 export const updateReview = async (reviewId, userId, data) => {
   const review = await Review.findOne({
     _id: reviewId,
@@ -155,6 +225,7 @@ export const updateReview = async (reviewId, userId, data) => {
   return review;
 };
 
+// Delete Review
 export const deleteReview = async (reviewId, userId) => {
   const review = await Review.findOne({
     _id: reviewId,
@@ -172,9 +243,9 @@ export const deleteReview = async (reviewId, userId) => {
   };
 };
 
+// Get All Reviews (Admin)
 export const getAllReviews = async (query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
+  const { page, limit, skip } = getPagination(query);
 
   const filter = {};
 
@@ -191,7 +262,7 @@ export const getAllReviews = async (query = {}) => {
       .populate("user", "name email")
       .populate("product", "name slug")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .skip(skip)
       .limit(limit)
       .lean(),
 
@@ -200,6 +271,7 @@ export const getAllReviews = async (query = {}) => {
 
   return {
     reviews,
+
     pagination: {
       total,
       page,
@@ -209,6 +281,7 @@ export const getAllReviews = async (query = {}) => {
   };
 };
 
+// Update Review Visibility (Admin)
 export const toggleReviewVisibility = async (reviewId, isVisible) => {
   const review = await Review.findById(reviewId);
 

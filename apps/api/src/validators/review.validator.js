@@ -46,6 +46,10 @@ export const reviewQuerySchema = z.object({
     .enum(["true", "false"])
     .transform((value) => value === "true")
     .optional(),
+
+  sort: z.enum(["newest", "highest", "lowest"]).default("newest"),
+
+  rating: z.coerce.number().int().min(1).max(5).optional(),
 });
 
 export const updateReviewVisibilitySchema = z.object({
