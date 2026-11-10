@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useEffect, useMemo } from "react";
 import Image from "next/image";
 import {
   Plus,
@@ -9,6 +10,16 @@ import {
   X,
   Star,
 } from "lucide-react";
+
+const getImageSrc = (image) => {
+  if (!image) return "";
+
+  if (typeof File !== "undefined" && image instanceof File) {
+    return URL.createObjectURL(image);
+  }
+
+  return image.url || "";
+};
 
 export default function ProductVariantCard({
   variant,
@@ -23,6 +34,21 @@ export default function ProductVariantCard({
   onImageChange,
   onRemoveImage,
 }) {
+  const imageSources = useMemo(
+    () => variant.images.map((image) => getImageSrc(image)),
+    [variant.images],
+  );
+
+  useEffect(() => {
+    return () => {
+      imageSources.forEach((src) => {
+        if (src.startsWith("blob:")) {
+          URL.revokeObjectURL(src);
+        }
+      });
+    };
+  }, [imageSources]);
+
   const handleFieldChange = (field, value) => {
     onChange(index, field, value);
   };
@@ -229,11 +255,14 @@ export default function ProductVariantCard({
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {variant.images.map((file, imageIndex) => (
-            <div key={`${file.name}-${imageIndex}`} className="relative">
+          {variant.images.map((image, imageIndex) => (
+            <div
+              key={image.publicId || image.name || imageIndex}
+              className="relative"
+            >
               <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                 <Image
-                  src={URL.createObjectURL(file)}
+                  src={imageSources[imageIndex]}
                   alt={`Variant ${index + 1} image ${imageIndex + 1}`}
                   fill
                   unoptimized

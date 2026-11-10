@@ -264,6 +264,24 @@ export const getProductById = async (productId) => {
   return product;
 };
 
+// Get Single Product (Admin - Includes Inactive Products)
+export const getAdminProductById = async (productId) => {
+  if (!mongoose.isValidObjectId(productId)) {
+    throw createError("Invalid product ID");
+  }
+
+  const product = await Product.findById(productId).populate(
+    "category",
+    "name slug",
+  );
+
+  if (!product) {
+    throw createError("Product not found", 404);
+  }
+
+  return product;
+};
+
 // 4. Get Single Active Product by Slug (Public)
 export const getProductBySlug = async (slug) => {
   if (!slug || typeof slug !== "string") {

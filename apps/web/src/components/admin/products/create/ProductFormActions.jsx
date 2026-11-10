@@ -6,6 +6,8 @@ import { ArrowLeft, Loader2, Save } from "lucide-react";
 export default function ProductFormActions({
   loading,
   onCancel,
+  submitLabel = "Create Product",
+  loadingLabel = "Creating Product...",
 }) {
   return (
     <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
@@ -27,12 +29,12 @@ export default function ProductFormActions({
         {loading ? (
           <>
             <Loader2 size={17} className="animate-spin" />
-            Creating Product...
+            {loadingLabel}
           </>
         ) : (
           <>
             <Save size={17} />
-            Create Product
+            {submitLabel}
           </>
         )}
       </button>

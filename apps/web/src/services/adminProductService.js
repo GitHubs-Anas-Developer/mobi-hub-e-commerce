@@ -10,6 +10,13 @@ const adminProductService = {
     return response.data;
   },
 
+  // Get single product (including inactive)
+  getProductById: async (productId) => {
+    const response = await axiosInstance.get(`/admin/products/${productId}`);
+
+    return response.data;
+  },
+
   // Upload product images to Cloudinary
   uploadImages: async (files, type = "products") => {
     const formData = new FormData();
@@ -28,6 +35,16 @@ const adminProductService = {
   // Create product
   createProduct: async (productData) => {
     const response = await axiosInstance.post("/products", productData);
+
+    return response.data;
+  },
+
+  // Update product
+  updateProduct: async (productId, productData) => {
+    const response = await axiosInstance.patch(
+      `/products/${productId}`,
+      productData,
+    );
 
     return response.data;
   },

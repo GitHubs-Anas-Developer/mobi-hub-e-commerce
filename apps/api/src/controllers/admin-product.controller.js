@@ -61,3 +61,19 @@ export const getAdminProducts = async (req, res, next) => {
     next(error);
   }
 };
+
+// Get single product for admin (including inactive products)
+export const getAdminProductById = async (req, res, next) => {
+  try {
+    const product = await productService.getAdminProductById(
+      req.validatedData.params.productId,
+    );
+
+    res.status(200).json({
+      success: true,
+      data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

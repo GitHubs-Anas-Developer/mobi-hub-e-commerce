@@ -1,8 +1,19 @@
 
 "use client";
 
+import { useEffect, useMemo } from "react";
 import Image from "next/image";
 import { ImagePlus, Trash2, Upload } from "lucide-react";
+
+const getImageSrc = (image) => {
+  if (!image) return "";
+
+  if (typeof File !== "undefined" && image instanceof File) {
+    return URL.createObjectURL(image);
+  }
+
+  return image.url || "";
+};
 
 export default function ProductImagesSection({
   thumbnail,
@@ -11,6 +22,30 @@ export default function ProductImagesSection({
   onGalleryChange,
   onRemoveGalleryImage,
 }) {
+  const thumbnailSrc = useMemo(
+    () => getImageSrc(thumbnail),
+    [thumbnail],
+  );
+
+  const gallerySources = useMemo(
+    () => galleryImages.map((image) => getImageSrc(image)),
+    [galleryImages],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (thumbnailSrc.startsWith("blob:")) {
+        URL.revokeObjectURL(thumbnailSrc);
+      }
+
+      gallerySources.forEach((src) => {
+        if (src.startsWith("blob:")) {
+          URL.revokeObjectURL(src);
+        }
+      });
+    };
+  }, [thumbnailSrc, gallerySources]);
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6">
       <h2 className="text-lg font-semibold text-slate-900">
@@ -29,10 +64,10 @@ export default function ProductImagesSection({
           </label>
 
           <label className="flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-5 text-center transition hover:border-blue-500 hover:bg-blue-50">
-            {thumbnail ? (
+            {thumbnailSrc ? (
               <div className="relative h-40 w-full">
                 <Image
-                  src={URL.createObjectURL(thumbnail)}
+                  src={thumbnailSrc}
                   alt="Product thumbnail preview"
                   fill
                   unoptimized
@@ -64,7 +99,7 @@ export default function ProductImagesSection({
           {thumbnail && (
             <div className="mt-2 flex items-center justify-between gap-2">
               <p className="truncate text-xs text-slate-500">
-                {thumbnail.name}
+                {thumbnail.name || "Existing thumbnail"}
               </p>
 
               <button
@@ -110,14 +145,14 @@ export default function ProductImagesSection({
 
           {galleryImages.length > 0 && (
             <div className="mt-4 grid grid-cols-3 gap-3">
-              {galleryImages.map((file, index) => (
+              {galleryImages.map((image, index) => (
                 <div
-                  key={`${file.name}-${index}`}
+                  key={image.publicId || image.name || index}
                   className="relative"
                 >
                   <div className="relative aspect-square overflow-hidden rounded-lg border border-slate-200">
                     <Image
-                      src={URL.createObjectURL(file)}
+                      src={gallerySources[index]}
                       alt={`Gallery image ${index + 1}`}
                       fill
                       unoptimized
