@@ -44,6 +44,35 @@ export const fetchCurrentUser = createAsyncThunk(
   },
 );
 
+// Update Profile
+export const updateUserProfile = createAsyncThunk(
+  "auth/updateProfile",
+  async (profileData, { rejectWithValue }) => {
+    try {
+      const response = await authService.updateProfile(profileData);
+      return response.user;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Profile update failed",
+      );
+    }
+  },
+);
+
+// Change Password
+export const changeUserPassword = createAsyncThunk(
+  "auth/changePassword",
+  async (passwordData, { rejectWithValue }) => {
+    try {
+      return await authService.changePassword(passwordData);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Password change failed",
+      );
+    }
+  },
+);
+
 // Logout
 export const logoutUser = createAsyncThunk(
   "auth/logout",

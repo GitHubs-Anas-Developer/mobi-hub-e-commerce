@@ -7,6 +7,8 @@ import {
   registerUser,
   forgotPassword,
   resetPassword,
+  updateUserProfile,
+  changeUserPassword,
 } from "../thunks/authThunks";
 
 const initialState = {
@@ -30,6 +32,15 @@ const authSlice = createSlice({
       state.isInitialized = true;
       state.error = null;
       state.successMessage = null;
+    },
+
+    updateUser: (state, action) => {
+      if (state.user) {
+        state.user = {
+          ...state.user,
+          ...action.payload,
+        };
+      }
     },
 
     clearAuthError: (state) => {
@@ -142,11 +153,43 @@ const authSlice = createSlice({
       .addCase(resetPassword.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
+      })
+      // UPDATE PROFILE
+      .addCase(updateUserProfile.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateUserProfile.fulfilled, (state, action) => {
+        state.user = action.payload;
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(updateUserProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+
+      // CHANGE PASSWORD
+      .addCase(changeUserPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(changeUserPassword.fulfilled, (state) => {
+        state.isLoading = false;
+        state.error = null;
+      })
+      .addCase(changeUserPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       });
   },
 });
 
-export const { clearCredentials, clearAuthError, clearAuthMessage } =
-  authSlice.actions;
+export const {
+  clearCredentials,
+  clearAuthError,
+  clearAuthMessage,
+  updateUser,
+} = authSlice.actions;
 
 export default authSlice.reducer;

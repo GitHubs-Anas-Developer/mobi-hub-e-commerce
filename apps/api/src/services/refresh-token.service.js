@@ -93,3 +93,15 @@ export const consumeRefreshToken = async (token) => {
 
   return storedToken.user;
 };
+
+export const revokeAllUserRefreshTokens = async (userId) => {
+  return RefreshToken.updateMany(
+    {
+      user: userId,
+      revokedAt: null,
+    },
+    {
+      revokedAt: new Date(),
+    },
+  );
+};

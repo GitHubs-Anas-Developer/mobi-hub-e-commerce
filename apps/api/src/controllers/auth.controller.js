@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import {
-  createRefreshToken,
+    createRefreshToken,
   generateAccessToken,
   consumeRefreshToken,
   revokeRefreshToken,
+  revokeAllUserRefreshTokens,
 } from "../services/refresh-token.service.js";
 
 import User from "../models/user.model.js";
@@ -318,6 +319,126 @@ export const resetPassword = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Password reset successfully",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Update User Profile
+export const updateUserProfile = async (req, res, next) => {
+  try {
+    const { name, phone } = req.body || {};
+
+    if (name !== undefined) {
+      if (typeof name !== "string" || name.trim().length < 2) {
+        return res.status(400).json({
+          success: false,
+          message: "Name must be at least 2 characters",
+        });
+      }
+
+      if (name.trim().length > 50) {
+        return res.status(400).json({
+          success: false,
+          message: "Name cannot exceed 50 characters",
+        });
+      }
+
+      req.user.name = name.trim();
+    }
+
+    if (phone !== undefined) {
+      if (phone !== null && typeof phone !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid phone number",
+        });
+      }
+
+      req.user.phone = phone?.trim() || null;
+    }
+
+    await req.user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: sanitizeUser(req.user),
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Change User Password
+export const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password, new password and confirm password are required",
+      });
+    }
+
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password and confirm password do not match",
+      });
+    }
+
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be different from current password",
+      });
+    }
+
+    const user = await User.findById(req.user._id).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const isPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
+
+    user.password = newPassword;
+
+    await user.save();
+
+    // Revoke all existing refresh-token sessions.
+    await revokeAllUserRefreshTokens(user._id);
+
+    // Clear current authentication cookies.
+    clearAuthCookies(res);
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully. Please login again.",
     });
   } catch (error) {
     return next(error);

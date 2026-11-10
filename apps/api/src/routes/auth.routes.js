@@ -7,6 +7,8 @@ import {
   refreshAccessToken,
   registerUser,
   resetPassword,
+  updateUserProfile,
+  changePassword,
 } from "../controllers/auth.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 
@@ -27,5 +29,8 @@ router.get("/me", authenticate, (req, res) => {
     user: req.user,
   });
 });
+
+router.patch("/me", authenticate, updateUserProfile);
+router.patch("/change-password", authenticate, changePassword);
 
 export default router;
