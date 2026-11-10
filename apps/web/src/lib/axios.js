@@ -3,12 +3,10 @@ import axios from "axios";
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
+// Main Axios instance
 const axiosInstance = axios.create({
   baseURL: API_URL,
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 // Separate instance for refreshing token
@@ -35,7 +33,9 @@ const processQueue = (error) => {
 // Request Interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Browser automatically sends HttpOnly cookies
+    // Browser automatically sends HttpOnly cookies.
+    // Do not set Content-Type globally.
+    // Axios/browser will handle JSON and FormData headers.
     return config;
   },
   (error) => Promise.reject(error),
@@ -71,12 +71,12 @@ axiosInstance.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      // Refresh cookie is sent automatically
+      // Refresh cookie is sent automatically.
       await refreshClient.post("/auth/refresh");
 
       processQueue(null);
 
-      // Browser now has the renewed access cookie
+      // Browser now has the renewed access cookie.
       return axiosInstance(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError);

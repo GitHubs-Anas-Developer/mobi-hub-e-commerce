@@ -164,6 +164,88 @@ export const getAllProducts = async (filters = {}) => {
   };
 };
 
+// 2.1 Get All Products (Admin - Includes Inactive Products)
+export const getAdminProducts = async (filters = {}) => {
+  const query = {};
+
+  if (typeof filters.isActive === "boolean") {
+    query.isActive = filters.isActive;
+  }
+
+  if (typeof filters.isFeatured === "boolean") {
+    query.isFeatured = filters.isFeatured;
+  }
+
+  if (typeof filters.isNewArrival === "boolean") {
+    query.isNewArrival = filters.isNewArrival;
+  }
+
+  if (filters.category) {
+    if (!mongoose.isValidObjectId(filters.category)) {
+      throw createError("Invalid category ID");
+    }
+
+    query.category = filters.category;
+  }
+
+  if (filters.brand?.trim()) {
+    query.brand = filters.brand.trim();
+  }
+
+  if (filters.search?.trim()) {
+    query.$text = { $search: filters.search.trim() };
+  }
+
+  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+    query.basePrice = {};
+
+    if (filters.minPrice !== undefined) {
+      query.basePrice.$gte = Number(filters.minPrice);
+    }
+
+    if (filters.maxPrice !== undefined) {
+      query.basePrice.$lte = Number(filters.maxPrice);
+    }
+  }
+
+  const sortOptions = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    priceLowToHigh: { basePrice: 1 },
+    priceHighToLow: { basePrice: -1 },
+    nameAZ: { name: 1 },
+    nameZA: { name: -1 },
+  };
+
+  const sort = sortOptions[filters.sort] || { createdAt: -1 };
+
+  const page = Math.max(1, Number(filters.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(filters.limit) || 10));
+  const skip = (page - 1) * limit;
+
+  const [products, total] = await Promise.all([
+    Product.find(query)
+      .populate("category", "name slug")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit),
+
+    Product.countDocuments(query),
+  ]);
+
+  return {
+    products,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page * limit < total,
+      hasPrevPage: page > 1,
+    },
+  };
+};
+
 // 3. Get Single Active Product (Public)
 export const getProductById = async (productId) => {
   if (!mongoose.isValidObjectId(productId)) {
