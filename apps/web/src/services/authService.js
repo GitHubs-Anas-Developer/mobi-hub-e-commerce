@@ -20,6 +20,21 @@ const logout = async () => {
   return response.data;
 };
 
+// Update Profile
+const updateProfile = async (profileData) => {
+  const response = await axiosInstance.patch("/auth/me", profileData);
+  return response.data;
+};
+
+// Change Password
+const changePassword = async (passwordData) => {
+  const response = await axiosInstance.patch(
+    "/auth/change-password",
+    passwordData,
+  );
+  return response.data;
+};
+
 // Forgot Password
 const forgotPassword = async (email) => {
   const response = await axiosInstance.post("/auth/forgot-password", {
@@ -39,6 +54,8 @@ const authService = {
   login,
   getMe,
   logout,
+  updateProfile,
+  changePassword,
   forgotPassword,
   resetPassword,
 };
