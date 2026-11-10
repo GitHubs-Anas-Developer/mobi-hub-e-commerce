@@ -48,6 +48,20 @@ const adminProductService = {
 
     return response.data;
   },
+
+  // Delete product
+  deleteProduct: async (productId) => {
+    const response = await axiosInstance.delete(`/products/${productId}`);
+
+    return response.data;
+  },
+
+  // Toggle product active status
+  toggleProductStatus: async (productId) => {
+    const response = await axiosInstance.patch(`/products/${productId}/status`);
+
+    return response.data;
+  },
 };
 
 export default adminProductService;
