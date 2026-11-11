@@ -8,6 +8,7 @@ import {
   fetchAllOrders,
   changeOrderStatus,
   changePaymentStatus,
+  fetchAdminOrderById,
 } from "../controllers/order.controller.js";
 
 import { authenticate, authorize } from "../middlewares/auth.middleware.js";
@@ -54,6 +55,13 @@ router.patch(
 router.post("/", validate(createOrderSchema, "body"), placeOrder);
 
 router.get("/", validate(orderQuerySchema, "query"), fetchUserOrders);
+
+router.get(
+  "/admin/:orderId",
+  authorize("admin"),
+  validate(orderIdSchema, "params"),
+  fetchAdminOrderById,
+);
 
 router.get("/:orderId", validate(orderIdSchema, "params"), fetchOrderById);
 

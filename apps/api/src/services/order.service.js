@@ -418,6 +418,18 @@ export const getOrderById = async (orderId, userId) => {
   return order;
 };
 
+export const getAdminOrderById = async (orderId) => {
+  const order = await Order.findById(orderId)
+    .populate("user", "name email")
+    .lean();
+
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  return order;
+};
+
 export const cancelOrder = async (orderId, userId) => {
   const session = await mongoose.startSession();
 
@@ -520,24 +532,78 @@ export const cancelOrder = async (orderId, userId) => {
 };
 
 export const getAllOrders = async (query = {}) => {
-  const page = Math.max(1, Number(query.page) || 1);
-  const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    paymentStatus,
+    search,
+    sort = "newest",
+    startDate,
+    endDate,
+  } = query;
+
   const skip = (page - 1) * limit;
 
   const filter = {};
 
-  if (query.status) {
-    filter.orderStatus = query.status;
+  if (status) {
+    filter.orderStatus = status;
   }
 
-  if (query.paymentStatus) {
-    filter.paymentStatus = query.paymentStatus;
+  if (paymentStatus) {
+    filter.paymentStatus = paymentStatus;
   }
 
-  const [orders, total] = await Promise.all([
+  if (startDate || endDate) {
+    filter.createdAt = {};
+
+    if (startDate) {
+      filter.createdAt.$gte = new Date(`${startDate}T00:00:00.000Z`);
+    }
+
+    if (endDate) {
+      const nextDay = new Date(`${endDate}T00:00:00.000Z`);
+
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+      filter.createdAt.$lt = nextDay;
+    }
+  }
+
+  if (search) {
+    const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const searchRegex = {
+      $regex: escapedSearch,
+      $options: "i",
+    };
+
+    const matchingUsers = await User.find({
+      $or: [{ name: searchRegex }, { email: searchRegex }],
+    }).distinct("_id");
+
+    filter.$or = [
+      { orderNumber: searchRegex },
+      { "items.productName": searchRegex },
+      { "items.sku": searchRegex },
+      { user: { $in: matchingUsers } },
+    ];
+  }
+
+  const sortOptions = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    "amount-high": { totalAmount: -1 },
+    "amount-low": { totalAmount: 1 },
+  };
+
+  const sortBy = sortOptions[sort] || sortOptions.newest;
+
+  const [orders, totalOrders] = await Promise.all([
     Order.find(filter)
       .populate("user", "name email")
-      .sort({ createdAt: -1 })
+      .sort(sortBy)
       .skip(skip)
       .limit(limit)
       .lean(),
@@ -548,13 +614,14 @@ export const getAllOrders = async (query = {}) => {
   return {
     orders,
     pagination: {
-      total,
-      page,
+      totalOrders,
+      currentPage: page,
+      totalPages: Math.ceil(totalOrders / limit),
       limit,
-      totalPages: Math.ceil(total / limit),
     },
   };
 };
+
 const ORDER_STATUS_TRANSITIONS = {
   Pending: ["Confirmed"],
   Confirmed: ["Processing"],
@@ -585,7 +652,7 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
   }
 
   await order.save();
-  
+
   const notificationByStatus = {
     Confirmed: {
       type: "ORDER_CONFIRMED",

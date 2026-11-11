@@ -6,6 +6,7 @@ import {
   getAllOrders,
   updateOrderStatus,
   updatePaymentStatus,
+  getAdminOrderById,
 } from "../services/order.service.js";
 
 export const placeOrder = async (req, res, next) => {
@@ -109,6 +110,21 @@ export const changePaymentStatus = async (req, res, next) => {
       success: true,
       message: "Payment status updated successfully",
       data: order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchAdminOrderById = async (req, res, next) => {
+  try {
+    const { orderId } = req.validatedData.params;
+
+    const order = await getAdminOrderById(orderId);
+
+    res.status(200).json({
+      success: true,
+      data: { order },
     });
   } catch (error) {
     next(error);
