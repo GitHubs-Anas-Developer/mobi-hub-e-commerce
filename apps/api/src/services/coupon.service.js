@@ -26,6 +26,7 @@ export const createCoupon = async (data) => {
 };
 
 // Get all coupons (Admin)
+// Get all coupons (Admin)
 export const getAllCoupons = async (query = {}) => {
   const page = Number(query.page) || 1;
   const limit = Number(query.limit) || 10;
@@ -33,12 +34,55 @@ export const getAllCoupons = async (query = {}) => {
 
   const filter = {};
 
+  // Active / Inactive filter
   if (query.isActive !== undefined) {
     filter.isActive = query.isActive;
   }
 
+  // Search by coupon code or description
+  if (query.search?.trim()) {
+    const search = query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    filter.$or = [
+      { code: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  // Expiry status filter
+  const now = new Date();
+
+  switch (query.expiryStatus) {
+    case "active":
+      filter.startDate = { $lte: now };
+      filter.expiryDate = { $gte: now };
+      break;
+
+    case "expired":
+      filter.expiryDate = { $lt: now };
+      break;
+
+    case "scheduled":
+      filter.startDate = { $gt: now };
+      break;
+
+    case "all":
+    default:
+      break;
+  }
+
+  // Sorting
+  const sortBy = query.sortBy || "createdAt";
+  const sortOrder = query.sortOrder === "asc" ? 1 : -1;
+
+  const sort = {
+    [sortBy]: sortOrder,
+  };
+
+  // Fetch coupons and total count
   const [coupons, total] = await Promise.all([
-    Coupon.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    Coupon.find(filter).sort(sort).skip(skip).limit(limit),
+
     Coupon.countDocuments(filter),
   ]);
 
@@ -52,7 +96,6 @@ export const getAllCoupons = async (query = {}) => {
     },
   };
 };
-
 // Get coupon by ID (Admin)
 export const getCouponById = async (couponId) => {
   const coupon = await Coupon.findById(couponId);
@@ -105,11 +148,24 @@ export const updateCoupon = async (couponId, data) => {
 };
 
 // Delete coupon (Admin)
+// Delete coupon (Admin)
 export const deleteCoupon = async (couponId) => {
   const coupon = await Coupon.findById(couponId);
 
   if (!coupon) {
     throw createError("Coupon not found", 404);
+  }
+
+  // Check whether the coupon has been used
+  const usageExists = await CouponUsage.exists({
+    coupon: couponId,
+  });
+
+  if (coupon.usedCount > 0 || usageExists) {
+    throw createError(
+      "This coupon has already been used and cannot be deleted. You can deactivate it instead.",
+      409,
+    );
   }
 
   await coupon.deleteOne();

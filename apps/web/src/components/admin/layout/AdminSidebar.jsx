@@ -12,6 +12,7 @@ import {
   Star,
   Settings,
   Store,
+  TicketPercent,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -40,6 +41,11 @@ const NAV_ITEMS = [
     href: "/admin/orders",
     icon: ShoppingCart,
   },
+  {
+  label: "Coupons",
+  href: "/admin/coupons",
+  icon: TicketPercent,
+},
  {
   label: "Customers",
   href: "/admin/users",
