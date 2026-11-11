@@ -2,6 +2,7 @@ import Review from "../models/review.model.js";
 import Product from "../models/product.model.js";
 import Order from "../models/order.model.js";
 import mongoose from "mongoose";
+import User from "../models/user.model.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -257,11 +258,48 @@ export const getAllReviews = async (query = {}) => {
     filter.product = query.productId;
   }
 
+  if (query.rating) {
+    filter.rating = query.rating;
+  }
+
+  if (query.search?.trim()) {
+    const search = query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const [matchingUsers, matchingProducts] = await Promise.all([
+      User.find({
+        $or: [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+        ],
+      }).distinct("_id"),
+
+      Product.find({
+        name: { $regex: search, $options: "i" },
+      }).distinct("_id"),
+    ]);
+
+    filter.$or = [
+      { title: { $regex: search, $options: "i" } },
+      { comment: { $regex: search, $options: "i" } },
+      { user: { $in: matchingUsers } },
+      { product: { $in: matchingProducts } },
+    ];
+  }
+
+  const sortOptions = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    highest: { rating: -1, createdAt: -1 },
+    lowest: { rating: 1, createdAt: -1 },
+  };
+
+  const sort = sortOptions[query.sort] || sortOptions.newest;
+
   const [reviews, total] = await Promise.all([
     Review.find(filter)
       .populate("user", "name email")
       .populate("product", "name slug")
-      .sort({ createdAt: -1 })
+      .sort(sort)
       .skip(skip)
       .limit(limit)
       .lean(),
@@ -271,7 +309,6 @@ export const getAllReviews = async (query = {}) => {
 
   return {
     reviews,
-
     pagination: {
       total,
       page,

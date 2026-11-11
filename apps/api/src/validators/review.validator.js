@@ -47,7 +47,9 @@ export const reviewQuerySchema = z.object({
     .transform((value) => value === "true")
     .optional(),
 
-  sort: z.enum(["newest", "highest", "lowest"]).default("newest"),
+  search: z.string().trim().max(100).optional(),
+
+  sort: z.enum(["newest", "oldest", "highest", "lowest"]).default("newest"),
 
   rating: z.coerce.number().int().min(1).max(5).optional(),
 });
