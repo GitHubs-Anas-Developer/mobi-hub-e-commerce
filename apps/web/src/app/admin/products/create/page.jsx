@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 
 import adminProductService from "@/services/adminProductService";
 import categoryService from "@/services/categoryService";
+import brandService from "@/services/brandService";
 
 import ProductBasicInformation from "@/components/admin/products/create/ProductBasicInformation";
 import ProductImagesSection from "@/components/admin/products/create/ProductImagesSection";
@@ -44,6 +45,9 @@ export default function CreateProductPage() {
 
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  const [brands, setBrands] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(true);
 
   const [thumbnail, setThumbnail] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]);
@@ -85,6 +89,32 @@ export default function CreateProductPage() {
     };
 
     fetchCategories();
+  }, []);
+
+  // Load active brands
+  useEffect(() => {
+    const fetchBrands = async () => {
+      try {
+        setBrandsLoading(true);
+
+        const response = await brandService.getBrands({
+          isActive: true,
+        });
+
+        setBrands(response.data || []);
+      } catch (err) {
+        console.error("Brand Loading Error:", err);
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to load brands.",
+        );
+      } finally {
+        setBrandsLoading(false);
+      }
+    };
+
+    fetchBrands();
   }, []);
 
   // Basic information and product status
@@ -133,7 +163,9 @@ export default function CreateProductPage() {
     );
 
     if (invalidFile) {
-      setError("Gallery images must be JPG, PNG or WEBP and below 5MB.");
+      setError(
+        "Gallery images must be JPG, PNG or WEBP and below 5MB.",
+      );
       event.target.value = "";
       return;
     }
@@ -193,7 +225,9 @@ export default function CreateProductPage() {
 
       if (
         updated.length > 0 &&
-        !updated.some((variant) => variant.isDefault && variant.isActive)
+        !updated.some(
+          (variant) => variant.isDefault && variant.isActive,
+        )
       ) {
         const firstActiveIndex = updated.findIndex(
           (variant) => variant.isActive,
@@ -215,9 +249,7 @@ export default function CreateProductPage() {
   const updateVariant = (index, field, value) => {
     setVariants((prev) => {
       let updated = prev.map((variant, i) =>
-        i === index
-          ? { ...variant, [field]: value }
-          : variant,
+        i === index ? { ...variant, [field]: value } : variant,
       );
 
       // If default variant becomes inactive, assign another active variant.
@@ -300,7 +332,9 @@ export default function CreateProductPage() {
   // Set default variant
   const setDefaultVariant = (index) => {
     if (!variants[index]?.isActive) {
-      setError("An inactive variant cannot be the default variant.");
+      setError(
+        "An inactive variant cannot be the default variant.",
+      );
       return;
     }
 
@@ -335,7 +369,9 @@ export default function CreateProductPage() {
     );
 
     if (invalidFile) {
-      setError("Variant images must be JPG, PNG or WEBP and below 5MB.");
+      setError(
+        "Variant images must be JPG, PNG or WEBP and below 5MB.",
+      );
       event.target.value = "";
       return;
     }
@@ -613,17 +649,19 @@ export default function CreateProductPage() {
           </div>
         </div>
 
-        {/* Loading Categories */}
-        {categoriesLoading ? (
+        {/* Loading Categories and Brands */}
+        {categoriesLoading || brandsLoading ? (
           <div className="flex min-h-64 items-center justify-center gap-3 text-slate-500">
             <Loader2 size={22} className="animate-spin" />
-            Loading categories...
+            Loading product information...
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
             <ProductBasicInformation
               formData={formData}
               categories={categories}
+              brands={brands}
+              brandsLoading={brandsLoading}
               onChange={handleFormChange}
             />
 

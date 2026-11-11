@@ -31,6 +31,11 @@ const NAV_ITEMS = [
     icon: FolderTree,
   },
   {
+  label: "Brands",
+  href: "/admin/brands",
+  icon: Store,
+},
+  {
     label: "Orders",
     href: "/admin/orders",
     icon: ShoppingCart,

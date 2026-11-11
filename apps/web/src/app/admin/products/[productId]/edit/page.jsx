@@ -7,6 +7,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 
 import adminProductService from "@/services/adminProductService";
 import categoryService from "@/services/categoryService";
+import brandService from "@/services/brandService";
 import useAdminProduct from "@/hooks/useAdminProduct";
 
 import ProductBasicInformation from "@/components/admin/products/create/ProductBasicInformation";
@@ -52,12 +53,17 @@ export default function EditProductPage() {
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
+  const [brands, setBrands] = useState([]);
+  const [brandsLoading, setBrandsLoading] = useState(true);
+
   const [formData, setFormData] = useState(initialFormData);
   const [thumbnail, setThumbnail] = useState(null);
   const [galleryImages, setGalleryImages] = useState([]);
+
   const [specifications, setSpecifications] = useState([
     { key: "", value: "" },
   ]);
+
   const [variants, setVariants] = useState([initialVariant]);
 
   const [initializing, setInitializing] = useState(true);
@@ -69,10 +75,15 @@ export default function EditProductPage() {
     const fetchCategories = async () => {
       try {
         const response = await categoryService.getCategories();
+
         setCategories(response.data || []);
       } catch (err) {
         console.error("Category Error:", err);
-        setError("Unable to load categories.");
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to load categories.",
+        );
       } finally {
         setCategoriesLoading(false);
       }
@@ -80,6 +91,52 @@ export default function EditProductPage() {
 
     fetchCategories();
   }, []);
+
+  // Load active brands and preserve the current product brand
+  useEffect(() => {
+    if (productLoading) return;
+
+    const fetchBrands = async () => {
+      try {
+        setBrandsLoading(true);
+
+        const response = await brandService.getBrands({
+          isActive: true,
+        });
+
+        const activeBrands = response.data || [];
+
+        // Keep the existing brand available even if it is inactive.
+        const currentBrand = product?.brand;
+
+        const currentBrandExists = activeBrands.some(
+          (brand) =>
+            brand.name.toLowerCase() ===
+            String(currentBrand || "").toLowerCase(),
+        );
+
+        if (currentBrand && !currentBrandExists) {
+          activeBrands.unshift({
+            _id: `current-${currentBrand}`,
+            name: currentBrand,
+          });
+        }
+
+        setBrands(activeBrands);
+      } catch (err) {
+        console.error("Brand Loading Error:", err);
+
+        setError(
+          err.response?.data?.message ||
+            "Unable to load brands.",
+        );
+      } finally {
+        setBrandsLoading(false);
+      }
+    };
+
+    fetchBrands();
+  }, [product, productLoading]);
 
   // Populate product data
   useEffect(() => {
@@ -116,31 +173,37 @@ export default function EditProductPage() {
         : [{ key: "", value: "" }],
     );
 
-    const populatedVariants = (product.variants || []).map((variant) => {
-      const attributeEntries = Object.entries(
-        variant.attributes || {},
-      ).map(([key, value]) => ({
-        key,
-        value: String(value ?? ""),
-      }));
+    const populatedVariants = (product.variants || []).map(
+      (variant) => {
+        const attributeEntries = Object.entries(
+          variant.attributes || {},
+        ).map(([key, value]) => ({
+          key,
+          value: String(value ?? ""),
+        }));
 
-      return {
-        sku: variant.sku || "",
-        mrp: String(variant.mrp ?? ""),
-        sellingPrice: String(variant.sellingPrice ?? ""),
-        stock: Number(variant.stock ?? 0),
-        lowStockThreshold: Number(variant.lowStockThreshold ?? 5),
-        attributes: attributeEntries.length
-          ? attributeEntries
-          : [{ key: "", value: "" }],
-        images: variant.images || [],
-        isActive: variant.isActive ?? true,
-        isDefault: variant.isDefault ?? false,
-      };
-    });
+        return {
+          sku: variant.sku || "",
+          mrp: String(variant.mrp ?? ""),
+          sellingPrice: String(variant.sellingPrice ?? ""),
+          stock: Number(variant.stock ?? 0),
+          lowStockThreshold: Number(
+            variant.lowStockThreshold ?? 5,
+          ),
+          attributes: attributeEntries.length
+            ? attributeEntries
+            : [{ key: "", value: "" }],
+          images: variant.images || [],
+          isActive: variant.isActive ?? true,
+          isDefault: variant.isDefault ?? false,
+        };
+      },
+    );
 
     setVariants(
-      populatedVariants.length ? populatedVariants : [initialVariant],
+      populatedVariants.length
+        ? populatedVariants
+        : [initialVariant],
     );
 
     setInitializing(false);
@@ -174,6 +237,7 @@ export default function EditProductPage() {
 
     setGalleryImages((previous) => {
       const remainingSlots = 6 - previous.length;
+
       return [...previous, ...files.slice(0, remainingSlots)];
     });
 
@@ -225,7 +289,9 @@ export default function EditProductPage() {
 
   const handleRemoveVariant = (index) => {
     setVariants((previous) =>
-      previous.filter((_, variantIndex) => variantIndex !== index),
+      previous.filter(
+        (_, variantIndex) => variantIndex !== index,
+      ),
     );
   };
 
@@ -266,10 +332,11 @@ export default function EditProductPage() {
         index === variantIndex
           ? {
               ...variant,
-              attributes: variant.attributes.map((attribute, attrIndex) =>
-                attrIndex === attributeIndex
-                  ? { ...attribute, [field]: value }
-                  : attribute,
+              attributes: variant.attributes.map(
+                (attribute, attrIndex) =>
+                  attrIndex === attributeIndex
+                    ? { ...attribute, [field]: value }
+                    : attribute,
               ),
             }
           : variant,
@@ -277,14 +344,18 @@ export default function EditProductPage() {
     );
   };
 
-  const handleRemoveAttribute = (variantIndex, attributeIndex) => {
+  const handleRemoveAttribute = (
+    variantIndex,
+    attributeIndex,
+  ) => {
     setVariants((previous) =>
       previous.map((variant, index) =>
         index === variantIndex
           ? {
               ...variant,
               attributes: variant.attributes.filter(
-                (_, attrIndex) => attrIndex !== attributeIndex,
+                (_, attrIndex) =>
+                  attrIndex !== attributeIndex,
               ),
             }
           : variant,
@@ -324,7 +395,10 @@ export default function EditProductPage() {
     event.target.value = "";
   };
 
-  const handleRemoveVariantImage = (variantIndex, imageIndex) => {
+  const handleRemoveVariantImage = (
+    variantIndex,
+    imageIndex,
+  ) => {
     setVariants((previous) =>
       previous.map((variant, index) =>
         index === variantIndex
@@ -345,7 +419,10 @@ export default function EditProductPage() {
     const newFiles = [];
 
     images.forEach((image, index) => {
-      if (typeof File !== "undefined" && image instanceof File) {
+      if (
+        typeof File !== "undefined" &&
+        image instanceof File
+      ) {
         newFiles.push({ image, index });
       } else {
         uploadedImages.push({ image, index });
@@ -393,7 +470,9 @@ export default function EditProductPage() {
       return;
     }
 
-    const activeVariants = variants.filter((variant) => variant.isActive);
+    const activeVariants = variants.filter(
+      (variant) => variant.isActive,
+    );
 
     if (!activeVariants.length) {
       setError("At least one active variant is required.");
@@ -405,7 +484,9 @@ export default function EditProductPage() {
     );
 
     if (defaultVariants.length !== 1) {
-      setError("Exactly one active default variant is required.");
+      setError(
+        "Exactly one active default variant is required.",
+      );
       return;
     }
 
@@ -417,7 +498,9 @@ export default function EditProductPage() {
       skuValues.some((sku) => !sku) ||
       new Set(skuValues).size !== skuValues.length
     ) {
-      setError("All variant SKUs are required and must be unique.");
+      setError(
+        "All variant SKUs are required and must be unique.",
+      );
       return;
     }
 
@@ -441,24 +524,33 @@ export default function EditProductPage() {
       if (
         !Number.isInteger(Number(variant.stock)) ||
         Number(variant.stock) < 0 ||
-        !Number.isInteger(Number(variant.lowStockThreshold)) ||
+        !Number.isInteger(
+          Number(variant.lowStockThreshold),
+        ) ||
         Number(variant.lowStockThreshold) < 0
       ) {
-        setError("Stock and low stock threshold must be valid integers.");
+        setError(
+          "Stock and low stock threshold must be valid integers.",
+        );
         return;
       }
 
       const attributes = variant.attributes.filter(
-        (attribute) => attribute.key.trim() && attribute.value.trim(),
+        (attribute) =>
+          attribute.key.trim() && attribute.value.trim(),
       );
 
       if (attributes.length !== variant.attributes.length) {
-        setError("Please complete or remove empty variant attributes.");
+        setError(
+          "Please complete or remove empty variant attributes.",
+        );
         return;
       }
 
       if (variant.images.length > 6) {
-        setError("Each variant can have a maximum of 6 images.");
+        setError(
+          "Each variant can have a maximum of 6 images.",
+        );
         return;
       }
     }
@@ -474,16 +566,28 @@ export default function EditProductPage() {
       // Thumbnail
       let uploadedThumbnail = thumbnail;
 
-      if (typeof File !== "undefined" && thumbnail instanceof File) {
+      if (
+        typeof File !== "undefined" &&
+        thumbnail instanceof File
+      ) {
         const response = await adminProductService.uploadImages([
           thumbnail,
         ]);
 
-        uploadedThumbnail = (response.data || response.results || [])[0];
+        uploadedThumbnail = (
+          response.data ||
+          response.results ||
+          []
+        )[0];
+      }
+
+      if (!uploadedThumbnail) {
+        throw new Error("Thumbnail upload failed.");
       }
 
       // Gallery
-      const uploadedGallery = await uploadNewImages(galleryImages);
+      const uploadedGallery =
+        await uploadNewImages(galleryImages);
 
       // Specifications
       const specificationsObject = {};
@@ -497,9 +601,8 @@ export default function EditProductPage() {
       // Variants and their images
       const preparedVariants = await Promise.all(
         variants.map(async (variant) => {
-          const uploadedVariantImages = await uploadNewImages(
-            variant.images,
-          );
+          const uploadedVariantImages =
+            await uploadNewImages(variant.images);
 
           const attributesObject = {};
 
@@ -514,7 +617,9 @@ export default function EditProductPage() {
             mrp: Number(variant.mrp),
             sellingPrice: Number(variant.sellingPrice),
             stock: Number(variant.stock),
-            lowStockThreshold: Number(variant.lowStockThreshold),
+            lowStockThreshold: Number(
+              variant.lowStockThreshold,
+            ),
             attributes: attributesObject,
             images: uploadedVariantImages,
             isActive: variant.isActive,
@@ -534,7 +639,10 @@ export default function EditProductPage() {
         variants: preparedVariants,
       };
 
-      await adminProductService.updateProduct(productId, productData);
+      await adminProductService.updateProduct(
+        productId,
+        productData,
+      );
 
       router.push("/admin/products");
       router.refresh();
@@ -543,6 +651,7 @@ export default function EditProductPage() {
 
       setError(
         err.response?.data?.message ||
+          err.message ||
           "Unable to update product. Please try again.",
       );
     } finally {
@@ -550,10 +659,19 @@ export default function EditProductPage() {
     }
   };
 
-  if (productLoading || initializing || categoriesLoading) {
+  if (
+    productLoading ||
+    initializing ||
+    categoriesLoading ||
+    brandsLoading
+  ) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="animate-spin text-blue-600" size={32} />
+      <div className="flex min-h-[60vh] items-center justify-center gap-3 text-slate-500">
+        <Loader2
+          className="animate-spin text-blue-600"
+          size={32}
+        />
+        Loading product information...
       </div>
     );
   }
@@ -594,7 +712,8 @@ export default function EditProductPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Update product information, images, specifications and variants.
+            Update product information, images, specifications
+            and variants.
           </p>
         </div>
       </div>
@@ -609,6 +728,8 @@ export default function EditProductPage() {
         <ProductBasicInformation
           formData={formData}
           categories={categories}
+          brands={brands}
+          brandsLoading={brandsLoading}
           onChange={handleBasicChange}
         />
 
@@ -645,12 +766,12 @@ export default function EditProductPage() {
           onChange={handleBasicChange}
         />
 
-   <ProductFormActions
-      loading={submitting}
-       onCancel={() => router.push("/admin/products")}
-       submitLabel="Save Changes"
-       loadingLabel="Updating Product..."
-    />
+        <ProductFormActions
+          loading={submitting}
+          onCancel={() => router.push("/admin/products")}
+          submitLabel="Save Changes"
+          loadingLabel="Updating Product..."
+        />
       </form>
     </div>
   );

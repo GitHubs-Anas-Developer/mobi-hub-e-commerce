@@ -21,6 +21,7 @@ import notificationRoutes from "./routes/notification.routes.js";
 import returnRoutes from "./routes/return.routes.js";
 import adminProductRoutes from "./routes/admin-product.routes.js";
 import uploadRoutes from "./routes/upload.routes.js";
+import brandRoutes from "./routes/brand.routes.js";
 
 const app = express();
 
@@ -66,6 +67,7 @@ app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/returns", returnRoutes);
 app.use("/api/v1/admin/products", adminProductRoutes);
 app.use("/api/v1/admin/upload", uploadRoutes);
+app.use("/api/v1/brands", brandRoutes);
 
 // Default route
 app.get("/", (req, res) => {
