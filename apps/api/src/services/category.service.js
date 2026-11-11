@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Category from "../models/category.model.js";
+import Product from "../models/product.model.js";
 
 // Custom service error
 const createError = (message, statusCode = 400) => {
@@ -63,6 +64,7 @@ export const createCategory = async (categoryData) => {
 };
 
 // 2. Get All Categories
+
 export const getAllCategories = async (filters = {}) => {
   const query = {};
 
@@ -71,7 +73,11 @@ export const getAllCategories = async (filters = {}) => {
   }
 
   if (filters.parentCategory !== undefined) {
-    query.parentCategory = filters.parentCategory;
+    if (filters.parentCategory === "null" || filters.parentCategory === null) {
+      query.parentCategory = null;
+    } else {
+      query.parentCategory = filters.parentCategory;
+    }
   }
 
   return await Category.find(query)
@@ -159,6 +165,16 @@ export const deleteCategory = async (categoryId) => {
 
   if (hasChildren) {
     throw createError("Cannot delete category while subcategories exist");
+  }
+
+  const hasProducts = await Product.exists({
+    category: categoryId,
+  });
+
+  if (hasProducts) {
+    throw createError(
+      "Cannot delete category while products are assigned to it",
+    );
   }
 
   await Category.findByIdAndDelete(categoryId);
