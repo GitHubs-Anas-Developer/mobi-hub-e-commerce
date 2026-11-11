@@ -40,11 +40,11 @@ const NAV_ITEMS = [
     href: "/admin/orders",
     icon: ShoppingCart,
   },
-  {
-    label: "Customers",
-    href: "/admin/customers",
-    icon: Users,
-  },
+ {
+  label: "Customers",
+  href: "/admin/users",
+  icon: Users,
+},
   {
     label: "Reviews",
     href: "/admin/reviews",
