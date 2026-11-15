@@ -1,159 +1,242 @@
+
+"use client";
+
 import Link from "next/link";
-import { Mail, Phone, MapPin } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  ArrowUpRight,
+ 
+} from "lucide-react";
+
+import { motion, useScroll, useSpring } from "framer-motion";
+
+const footerLinks = {
+  Shop: [
+    { label: "All Products", href: "/products" },
+    { label: "Categories", href: "/categories" },
+    { label: "New Arrivals", href: "/products?sort=newest" },
+    {
+      label: "Featured Products",
+      href: "/products?isFeatured=true",
+    },
+  ],
+
+  "Customer Service": [
+    { label: "My Account", href: "/account" },
+    { label: "Track Orders", href: "/account/orders" },
+    { label: "Returns & Refunds", href: "/account/returns" },
+    { label: "Contact Us", href: "/contact" },
+  ],
+};
+
+const socialLinks = [
+  { label: "Facebook", href: "#" },
+  { label: "Instagram", href: "#" },
+  { label: "YouTube", href: "#" },
+];
+
+const contactDetails = [
+  {
+    icon: Mail,
+    text: "support@mobihub.com",
+  },
+  {
+    icon: Phone,
+    text: "Contact support for assistance",
+  },
+  {
+    icon: MapPin,
+    text: "India",
+  },
+];
+
+
+
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.12,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: {
+    opacity: 0,
+    y: 22,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.55,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
 
 export default function Footer() {
+  const { scrollYProgress } = useScroll();
+
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
+  });
+
   return (
-    <footer className="mt-auto border-t border-[#E2E8F0] bg-[#0F172A] text-white">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
+    <footer className="relative mt-auto overflow-hidden border-t border-[#E2E8F0] bg-white text-[#101828]">
+
+      {/* Scroll Progress */}
+      <motion.div
+        style={{ scaleX }}
+        className="absolute left-0 top-0 z-20 h-[3px] w-full origin-left bg-[#0755E9]"
+      />
+
+      {/* Background Decorations */}
+      <div className="pointer-events-none absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-100/50 blur-3xl" />
+
+      <div className="pointer-events-none absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-indigo-100/40 blur-3xl" />
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+
+       
+
+        {/* Main Footer */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.15 }}
+          className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12 lg:py-14"
+        >
+
           {/* Brand */}
-          <div>
+          <motion.div variants={itemVariants}>
             <Link
               href="/"
-              className="text-2xl font-extrabold tracking-tight text-white"
+              className="inline-flex items-center text-2xl font-extrabold tracking-tight text-[#101828]"
             >
-              MOBI<span className="text-[#60A5FA]"> HUB</span>
+              MOBI
+              <span className="text-[#0755E9]"> HUB</span>
             </Link>
 
-            <p className="mt-4 max-w-xs text-sm leading-6 text-slate-400">
+            <p className="mt-5 max-w-xs text-sm leading-7 text-[#64748B]">
               Discover quality tech accessories designed to make your everyday
               digital life smarter, easier, and better.
             </p>
 
             {/* Social Links */}
-            <div className="mt-5 flex flex-wrap items-center gap-4 text-sm">
-              <a
-                href="#"
-                aria-label="Facebook"
-                className="text-slate-400 transition hover:text-white"
-              >
-                Facebook
-              </a>
-
-              <a
-                href="#"
-                aria-label="Instagram"
-                className="text-slate-400 transition hover:text-white"
-              >
-                Instagram
-              </a>
-
-              <a
-                href="#"
-                aria-label="YouTube"
-                className="text-slate-400 transition hover:text-white"
-              >
-                YouTube
-              </a>
-            </div>
-          </div>
-
-          {/* Shop */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider">Shop</h3>
-
-            <ul className="mt-5 space-y-3 text-sm text-slate-400">
-              <li>
-                <Link href="/products" className="hover:text-white">
-                  All Products
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/categories" className="hover:text-white">
-                  Categories
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/products?sort=newest" className="hover:text-white">
-                  New Arrivals
-                </Link>
-              </li>
-
-              <li>
-                <Link
-                  href="/products?isFeatured=true"
-                  className="hover:text-white"
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              {socialLinks.map(({ label, href }) => (
+                <motion.a
+                  key={label}
+                  href={href}
+                  aria-label={label}
+                  whileHover={{ y: -4, scale: 1.05 }}
+                  whileTap={{ scale: 0.94 }}
+                  transition={{
+                    type: "spring",
+                    stiffness: 350,
+                    damping: 18,
+                  }}
+                  className="flex h-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 text-xs font-semibold text-[#64748B] transition-colors hover:border-[#0755E9] hover:bg-[#0755E9] hover:text-white"
                 >
-                  Featured Products
-                </Link>
-              </li>
-            </ul>
-          </div>
+                  {label}
+                </motion.a>
+              ))}
+            </div>
+          </motion.div>
 
-          {/* Customer Service */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider">
-              Customer Service
-            </h3>
+          {/* Shop & Customer Service */}
+          {Object.entries(footerLinks).map(([heading, links]) => (
+            <motion.div key={heading} variants={itemVariants}>
+              <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[#101828]">
+                {heading}
+              </h3>
 
-            <ul className="mt-5 space-y-3 text-sm text-slate-400">
-              <li>
-                <Link href="/account" className="hover:text-white">
-                  My Account
-                </Link>
-              </li>
+              <ul className="mt-6 space-y-4">
+                {links.map((link) => (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="group inline-flex items-center gap-1 text-sm text-[#64748B] transition-colors duration-200 hover:text-[#0755E9]"
+                    >
+                      <span>{link.label}</span>
 
-              <li>
-                <Link href="/account/orders" className="hover:text-white">
-                  Track Orders
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/account/returns" className="hover:text-white">
-                  Returns & Refunds
-                </Link>
-              </li>
-
-              <li>
-                <Link href="/contact" className="hover:text-white">
-                  Contact Us
-                </Link>
-              </li>
-            </ul>
-          </div>
+                      <ArrowUpRight
+                        size={14}
+                        className="opacity-0 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:opacity-100"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          ))}
 
           {/* Contact */}
-          <div>
-            <h3 className="text-sm font-bold uppercase tracking-wider">
+          <motion.div variants={itemVariants}>
+            <h3 className="text-sm font-bold uppercase tracking-[0.1em] text-[#101828]">
               Get In Touch
             </h3>
 
-            <ul className="mt-5 space-y-4 text-sm text-slate-400">
-              <li className="flex items-start gap-3">
-                <Mail size={18} className="mt-0.5 shrink-0" />
-                <span>support@mobihub.com</span>
-              </li>
+            <ul className="mt-6 space-y-5">
+              {contactDetails.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-start gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+                    <Icon size={17} strokeWidth={1.8} />
+                  </div>
 
-              <li className="flex items-start gap-3">
-                <Phone size={18} className="mt-0.5 shrink-0" />
-                <span>Contact support for assistance</span>
-              </li>
-
-              <li className="flex items-start gap-3">
-                <MapPin size={18} className="mt-0.5 shrink-0" />
-                <span>India</span>
-              </li>
+                  <span className="pt-2 text-sm leading-5 text-[#64748B]">
+                    {text}
+                  </span>
+                </li>
+              ))}
             </ul>
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Bottom Footer */}
-        <div className="mt-12 flex flex-col gap-4 border-t border-slate-700 pt-6 text-center text-xs text-slate-400 sm:flex-row sm:items-center sm:justify-between sm:text-left">
-          <p>© 2026 MOBI HUB. All rights reserved.</p>
-          <div className="flex justify-center gap-5">
-            <Link href="/privacy-policy" className="hover:text-white">
+        </motion.div>
+      </div>
+
+      {/* Bottom Footer */}
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.5 }}
+        className="relative border-t border-[#E2E8F0] bg-[#F8FAFC]"
+      >
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-center sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:text-left lg:px-8">
+
+          <p className="text-xs text-[#64748B]">
+            © {new Date().getFullYear()}{" "}
+            <span className="font-semibold text-[#101828]">MOBI HUB.</span>{" "}
+            All rights reserved.
+          </p>
+
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-xs text-[#64748B]">
+            <Link
+              href="/privacy-policy"
+              className="transition-colors hover:text-[#0755E9]"
+            >
               Privacy Policy
             </Link>
 
-            <Link href="/terms" className="hover:text-white">
+            <Link
+              href="/terms"
+              className="transition-colors hover:text-[#0755E9]"
+            >
               Terms & Conditions
             </Link>
           </div>
+
         </div>
-      </div>
+      </motion.div>
+
     </footer>
   );
 }

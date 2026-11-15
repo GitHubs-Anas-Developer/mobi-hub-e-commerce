@@ -1,32 +1,51 @@
+
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function ProtectedRoute({ children }) {
   const router = useRouter();
+
   const { isAuthenticated, isInitialized } = useAuth();
 
-  console.log("isInitialized", isInitialized);
-  console.log("isAuthenticated", isAuthenticated);
+  const [mounted, setMounted] = useState(false);
+
+  // Run only after hydration.
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
-    if (isInitialized && !isAuthenticated) {
+    if (mounted && isInitialized && !isAuthenticated) {
       router.replace("/login");
     }
-  }, [isInitialized, isAuthenticated, router]);
+  }, [mounted, isInitialized, isAuthenticated, router]);
 
-  if (!isInitialized) {
+  // Same HTML during server rendering and initial client rendering.
+  if (!mounted || !isInitialized) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Checking authentication...</p>
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+
+          <p className="mt-4 text-sm font-medium text-gray-600">
+            Checking authentication...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white">
+        <p className="text-sm text-gray-600">
+          Redirecting to login...
+        </p>
+      </div>
+    );
   }
 
   return children;

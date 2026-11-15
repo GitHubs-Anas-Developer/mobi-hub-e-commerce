@@ -1,36 +1,50 @@
 
-import { getRatingPercentage } from "@/utils/reviewHelpers";
-import { Star } from "lucide-react";
+"use client";
 
+import { Star } from "lucide-react";
+import { getRatingPercentage } from "@/utils/reviewHelpers";
 
 export default function RatingDistribution({
   distribution = {},
   total = 0,
 }) {
+  const totalReviews = Math.max(0, Number(total) || 0);
+
   return (
     <div
-      className="space-y-3"
+      className="space-y-3.5"
       aria-label="Rating distribution"
     >
       {[5, 4, 3, 2, 1].map((star) => {
-        const count = Number(
-          distribution?.[star] ??
-            distribution?.[String(star)] ??
-            0,
+        const count = Math.max(
+          0,
+          Number(
+            distribution?.[star] ??
+              distribution?.[String(star)] ??
+              0
+          ) || 0
         );
 
-        const percentage = getRatingPercentage(
-          count,
-          total,
-        );
+        const percentage =
+          totalReviews > 0
+            ? Math.min(
+                100,
+                Math.max(
+                  0,
+                  getRatingPercentage(count, totalReviews)
+                )
+              )
+            : 0;
 
         return (
           <div
             key={star}
-            className="flex items-center gap-3 text-sm"
+            className="grid grid-cols-[38px_1fr_32px] items-center gap-3"
           >
-            <span className="flex w-10 shrink-0 items-center gap-1 text-slate-600">
+            {/* Star label */}
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
               {star}
+
               <Star
                 size={13}
                 aria-hidden="true"
@@ -38,8 +52,9 @@ export default function RatingDistribution({
               />
             </span>
 
+            {/* Progress bar */}
             <div
-              className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"
+              className="h-2.5 overflow-hidden rounded-full bg-slate-100"
               role="progressbar"
               aria-label={`${star} star reviews`}
               aria-valuenow={Math.round(percentage)}
@@ -47,14 +62,15 @@ export default function RatingDistribution({
               aria-valuemax={100}
             >
               <div
-                className="h-full rounded-full bg-amber-400 transition-all duration-300"
+                className="h-full rounded-full bg-amber-400 transition-[width] duration-500 ease-out"
                 style={{
                   width: `${percentage}%`,
                 }}
               />
             </div>
 
-            <span className="w-8 shrink-0 text-right tabular-nums text-slate-500">
+            {/* Review count */}
+            <span className="text-right text-xs font-medium tabular-nums text-slate-500">
               {count}
             </span>
           </div>

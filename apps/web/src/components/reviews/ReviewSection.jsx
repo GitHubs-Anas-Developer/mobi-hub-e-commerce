@@ -2,11 +2,13 @@
 "use client";
 
 import { useState } from "react";
-
 import {
+  MessageSquareText,
   SlidersHorizontal,
   Star,
+  LoaderCircle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import ReviewSummary from "./ReviewSummary";
 import MyReview from "./MyReview";
@@ -37,9 +39,6 @@ export default function ReviewSection({
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-
   const [sort, setSort] = useState("newest");
   const [ratingFilter, setRatingFilter] = useState("all");
 
@@ -65,7 +64,7 @@ export default function ReviewSection({
     fetchMyReview,
   } = useMyProductReview(productId, isAuthenticated);
 
-  // Create review
+  // Create Review
   const handleCreateReview = async (event) => {
     event.preventDefault();
 
@@ -75,14 +74,12 @@ export default function ReviewSection({
     }
 
     if (!productId) {
-      setError("Product information is missing.");
+      toast.error("Product information is missing.");
       return;
     }
 
     try {
       setSubmitting(true);
-      setError("");
-      setMessage("");
 
       await reviewService.createReview({
         productId,
@@ -93,14 +90,14 @@ export default function ReviewSection({
 
       setForm({ ...INITIAL_REVIEW_FORM });
 
-      setMessage(REVIEW_MESSAGES.SUBMIT_SUCCESS);
-
       await Promise.all([
         fetchMyReview(),
         refreshReviews(1),
       ]);
+
+      toast.success(REVIEW_MESSAGES.SUBMIT_SUCCESS);
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ||
           REVIEW_MESSAGES.SUBMIT_ERROR
       );
@@ -109,12 +106,10 @@ export default function ReviewSection({
     }
   };
 
-  // Update review
+  // Update Review
   const handleUpdateReview = async (reviewData) => {
     try {
       setUpdating(true);
-      setError("");
-      setMessage("");
 
       await updateMyReview({
         rating: reviewData.rating,
@@ -122,11 +117,14 @@ export default function ReviewSection({
         comment: reviewData.comment.trim(),
       });
 
-      await refreshReviews(page);
+      await Promise.all([
+        fetchMyReview(),
+        refreshReviews(page),
+      ]);
 
-      setMessage(REVIEW_MESSAGES.UPDATE_SUCCESS);
+      toast.success(REVIEW_MESSAGES.UPDATE_SUCCESS);
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ||
           REVIEW_MESSAGES.UPDATE_ERROR
       );
@@ -137,20 +135,21 @@ export default function ReviewSection({
     }
   };
 
-  // Delete review
+  // Delete Review
   const handleDeleteReview = async () => {
     try {
       setDeleting(true);
-      setError("");
-      setMessage("");
 
       await deleteMyReview();
 
-      await refreshReviews(1);
+      await Promise.all([
+        fetchMyReview(),
+        refreshReviews(1),
+      ]);
 
-      setMessage(REVIEW_MESSAGES.DELETE_SUCCESS);
+      toast.success(REVIEW_MESSAGES.DELETE_SUCCESS);
     } catch (err) {
-      setError(
+      toast.error(
         err.response?.data?.message ||
           REVIEW_MESSAGES.DELETE_ERROR
       );
@@ -161,11 +160,12 @@ export default function ReviewSection({
     }
   };
 
-  // Page change
+  // Pagination
   const handlePageChange = (nextPage) => {
     if (
       nextPage < 1 ||
-      nextPage > pagination.totalPages
+      nextPage > pagination.totalPages ||
+      nextPage === page
     ) {
       return;
     }
@@ -173,13 +173,13 @@ export default function ReviewSection({
     setPage(nextPage);
   };
 
-  // Sorting change
+  // Sort
   const handleSortChange = (event) => {
     setSort(event.target.value);
     setPage(1);
   };
 
-  // Rating filter change
+  // Rating Filter
   const handleRatingFilterChange = (event) => {
     setRatingFilter(event.target.value);
     setPage(1);
@@ -187,50 +187,44 @@ export default function ReviewSection({
 
   return (
     <section
-      className="mt-12 space-y-8"
       id="product-reviews"
+      className="mt-14 space-y-8 border-t border-[#E2E8F0] pt-9 sm:mt-16 sm:pt-10"
     >
-      {/* Section Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900">
-          Customer Reviews
-        </h2>
+      {/* Section Heading */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755e9]">
+          <MessageSquareText size={21} />
+        </div>
 
-        <p className="mt-1 text-sm text-slate-500">
-          See what customers think about this product.
-        </p>
+        <div>
+          <h2 className="text-xl font-bold tracking-tight text-[#101828] sm:text-2xl">
+            Customer Reviews
+          </h2>
+
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+            Real feedback and experiences from our customers.
+          </p>
+        </div>
       </div>
 
       {/* Rating Summary */}
-      <ReviewSummary ratingInfo={ratingInfo} />
+      <div className="rounded-2xl  border-slate-100 bg-slate-50/60  sm:p-6">
+        <ReviewSummary ratingInfo={ratingInfo} />
+      </div>
 
-      {/* Success Message */}
-      {message && (
-        <p
-          role="status"
-          aria-live="polite"
-          className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700"
-        >
-          {message}
-        </p>
-      )}
+      {/* My Review / Create Review */}
+      <div className="space-y-5">
+        {isAuthenticated ? (
+          myReviewLoading ? (
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-5">
+              <LoaderCircle
+                size={20}
+                className="animate-spin text-[#0755e9]"
+              />
 
-      {/* Action Error */}
-      {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600"
-        >
-          {error}
-        </p>
-      )}
-
-      {/* Customer Review Management */}
-      {isAuthenticated ? (
-        <div className="space-y-5">
-          {myReviewLoading ? (
-            <div className="py-5 text-sm text-slate-500">
-              Loading your review...
+              <p className="text-sm text-slate-500">
+                Loading your review...
+              </p>
             </div>
           ) : myReview ? (
             <MyReview
@@ -241,14 +235,16 @@ export default function ReviewSection({
               deleting={deleting}
             />
           ) : (
-            <div className="rounded-xl border border-slate-200 bg-white p-5">
-              <h3 className="text-lg font-semibold text-slate-900">
-                Write a Review
-              </h3>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+              <div className="mb-5">
+                <h3 className="text-lg font-bold text-[#101828]">
+                  Write a Review
+                </h3>
 
-              <p className="mt-1 text-sm text-slate-500">
-                Share your experience with this product.
-              </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Share your experience and help other customers.
+                </p>
+              </div>
 
               <ReviewForm
                 form={form}
@@ -257,29 +253,38 @@ export default function ReviewSection({
                 submitting={submitting}
               />
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-5 text-center">
-          <p className="text-sm text-slate-600">
-            {REVIEW_MESSAGES.LOGIN_REQUIRED}
-          </p>
+          )
+        ) : (
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-5 text-center sm:p-7">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#0755e9] shadow-sm">
+              <Star size={22} />
+            </div>
 
-          <button
-            type="button"
-            onClick={onRequireLogin}
-            className="mt-3 rounded-lg bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
-          >
-            Login to Review
-          </button>
-        </div>
-      )}
+            <h3 className="mt-3 text-base font-bold text-[#101828]">
+              Share Your Experience
+            </h3>
 
-      {/* Public Reviews */}
-      <div>
-        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-600">
+              {REVIEW_MESSAGES.LOGIN_REQUIRED}
+            </p>
+
+            <button
+              type="button"
+              onClick={onRequireLogin}
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#0755e9] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#0645c4] active:scale-[0.98]"
+            >
+              Login to Review
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* All Customer Reviews */}
+      <div className="border-t border-slate-100 pt-7">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">
+            <h3 className="text-lg font-bold text-[#101828]">
               All Customer Reviews
             </h3>
 
@@ -288,12 +293,12 @@ export default function ReviewSection({
             </p>
           </div>
 
-          {/* Sorting and Rating Filters */}
-          <div className="flex flex-col gap-3 sm:flex-row">
-            {/* Sort */}
-            <div className="flex items-center gap-2">
+          {/* Filters */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Sort Filter */}
+            <div className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-[#0755e9] focus-within:ring-2 focus-within:ring-blue-50">
               <SlidersHorizontal
-                size={18}
+                size={17}
                 className="shrink-0 text-slate-500"
               />
 
@@ -302,7 +307,7 @@ export default function ReviewSection({
                 onChange={handleSortChange}
                 disabled={loading}
                 aria-label="Sort reviews"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:w-auto"
+                className="w-full min-w-0 cursor-pointer bg-transparent py-2 text-sm font-medium text-slate-700 outline-none disabled:opacity-60"
               >
                 {REVIEW_SORT_OPTIONS.map((option) => (
                   <option
@@ -316,9 +321,9 @@ export default function ReviewSection({
             </div>
 
             {/* Rating Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 transition focus-within:border-[#0755e9] focus-within:ring-2 focus-within:ring-blue-50">
               <Star
-                size={18}
+                size={17}
                 className="shrink-0 text-amber-500"
               />
 
@@ -327,7 +332,7 @@ export default function ReviewSection({
                 onChange={handleRatingFilterChange}
                 disabled={loading}
                 aria-label="Filter reviews by rating"
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:w-auto"
+                className="w-full min-w-0 cursor-pointer bg-transparent py-2 text-sm font-medium text-slate-700 outline-none disabled:opacity-60"
               >
                 {REVIEW_RATING_FILTERS.map((option) => (
                   <option
@@ -342,6 +347,7 @@ export default function ReviewSection({
           </div>
         </div>
 
+        {/* Review List */}
         <ReviewList
           reviews={reviews}
           loading={loading}
@@ -352,12 +358,14 @@ export default function ReviewSection({
         {!loading &&
           !reviewsError &&
           pagination.totalPages > 1 && (
-            <ReviewPagination
-              page={page}
-              totalPages={pagination.totalPages}
-              onPageChange={handlePageChange}
-              disabled={loading}
-            />
+            <div className="mt-7">
+              <ReviewPagination
+                page={page}
+                totalPages={pagination.totalPages}
+                onPageChange={handlePageChange}
+                disabled={loading}
+              />
+            </div>
           )}
       </div>
     </section>

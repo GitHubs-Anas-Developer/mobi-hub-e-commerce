@@ -1,8 +1,7 @@
 
 "use client";
 
-import { Loader2, Save, X } from "lucide-react";
-
+import { Loader2, Send, X } from "lucide-react";
 
 import { REVIEW_CONFIG } from "@/constants/review.constants";
 import RatingSelector from "./RatingSelector";
@@ -24,9 +23,10 @@ export default function ReviewForm({
   };
 
   return (
-    <form onSubmit={onSubmit} className="mt-5 space-y-4">
+    <form onSubmit={onSubmit} className="mt-6 space-y-5">
+      {/* Rating */}
       <div>
-        <label className="mb-2 block text-sm font-medium text-slate-700">
+        <label className="mb-3 block text-sm font-bold text-[#101828]">
           Your Rating
         </label>
 
@@ -37,16 +37,19 @@ export default function ReviewForm({
         />
       </div>
 
+      {/* Review title */}
       <div>
         <label
           htmlFor="review-title"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-semibold text-[#101828]"
         >
           Review Title
+          <span className="ml-1 text-red-500">*</span>
         </label>
 
         <input
           id="review-title"
+          name="title"
           type="text"
           required
           minLength={REVIEW_CONFIG.MIN_TITLE_LENGTH}
@@ -57,21 +60,28 @@ export default function ReviewForm({
             handleChange("title", event.target.value)
           }
           placeholder="Summarize your experience"
-          className="w-full rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+          className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-[#101828] outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#0755e9] focus:ring-4 focus:ring-blue-50 disabled:cursor-not-allowed disabled:bg-slate-50"
         />
+
+        <p className="mt-1.5 text-right text-xs text-slate-400">
+          {form.title.length}/{REVIEW_CONFIG.MAX_TITLE_LENGTH}
+        </p>
       </div>
 
+      {/* Review comment */}
       <div>
         <label
           htmlFor="review-comment"
-          className="mb-2 block text-sm font-medium text-slate-700"
+          className="mb-2 block text-sm font-semibold text-[#101828]"
         >
           Your Review
+          <span className="ml-1 text-red-500">*</span>
         </label>
 
         <textarea
           id="review-comment"
-          rows={4}
+          name="comment"
+          rows={5}
           required
           minLength={REVIEW_CONFIG.MIN_COMMENT_LENGTH}
           maxLength={REVIEW_CONFIG.MAX_COMMENT_LENGTH}
@@ -80,21 +90,26 @@ export default function ReviewForm({
           onChange={(event) =>
             handleChange("comment", event.target.value)
           }
-          placeholder="Tell us about this product..."
-          className="w-full resize-y rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50"
+          placeholder="Tell us about the product quality, features and your experience..."
+          className="w-full resize-y rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-[#101828] outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#0755e9] focus:ring-4 focus:ring-blue-50 disabled:cursor-not-allowed disabled:bg-slate-50"
         />
+
+        <p className="mt-1.5 text-right text-xs text-slate-400">
+          {form.comment.length}/{REVIEW_CONFIG.MAX_COMMENT_LENGTH}
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-3">
+      {/* Actions */}
+      <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row">
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#0755e9] px-6 py-3 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:bg-[#0645c4] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? (
-            <Loader2 size={17} className="animate-spin" />
+            <Loader2 size={18} className="animate-spin" />
           ) : (
-            <Save size={17} />
+            <Send size={17} />
           )}
 
           {submitting ? "Saving..." : submitLabel}
@@ -105,7 +120,7 @@ export default function ReviewForm({
             type="button"
             onClick={onCancel}
             disabled={submitting}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <X size={17} />
             Cancel

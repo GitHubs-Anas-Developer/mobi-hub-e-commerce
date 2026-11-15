@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { Toaster } from "sonner";
+
 import StoreProvider from "@/store/Provider";
 import AppShell from "@/components/layout/AppShell";
 
@@ -26,9 +28,19 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body>
         <StoreProvider>
           <AppShell>{children}</AppShell>
+
+          {/* Global Toast Notifications */}
+          <Toaster
+            position="top-right"
+            theme="light"
+            richColors
+            closeButton
+            duration={3500}
+            visibleToasts={3}
+          />
         </StoreProvider>
       </body>
     </html>

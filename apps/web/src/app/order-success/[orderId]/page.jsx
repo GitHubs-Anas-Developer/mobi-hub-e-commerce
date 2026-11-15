@@ -5,8 +5,34 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
+import {
+  CheckCircle2,
+  AlertCircle,
+  Package,
+  MapPin,
+  CreditCard,
+  Truck,
+  ArrowLeft,
+  ShoppingBag,
+  UserRound,
+  ShieldCheck,
+  Clock,
+  ArrowRight,
+} from "lucide-react";
+
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useSpring,
+} from "framer-motion";
+
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import orderService from "@/services/orderService";
+
+/* ---------------------------------
+   Helpers
+---------------------------------- */
 
 const formatPrice = (amount) =>
   new Intl.NumberFormat("en-IN", {
@@ -31,19 +57,104 @@ const getStatusStyle = (status) => {
   const value = String(status || "").toLowerCase();
 
   if (["paid", "delivered"].includes(value)) {
-    return "bg-green-100 text-green-700";
+    return "bg-green-50 text-green-700 border-green-200";
   }
 
   if (["cancelled", "failed", "refunded"].includes(value)) {
-    return "bg-red-100 text-red-700";
+    return "bg-red-50 text-red-700 border-red-200";
   }
 
   if (["processing", "shipped", "confirmed"].includes(value)) {
-    return "bg-blue-100 text-blue-700";
+    return "bg-blue-50 text-blue-700 border-blue-200";
   }
 
-  return "bg-amber-100 text-amber-700";
+  return "bg-amber-50 text-amber-700 border-amber-200";
 };
+
+/* ---------------------------------
+   Animation Variants
+---------------------------------- */
+
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: {
+      staggerChildren: 0.12,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: {
+    opacity: 0,
+    y: 25,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.55,
+      ease: [0.22, 1, 0.36, 1],
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      duration: 0.45,
+      ease: "easeOut",
+    },
+  },
+};
+
+/* ---------------------------------
+   Reusable Components
+---------------------------------- */
+
+function SectionCard({ icon: Icon, title, children }) {
+  return (
+    <motion.section
+      variants={cardVariants}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2 }}
+      className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white shadow-sm"
+    >
+      <div className="flex items-center gap-3 border-b border-[#E2E8F0] px-5 py-5 sm:px-7">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+          <Icon size={20} />
+        </div>
+
+        <h2 className="text-base font-bold text-[#101828] sm:text-lg">
+          {title}
+        </h2>
+      </div>
+
+      <div className="p-5 sm:p-7">{children}</div>
+    </motion.section>
+  );
+}
+
+function DetailRow({ label, value, valueClass = "" }) {
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span className="text-[#64748B]">{label}</span>
+      <span className={`text-right font-semibold text-[#101828] ${valueClass}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/* ---------------------------------
+   Order Success Content
+---------------------------------- */
 
 function OrderSuccessContent() {
   const params = useParams();
@@ -52,6 +163,14 @@ function OrderSuccessContent() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const { scrollYProgress } = useScroll();
+
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30,
+    restDelta: 0.001,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -62,7 +181,9 @@ function OrderSuccessContent() {
         setError("");
 
         const response = await orderService.getOrderById(orderId);
-        const orderData = response?.data?.data || response?.data || response;
+
+        const orderData =
+          response?.data?.data || response?.data || response;
 
         if (!orderData?._id) {
           throw new Error("Invalid order response.");
@@ -76,7 +197,7 @@ function OrderSuccessContent() {
           setError(
             err.response?.data?.message ||
               err.message ||
-              "Unable to load order details.",
+              "Unable to load order details."
           );
         }
       } finally {
@@ -95,37 +216,61 @@ function OrderSuccessContent() {
     };
   }, [orderId]);
 
+  /* Loading State */
+
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-10 text-center">
-        <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
-        <p className="mt-4 text-sm text-slate-500">
-          Loading order details...
+      <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
+        <div className="relative flex h-16 w-16 items-center justify-center">
+          <div className="absolute inset-0 animate-spin rounded-full border-4 border-[#DBEAFE] border-t-[#0755E9]" />
+
+          <ShoppingBag className="text-[#0755E9]" size={25} />
+        </div>
+
+        <h2 className="mt-6 text-lg font-bold text-[#101828]">
+          Loading your order
+        </h2>
+
+        <p className="mt-2 text-sm text-[#64748B]">
+          Please wait while we fetch your order details.
         </p>
       </div>
     );
   }
 
+  /* Error State */
+
   if (error || !order) {
     return (
-      <div className="rounded-xl border border-red-200 bg-white p-8 text-center">
-        <h2 className="text-xl font-semibold text-slate-900">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mx-auto flex min-h-[55vh] max-w-lg flex-col items-center justify-center px-4 text-center"
+      >
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+          <AlertCircle size={32} />
+        </div>
+
+        <h2 className="mt-5 text-2xl font-bold text-[#101828]">
           Unable to load order
         </h2>
 
-        <p className="mt-2 text-sm text-red-600">
+        <p className="mt-3 text-sm leading-6 text-[#64748B]">
           {error || "Order not found."}
         </p>
 
         <Link
           href="/account/orders"
-          className="mt-6 inline-flex rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+          className="mt-7 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
         >
+          <ArrowLeft size={17} />
           Back to My Orders
         </Link>
-      </div>
+      </motion.div>
     );
   }
+
+  /* Order Data */
 
   const isCOD = order.paymentMethod === "COD";
   const isPaid = order.paymentStatus === "Paid";
@@ -133,6 +278,7 @@ function OrderSuccessContent() {
 
   const address = order.shippingAddress || {};
   const items = Array.isArray(order.items) ? order.items : [];
+
   const attributes = (value) => {
     if (!value) return [];
 
@@ -144,286 +290,435 @@ function OrderSuccessContent() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Order Header */}
-      <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
-        <div className="flex flex-col items-center text-center">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl ${
-              isCancelled
-                ? "bg-red-100 text-red-600"
-                : "bg-green-100 text-green-600"
-            }`}
+    <div className="relative">
+      {/* Scroll Progress */}
+      <motion.div
+        style={{ scaleX }}
+        className="fixed left-0 top-0 z-50 h-[3px] w-full origin-left bg-[#0755E9]"
+      />
+
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="space-y-6"
+      >
+        {/* Back Navigation */}
+
+        <motion.div variants={itemVariants}>
+          <Link
+            href="/account/orders"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#64748B] transition hover:text-[#0755E9]"
           >
-            {isCancelled ? "!" : "✓"}
-          </div>
+            <ArrowLeft size={17} />
+            Back to My Orders
+          </Link>
+        </motion.div>
 
-          <h1 className="mt-5 text-2xl font-bold text-slate-900 sm:text-3xl">
-            {isCancelled
-              ? "Order Cancelled"
-              : "Order Placed Successfully!"}
-          </h1>
+        {/* Order Header */}
 
-          <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-            {isCancelled
-              ? "This order has been cancelled."
-              : "Thank you for shopping with MOBI HUB. Your order details are shown below."}
-          </p>
-        </div>
+        <motion.section
+          variants={itemVariants}
+          className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-10"
+        >
+          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-full ounded-full bg-blue-100/60 blur-3xl" />
 
-        <div className="mt-8 grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-5 sm:grid-cols-2">
-          <div>
-            <p className="text-xs text-slate-500">Order Number</p>
-            <p className="mt-1 break-all text-sm font-bold text-slate-900">
-              {order.orderNumber || order._id}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">Order Date</p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
-              {formatDate(order.createdAt)}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">Order Status</p>
-            <span
-              className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(
-                order.orderStatus,
-              )}`}
-            >
-              {order.orderStatus || "Pending"}
-            </span>
-          </div>
-
-          <div>
-            <p className="text-xs text-slate-500">Payment Status</p>
-            <span
-              className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(
-                order.paymentStatus,
-              )}`}
-            >
-              {order.paymentStatus || "Pending"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Order Items */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
-        <h2 className="text-lg font-bold text-slate-900">
-          Order Items ({items.length})
-        </h2>
-
-        {items.length === 0 ? (
-          <p className="mt-5 text-sm text-slate-500">
-            No item details available.
-          </p>
-        ) : (
-          <div className="mt-5 divide-y divide-slate-100">
-            {items.map((item, index) => (
-              <div
-                key={item.variantId || index}
-                className="flex flex-col gap-4 py-5 first:pt-0 last:pb-0 sm:flex-row"
-              >
-                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                  {item.thumbnail ? (
-                    <img
-                      src={item.thumbnail}
-                      alt={item.productName || "Product"}
-                      className="h-full w-full object-contain"
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-3xl">
-                      📦
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-slate-900">
-                    {item.productName || "Product"}
-                  </h3>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    SKU: {item.sku || "N/A"}
-                  </p>
-
-                  {attributes(item.attributes).length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {attributes(item.attributes).map(([key, value]) => (
-                        <span
-                          key={key}
-                          className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-600"
-                        >
-                          {key}: {String(value)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-slate-500">
-                    <span>Qty: {item.quantity}</span>
-                    <span>Price: {formatPrice(item.sellingPrice)}</span>
-                  </div>
-                </div>
-
-                <div className="text-left sm:text-right">
-                  <p className="text-xs text-slate-500">Subtotal</p>
-                  <p className="mt-1 font-bold text-slate-900">
-                    {formatPrice(item.subtotal)}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* Shipping Address */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
-        <h2 className="text-lg font-bold text-slate-900">
-          Delivery Address
-        </h2>
-
-        <div className="mt-5 rounded-lg bg-slate-50 p-5">
-          <p className="font-semibold text-slate-900">
-            {address.fullName || "N/A"}
-          </p>
-
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {address.addressLine1}
-            {address.addressLine2 && `, ${address.addressLine2}`}
-            {address.landmark && `, ${address.landmark}`}
-            <br />
-            {address.city}, {address.state} - {address.pincode}
-            <br />
-            {address.country}
-          </p>
-
-          <p className="mt-3 text-sm text-slate-600">
-            Phone: {address.phone || "N/A"}
-          </p>
-
-          {address.alternatePhone && (
-            <p className="mt-1 text-sm text-slate-600">
-              Alternate Phone: {address.alternatePhone}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* Payment and Price Summary */}
-      <section className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8">
-        <h2 className="text-lg font-bold text-slate-900">
-          Payment & Price Details
-        </h2>
-
-        <div className="mt-5 space-y-4">
-          <div className="flex justify-between gap-4 text-sm">
-            <span className="text-slate-500">Payment Method</span>
-            <span className="font-semibold text-slate-900">
-              {isCOD ? "Cash on Delivery" : "Online Payment"}
-            </span>
-          </div>
-
-          <div className="flex justify-between gap-4 text-sm">
-            <span className="text-slate-500">Payment Status</span>
-            <span
-              className={`font-semibold ${
-                isPaid ? "text-green-600" : "text-amber-600"
+          <div className="relative flex flex-col items-center text-center">
+            <motion.div
+              initial={{ scale: 0, rotate: -30 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{
+                type: "spring",
+                stiffness: 180,
+                damping: 12,
+                delay: 0.2,
+              }}
+              className={`flex h-20 w-20 items-center justify-center rounded-full ${
+                isCancelled
+                  ? "bg-red-50 text-red-500"
+                  : "bg-[#EFF6FF] text-[#0755E9]"
               }`}
             >
-              {order.paymentStatus}
-            </span>
-          </div>
+              {isCancelled ? (
+                <AlertCircle size={42} />
+              ) : (
+                <CheckCircle2 size={42} />
+              )}
+            </motion.div>
 
-          <div className="border-t border-slate-100 pt-4">
-            <div className="flex justify-between gap-4 text-sm">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="font-medium text-slate-900">
-                {formatPrice(order.subtotal)}
-              </span>
-            </div>
+            <motion.h1
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+              className="mt-6 text-2xl font-extrabold tracking-tight text-[#101828] sm:text-3xl"
+            >
+              {isCancelled
+                ? "Order Cancelled"
+                : "Order Placed Successfully!"}
+            </motion.h1>
 
-            <div className="mt-3 flex justify-between gap-4 text-sm">
-              <span className="text-slate-500">Shipping Fee</span>
-              <span className="font-medium text-slate-900">
-                {Number(order.shippingFee) === 0
-                  ? "Free"
-                  : formatPrice(order.shippingFee)}
-              </span>
-            </div>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-[#64748B]">
+              {isCancelled
+                ? "This order has been cancelled."
+                : "Thank you for shopping with MOBI HUB. Your order details are shown below."}
+            </p>
 
-            {Number(order.discount) > 0 && (
-              <div className="mt-3 flex justify-between gap-4 text-sm">
-                <span className="text-slate-500">
-                  Discount
-                  {order.coupon?.code && ` (${order.coupon.code})`}
-                </span>
-                <span className="font-medium text-green-600">
-                  -{formatPrice(order.discount)}
-                </span>
+            {!isCancelled && (
+              <div className="mt-5 inline-flex items-center gap-2 rounded-full bg-green-50 px-4 py-2 text-xs font-semibold text-green-700">
+                <ShieldCheck size={15} />
+                Your order details are ready
               </div>
             )}
           </div>
 
-          <div className="flex justify-between gap-4 border-t border-slate-200 pt-4">
-            <span className="font-bold text-slate-900">
-              Total Amount
-            </span>
-            <span className="text-xl font-bold text-slate-900">
-              {formatPrice(order.totalAmount)}
-            </span>
+          {/* Order Information */}
+
+          <div className="relative mt-9 grid grid-cols-1 gap-4 rounded-xl bg-[#F8FAFC] p-5 sm:grid-cols-2 sm:p-6">
+            <div>
+              <p className="text-xs font-medium text-[#64748B]">
+                Order Number
+              </p>
+
+              <p className="mt-2 break-all text-sm font-bold text-[#101828]">
+                {order.orderNumber || order._id}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-[#64748B]">
+                Order Date
+              </p>
+
+              <p className="mt-2 text-sm font-semibold text-[#101828]">
+                {formatDate(order.createdAt)}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-[#64748B]">
+                Order Status
+              </p>
+
+              <span
+                className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-xs font-semibold ${getStatusStyle(
+                  order.orderStatus
+                )}`}
+              >
+                {order.orderStatus || "Pending"}
+              </span>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-[#64748B]">
+                Payment Status
+              </p>
+
+              <span
+                className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-xs font-semibold ${getStatusStyle(
+                  order.paymentStatus
+                )}`}
+              >
+                {order.paymentStatus || "Pending"}
+              </span>
+            </div>
           </div>
-        </div>
+        </motion.section>
 
-        {isCOD && !isPaid && !isCancelled && (
-          <p className="mt-5 rounded-lg bg-blue-50 p-4 text-sm text-blue-700">
-            You can pay when your order is delivered.
-          </p>
-        )}
+        {/* Order Items */}
 
-        {!isCOD && !isPaid && !isCancelled && (
-          <p className="mt-5 rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
-            Your online payment is not confirmed yet. Please check your
-            payment status before trying again.
-          </p>
-        )}
-      </section>
-
-      {/* Actions */}
-      <div className="flex flex-col justify-center gap-3 sm:flex-row">
-        <Link
-          href="/account/orders"
-          className="rounded-lg bg-blue-600 px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+        <SectionCard
+          icon={Package}
+          title={`Order Items (${items.length})`}
         >
-          My Orders
-        </Link>
+          {items.length === 0 ? (
+            <p className="text-sm text-[#64748B]">
+              No item details available.
+            </p>
+          ) : (
+            <div className="divide-y divide-[#E2E8F0]">
+              {items.map((item, index) => (
+                <motion.div
+                  key={item.variantId || index}
+                  initial={{ opacity: 0, x: -15 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.4, delay: index * 0.06 }}
+                  className="flex flex-col gap-4 py-6 first:pt-0 last:pb-0 sm:flex-row sm:items-start"
+                >
+                  {/* Product Image */}
 
-        <Link
-          href="/account"
-          className="rounded-lg border border-slate-300 px-6 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          My Account
-        </Link>
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.productName || "Product"}
+                        className="h-full w-full object-contain p-2"
+                      />
+                    ) : (
+                      <Package size={30} className="text-[#94A3B8]" />
+                    )}
+                  </div>
 
-        <Link
-          href="/products"
-          className="rounded-lg border border-slate-300 px-6 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  {/* Product Details */}
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-bold text-[#101828]">
+                      {item.productName || "Product"}
+                    </h3>
+
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      SKU: {item.sku || "N/A"}
+                    </p>
+
+                    {attributes(item.attributes).length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {attributes(item.attributes).map(([key, value]) => (
+                          <span
+                            key={key}
+                            className="rounded-lg bg-[#EFF6FF] px-3 py-1.5 text-xs font-medium text-[#0755E9]"
+                          >
+                            {key}: {String(value)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-[#64748B]">
+                      <span>Qty: {item.quantity}</span>
+
+                      <span>
+                        Price: {formatPrice(item.sellingPrice)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Subtotal */}
+
+                  <div className="flex items-center justify-between border-t border-[#E2E8F0] pt-3 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                    <p className="text-xs text-[#64748B]">
+                      Subtotal
+                    </p>
+
+                    <p className="mt-1 font-bold text-[#101828]">
+                      {formatPrice(item.subtotal)}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Delivery Address */}
+
+        <SectionCard
+          icon={MapPin}
+          title="Delivery Address"
         >
-          Continue Shopping
-        </Link>
-      </div>
+          <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                <MapPin size={19} />
+              </div>
+
+              <div className="min-w-0">
+                <p className="font-bold text-[#101828]">
+                  {address.fullName || "N/A"}
+                </p>
+
+                <p className="mt-2 text-sm leading-7 text-[#64748B]">
+                  {address.addressLine1}
+                  {address.addressLine2 && `, ${address.addressLine2}`}
+                  {address.landmark && `, ${address.landmark}`}
+                  <br />
+                  {address.city}, {address.state} - {address.pincode}
+                  <br />
+                  {address.country}
+                </p>
+
+                <div className="mt-4 space-y-2">
+                  <p className="text-sm text-[#64748B]">
+                    Phone:{" "}
+                    <span className="font-semibold text-[#101828]">
+                      {address.phone || "N/A"}
+                    </span>
+                  </p>
+
+                  {address.alternatePhone && (
+                    <p className="text-sm text-[#64748B]">
+                      Alternate Phone:{" "}
+                      <span className="font-semibold text-[#101828]">
+                        {address.alternatePhone}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </SectionCard>
+
+        {/* Payment and Price Summary */}
+
+        <SectionCard
+          icon={CreditCard}
+          title="Payment & Price Details"
+        >
+          <div className="space-y-5">
+            {/* Payment Information */}
+
+            <div className="space-y-4">
+              <DetailRow
+                label="Payment Method"
+                value={isCOD ? "Cash on Delivery" : "Online Payment"}
+              />
+
+              <DetailRow
+                label="Payment Status"
+                value={order.paymentStatus || "Pending"}
+                valueClass={
+                  isPaid ? "text-green-600" : "text-amber-600"
+                }
+              />
+            </div>
+
+            <div className="border-t border-[#E2E8F0] pt-5">
+              <div className="space-y-4">
+                <DetailRow
+                  label="Subtotal"
+                  value={formatPrice(order.subtotal)}
+                />
+
+                <DetailRow
+                  label="Shipping Fee"
+                  value={
+                    Number(order.shippingFee) === 0
+                      ? "Free"
+                      : formatPrice(order.shippingFee)
+                  }
+                  valueClass={
+                    Number(order.shippingFee) === 0
+                      ? "text-green-600"
+                      : ""
+                  }
+                />
+
+                {Number(order.discount) > 0 && (
+                  <DetailRow
+                    label={`Discount${
+                      order.coupon?.code
+                        ? ` (${order.coupon.code})`
+                        : ""
+                    }`}
+                    value={`-${formatPrice(order.discount)}`}
+                    valueClass="text-green-600"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Total */}
+
+            <div className="flex items-center justify-between gap-4 rounded-xl bg-[#EFF6FF] p-5">
+              <div>
+                <p className="text-sm font-bold text-[#101828]">
+                  Total Amount
+                </p>
+
+                <p className="mt-1 text-xs text-[#64748B]">
+                  Including applicable charges
+                </p>
+              </div>
+
+              <p className="text-xl font-extrabold text-[#0755E9] sm:text-2xl">
+                {formatPrice(order.totalAmount)}
+              </p>
+            </div>
+          </div>
+
+          {/* Payment Messages */}
+
+          <AnimatePresence mode="wait">
+            {isCOD && !isPaid && !isCancelled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mt-5 flex items-start gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700"
+              >
+                <Truck size={19} className="mt-0.5 shrink-0" />
+
+                <p>
+                  You can pay when your order is delivered.
+                </p>
+              </motion.div>
+            )}
+
+            {!isCOD && !isPaid && !isCancelled && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="mt-5 flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-700"
+              >
+                <Clock size={19} className="mt-0.5 shrink-0" />
+
+                <p>
+                  Your online payment is not confirmed yet. Please check your
+                  payment status before trying again.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </SectionCard>
+
+        {/* Action Buttons */}
+
+        <motion.div
+          variants={itemVariants}
+          className="flex flex-col justify-center gap-3 pt-2 sm:flex-row"
+        >
+          <Link
+            href="/account/orders"
+            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0645C4] hover:shadow-lg hover:shadow-blue-500/20"
+          >
+            <ShoppingBag size={17} />
+            My Orders
+            <ArrowRight
+              size={16}
+              className="transition-transform group-hover:translate-x-1"
+            />
+          </Link>
+
+          <Link
+            href="/account"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm font-semibold text-[#101828] transition hover:border-[#0755E9] hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+          >
+            <UserRound size={17} />
+            My Account
+          </Link>
+
+          <Link
+            href="/products"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-6 py-3.5 text-sm font-semibold text-[#101828] transition hover:border-[#0755E9] hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+          >
+            <ShoppingBag size={17} />
+            Continue Shopping
+          </Link>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
 
+/* ---------------------------------
+   Main Page
+---------------------------------- */
+
 export default function OrderSuccessPage() {
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-slate-50 py-8 sm:py-10">
+      <main className="min-h-screen bg-[#F8FAFC] py-6 sm:py-10">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <OrderSuccessContent />
         </div>

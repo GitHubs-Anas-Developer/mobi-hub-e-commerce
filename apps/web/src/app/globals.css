@@ -24,3 +24,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mobi Hub Blue Scrollbar */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  scrollbar-width: thin;
+  scrollbar-color: #0755e9 #eaf1ff;
+}
+
+body::-webkit-scrollbar {
+  width: 8px;
+}
+
+body::-webkit-scrollbar-track {
+  background: #eaf1ff;
+}
+
+body::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #0755e9, #2583ff);
+  border-radius: 20px;
+}
+
+body::-webkit-scrollbar-thumb:hover {
+  background: #0645c4;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
