@@ -1,13 +1,13 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Mail,
   Phone,
   MapPin,
   ArrowUpRight,
- 
 } from "lucide-react";
 
 import { motion, useScroll, useSpring } from "framer-motion";
@@ -52,8 +52,6 @@ const contactDetails = [
   },
 ];
 
-
-
 const containerVariants = {
   hidden: {},
   visible: {
@@ -79,6 +77,12 @@ const itemVariants = {
 };
 
 export default function Footer() {
+  const [currentYear, setCurrentYear] = useState("2026");
+
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
+
   const { scrollYProgress } = useScroll();
 
   const scaleX = useSpring(scrollYProgress, {
@@ -102,8 +106,6 @@ export default function Footer() {
       <div className="pointer-events-none absolute -bottom-40 -left-32 h-80 w-80 rounded-full bg-indigo-100/40 blur-3xl" />
 
       <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
-       
 
         {/* Main Footer */}
         <motion.div
@@ -213,7 +215,7 @@ export default function Footer() {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 text-center sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:text-left lg:px-8">
 
           <p className="text-xs text-[#64748B]">
-            © {new Date().getFullYear()}{" "}
+            © {currentYear}{" "}
             <span className="font-semibold text-[#101828]">MOBI HUB.</span>{" "}
             All rights reserved.
           </p>
