@@ -209,7 +209,7 @@ export default function CategorySection() {
                     className="group flex h-full flex-col items-center text-center"
                   >
                     {/* Circular Image */}
-                    <div className="relative aspect-square w-full overflow-hidden rounded-full border border-slate-100 bg-[#F5F7FA] p-4 transition-all duration-300 group-hover:border-blue-200 group-hover:bg-[#EFF6FF] group-hover:shadow-[0_8px_25px_rgba(7,85,233,0.10)] sm:p-5">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-full border border-slate-100  transition-all duration-300  sm:p-5">
                       {category.image?.url ? (
                         <img
                           src={category.image.url}

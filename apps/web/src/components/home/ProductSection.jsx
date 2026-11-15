@@ -87,7 +87,7 @@ export default function ProductSection({
         className="mb-5 flex items-end justify-between gap-3 sm:mb-6"
       >
 
-        <div className="min-w-0">
+        <div className="min-w-0 pt-5">
 
           <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
             {title}

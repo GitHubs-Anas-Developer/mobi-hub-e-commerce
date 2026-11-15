@@ -3,12 +3,7 @@
 
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
-
-import {
-  LayoutGrid,
-  Package,
-  Check,
-} from "lucide-react";
+import { LayoutGrid, Package, ArrowRight } from "lucide-react";
 
 export default function ProductCategoryCards({
   categories = [],
@@ -17,18 +12,13 @@ export default function ProductCategoryCards({
 }) {
   const shouldReduceMotion = useReducedMotion();
 
-  // Get category image
   const getCategoryImage = (item) => {
-    if (typeof item.image === "string") {
-      return item.image;
-    }
+    if (typeof item.image === "string") return item.image;
 
     return (
       item.image?.url ||
       item.thumbnail?.url ||
-      (typeof item.thumbnail === "string"
-        ? item.thumbnail
-        : "") ||
+      (typeof item.thumbnail === "string" ? item.thumbnail : "") ||
       item.images?.[0]?.url ||
       (typeof item.images?.[0] === "string"
         ? item.images[0]
@@ -37,13 +27,8 @@ export default function ProductCategoryCards({
     );
   };
 
-  // Category Data
   const categoryItems = [
-    {
-      id: "all",
-      name: "All Products",
-      image: null,
-    },
+    { id: "all", name: "All Products", image: null },
     ...categories.map((item) => ({
       id: item._id,
       name: item.name || "Category",
@@ -51,30 +36,30 @@ export default function ProductCategoryCards({
     })),
   ];
 
-  // Motion Settings
-  const cardInitial = shouldReduceMotion
-    ? false
-    : {
-        opacity: 0,
-        y: 15,
-      };
-
-  const cardTransition = {
-    duration: shouldReduceMotion ? 0 : 0.4,
-    ease: "easeOut",
-  };
-
   return (
-    <section
-      className="w-full min-w-0 py-3 "
-      aria-label="Shop by category"
-    >
-      {/* Horizontal Category Slider */}
-      <div className="flex w-full min-w-0 items-start gap-4 overflow-x-auto overscroll-x-contain scroll-smooth px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-5 sm:px-4 lg:gap-6 lg:px-5">
+    <section className="w-full min-w-0 py-4 sm:py-5">
+      
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+            Shop by Category
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
+            Explore our mobile accessories collection
+          </p>
+        </div>
+
+        <span className="hidden items-center gap-1 text-sm font-semibold text-blue-600 sm:flex">
+          Explore <ArrowRight size={16} />
+        </span>
+      </div>
+
+      {/* Category Slider */}
+      <div className="flex gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4">
 
         {categoryItems.map((item, index) => {
           const isAll = item.id === "all";
-
           const isSelected = isAll
             ? !selectedCategory
             : selectedCategory === item.id;
@@ -88,52 +73,38 @@ export default function ProductCategoryCards({
               }
               aria-label={`Select ${item.name}`}
               aria-pressed={isSelected}
-              initial={cardInitial}
+              initial={shouldReduceMotion ? false : {
+                opacity: 0,
+                y: 15,
+              }}
               whileInView={{
                 opacity: 1,
                 y: 0,
               }}
-              viewport={{
-                once: true,
-                amount: 0.3,
-              }}
+              viewport={{ once: true, amount: 0.2 }}
               transition={{
-                ...cardTransition,
-                delay: shouldReduceMotion
-                  ? 0
-                  : Math.min(index * 0.05, 0.3),
+                duration: shouldReduceMotion ? 0 : 0.4,
+                delay: shouldReduceMotion ? 0 : Math.min(index * 0.04, 0.2),
               }}
-              whileHover={
-                shouldReduceMotion
-                  ? undefined
-                  : { y: -3 }
-              }
-              whileTap={
-                shouldReduceMotion
-                  ? undefined
-                  : { scale: 0.96 }
-              }
-              className="group flex w-[76px] shrink-0 flex-col items-center gap-2 pt-2 text-center outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-4 sm:w-[88px] lg:w-[96px]"
+              whileTap={shouldReduceMotion ? undefined : {
+                scale: 0.97,
+              }}
+              className={`group w-[145px] shrink-0 overflow-hidden rounded-2xl border bg-white text-left transition-all duration-300 sm:w-[175px] lg:w-[190px] ${
+                isSelected
+                  ? "border-blue-600 shadow-md shadow-blue-100"
+                  : "border-slate-200 hover:border-blue-300 hover:shadow-md"
+              }`}
             >
-              {/* Category Image */}
-              <div
-                className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full transition-all duration-300 sm:h-[72px] sm:w-[72px] lg:h-20 lg:w-20 ${
-                  isSelected
-                    ? "bg-blue-50 ring-2 ring-blue-600 ring-offset-2"
-                    : "bg-slate-100 ring-1 ring-slate-200 group-hover:bg-blue-50 group-hover:ring-blue-300"
-                }`}
-              >
+
+              {/* Image */}
+              <div className="relative aspect-[5/4] w-full overflow-hidden bg-slate-50">
+
                 {isAll ? (
-                  <div
-                    className={`flex h-full w-full items-center justify-center rounded-full transition-colors duration-300 ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-blue-600 group-hover:text-white"
-                    }`}
-                  >
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
                     <LayoutGrid
-                      size={25}
-                      strokeWidth={1.7}
+                      size={42}
+                      strokeWidth={1.5}
+                      className="text-blue-600"
                     />
                   </div>
                 ) : item.image ? (
@@ -141,54 +112,50 @@ export default function ProductCategoryCards({
                     src={item.image}
                     alt={item.name}
                     fill
-                    sizes="(max-width: 640px) 64px, (max-width: 1024px) 72px, 80px"
-                    className="rounded-full object-contain p-2 sm:p-2.5"
+                    sizes="(max-width: 640px) 145px, 190px"
+                    className="object-contain p-2 transition-transform duration-500 group-hover:scale-105"
                   />
                 ) : (
-                  <Package
-                    size={26}
-                    strokeWidth={1.5}
-                    className={
-                      isSelected
-                        ? "text-blue-600"
-                        : "text-slate-400"
-                    }
-                  />
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Package size={38} className="text-slate-400" />
+                  </div>
                 )}
 
-                {/* Selected Check */}
+                {/* Selected Indicator */}
                 {isSelected && (
-                  <span className="absolute -right-0.5 -top-0.5 z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-blue-600 text-white shadow-sm">
-                    <Check size={11} strokeWidth={3} />
+                  <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
+                    <span className="text-xs">✓</span>
                   </span>
                 )}
+
               </div>
 
               {/* Category Name */}
-              <span
-                className={`w-full truncate text-[10px] leading-tight transition-colors sm:text-xs ${
-                  isSelected
-                    ? "font-bold text-blue-600"
-                    : "font-medium text-slate-600 group-hover:text-blue-600"
-                }`}
-              >
-                {item.name}
-              </span>
+              <div className="flex min-h-[52px] items-center justify-between gap-2 px-3 py-2.5">
+                <span
+                  className={`line-clamp-2 text-xs font-semibold leading-snug sm:text-sm ${
+                    isSelected
+                      ? "text-blue-600"
+                      : "text-slate-800"
+                  }`}
+                >
+                  {item.name}
+                </span>
 
-              {/* Active Indicator */}
-              <motion.span
-                animate={{
-                  width: isSelected ? 20 : 0,
-                  opacity: isSelected ? 1 : 0,
-                }}
-                transition={{
-                  duration: shouldReduceMotion ? 0 : 0.25,
-                }}
-                className="h-1 rounded-full bg-blue-600"
-              />
+                <ArrowRight
+                  size={15}
+                  className={`shrink-0 transition-transform duration-300 ${
+                    isSelected
+                      ? "translate-x-0 text-blue-600"
+                      : "text-slate-400 group-hover:translate-x-1 group-hover:text-blue-600"
+                  }`}
+                />
+              </div>
+
             </motion.button>
           );
         })}
+
       </div>
     </section>
   );

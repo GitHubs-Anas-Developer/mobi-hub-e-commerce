@@ -141,28 +141,11 @@ export default function AddressForm({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       onSubmit={handleSubmit}
-      className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white"
+      className=" overflow-hidden rounded-2xl  border-slate-200 bg-white"
     >
-      {/* Header */}
-      <div className="border-b border-slate-100 bg-slate-50/70 px-5 py-5 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]">
-            <MapPin size={21} />
-          </div>
-
-          <div>
-            <h3 className="text-lg font-bold text-[#101828]">
-              Add New Address
-            </h3>
-            <p className="mt-0.5 text-xs text-slate-500">
-              Enter your delivery details below
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Form Fields */}
-      <div className="p-5 sm:p-6">
+      <div className=" sm:p-6 p-1">
         <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
           {addressFields.map((field) => {
             const Icon = field.icon;
