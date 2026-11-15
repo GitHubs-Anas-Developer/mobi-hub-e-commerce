@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 
 import { motion, useReducedMotion } from "motion/react";
@@ -41,8 +41,13 @@ const banners = [
 export default function ShopBanner() {
   const [swiper, setSwiper] = useState(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isMounted, setIsMounted] = useState(false);
 
   const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const initialState = shouldReduceMotion
     ? false
@@ -83,68 +88,72 @@ export default function ShopBanner() {
     >
       {/* Banner Slider */}
       <div className="relative aspect-[16/9] w-full overflow-hidden sm:aspect-[16/6] lg:aspect-[16/5.5]">
-
-        <Swiper
-          modules={[Autoplay, EffectFade, A11y]}
-          onSwiper={setSwiper}
-          onSlideChange={(instance) =>
-            setActiveIndex(instance.realIndex)
-          }
-          slidesPerView={1}
-          effect="fade"
-          fadeEffect={{
-            crossFade: true,
-          }}
-          loop
-          speed={900}
-          autoplay={{
-            delay: 4500,
-            disableOnInteraction: false,
-            pauseOnMouseEnter: true,
-          }}
-          allowTouchMove
-          className="h-full w-full"
-        >
-          {banners.map((banner, index) => (
-            <SwiperSlide
-              key={banner.id}
-              className="h-full overflow-hidden"
-            >
-              {/* Animated Banner Image */}
-              <motion.div
-                animate={
-                  shouldReduceMotion
-                    ? { scale: 1 }
-                    : {
-                        scale:
-                          activeIndex === index ? 1.06 : 1,
-                      }
-                }
-                transition={{
-                  duration: shouldReduceMotion ? 0 : 5,
-                  ease: "linear",
-                }}
-                className="absolute inset-0"
+        {isMounted ? (
+          <Swiper
+            modules={[Autoplay, EffectFade, A11y]}
+            onSwiper={setSwiper}
+            onSlideChange={(instance) =>
+              setActiveIndex(instance.realIndex)
+            }
+            slidesPerView={1}
+            effect="fade"
+            fadeEffect={{
+              crossFade: true,
+            }}
+            loop
+            speed={900}
+            autoplay={{
+              delay: 4500,
+              disableOnInteraction: false,
+              pauseOnMouseEnter: true,
+            }}
+            allowTouchMove
+            className="h-full w-full"
+          >
+            {banners.map((banner, index) => (
+              <SwiperSlide
+                key={banner.id}
+                className="h-full overflow-hidden"
               >
-                <Image
-                  src={banner.image}
-                  alt={banner.alt}
-                  fill
-                  sizes="100vw"
-                  priority={index === 0}
-                  className="object-cover"
-                />
-              </motion.div>
-            </SwiperSlide>
-          ))}
-        </Swiper>
+                {/* Animated Banner Image */}
+                <motion.div
+                  animate={
+                    shouldReduceMotion
+                      ? { scale: 1 }
+                      : {
+                          scale:
+                            activeIndex === index ? 1.06 : 1,
+                        }
+                  }
+                  transition={{
+                    duration: shouldReduceMotion ? 0 : 5,
+                    ease: "linear",
+                  }}
+                  className="absolute inset-0"
+                >
+                  <Image
+                    src={banner.image}
+                    alt={banner.alt}
+                    fill
+                    sizes="100vw"
+                    priority={index === 0}
+                    className="object-cover"
+                  />
+                </motion.div>
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          <div className="h-full w-full" />
+        )}
 
         {/* Previous Button */}
         <button
           type="button"
           onClick={handlePrevious}
           aria-label="Previous banner"
-          className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-slate-800 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white sm:left-4 sm:h-10 sm:w-10"
+          disabled={!swiper}
+          className="absolute left-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-slate-800 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:cursor-not-allowed sm:left-4 sm:h-10 sm:w-10"
         >
           <ChevronLeft size={20} />
         </button>
@@ -154,7 +163,8 @@ export default function ShopBanner() {
           type="button"
           onClick={handleNext}
           aria-label="Next banner"
-          className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-slate-800 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white sm:right-4 sm:h-10 sm:w-10"
+          disabled={!swiper}
+          className="absolute right-2 top-1/2 z-20 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/50 bg-white/90 text-slate-800 shadow-md backdrop-blur-sm transition-all hover:scale-110 hover:bg-white disabled:cursor-not-allowed sm:right-4 sm:h-10 sm:w-10"
         >
           <ChevronRight size={20} />
         </button>
@@ -170,6 +180,7 @@ export default function ShopBanner() {
                 activeIndex === index ? "true" : undefined
               }
               onClick={() => handleIndicatorClick(index)}
+              disabled={!swiper}
               className={`h-2 rounded-full transition-all duration-300 ${
                 activeIndex === index
                   ? "w-7 bg-blue-600"
