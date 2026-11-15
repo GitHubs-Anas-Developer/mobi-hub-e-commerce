@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 import {
-    createRefreshToken,
+  createRefreshToken,
   generateAccessToken,
   consumeRefreshToken,
   revokeRefreshToken,
@@ -16,7 +16,7 @@ import User from "../models/user.model.js";
 const getCookieOptions = (path) => ({
   httpOnly: true,
   secure: process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   path,
 });
 
