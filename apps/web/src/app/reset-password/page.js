@@ -1,12 +1,13 @@
-
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
+
+  const [currentYear, setCurrentYear] = useState("");
 
   const [formData, setFormData] = useState({
     password: "",
@@ -18,6 +19,10 @@ export default function ResetPasswordPage() {
 
   const [validationError, setValidationError] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,9 +43,7 @@ export default function ResetPasswordPage() {
     setIsSubmitted(false);
 
     if (formData.password.length < 8) {
-      setValidationError(
-        "Password must be at least 8 characters long.",
-      );
+      setValidationError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -64,7 +67,6 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex font-sans antialiased">
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-[40%] bg-[#F8FAFC] flex-col justify-between p-12 border-r border-[#E2E8F0]">
-
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-3 w-fit">
           <div className="w-10 h-10 bg-[#1D4ED8] rounded-xl flex items-center justify-center shadow-md">
@@ -102,13 +104,12 @@ export default function ResetPasswordPage() {
 
         {/* Footer */}
         <div className="text-sm text-[#64748B]">
-          © {new Date().getFullYear()} MOBI HUB. All rights reserved.
+          © {currentYear} MOBI HUB. All rights reserved.
         </div>
       </div>
 
       {/* Right Panel */}
       <div className="flex-1 bg-white flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
-
         {/* Mobile Logo */}
         <div className="flex lg:hidden items-center gap-2.5 mb-10 mt-6">
           <div className="w-8 h-8 bg-[#1D4ED8] rounded-lg flex items-center justify-center shadow-sm">
@@ -122,7 +123,7 @@ export default function ResetPasswordPage() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2-2h8a2 2 0 002 2v14a2 2 0 002 2z"
               />
             </svg>
           </div>
@@ -134,7 +135,6 @@ export default function ResetPasswordPage() {
 
         {/* Form Container */}
         <div className="w-full max-w-[420px] my-auto">
-
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-2">
@@ -168,7 +168,6 @@ export default function ResetPasswordPage() {
           ) : (
             /* Reset Password Form */
             <form onSubmit={handleSubmit} className="space-y-4">
-
               {/* New Password */}
               <div className="space-y-1.5">
                 <label
@@ -194,9 +193,7 @@ export default function ResetPasswordPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowPassword((prev) => !prev)
-                    }
+                    onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-4 text-[#64748B] hover:text-[#0F172A] transition-colors"
                     aria-label="Toggle password visibility"
                   >
@@ -250,9 +247,7 @@ export default function ResetPasswordPage() {
                 <div className="relative flex items-center">
                   <input
                     id="confirmPassword"
-                    type={
-                      showConfirmPassword ? "text" : "password"
-                    }
+                    type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
@@ -265,9 +260,7 @@ export default function ResetPasswordPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowConfirmPassword((prev) => !prev)
-                    }
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
                     className="absolute right-4 text-[#64748B] hover:text-[#0F172A] transition-colors"
                     aria-label="Toggle confirm password visibility"
                   >
@@ -348,7 +341,6 @@ export default function ResetPasswordPage() {
                   d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
                 />
               </svg>
-
               Back to log in
             </Link>
           </p>

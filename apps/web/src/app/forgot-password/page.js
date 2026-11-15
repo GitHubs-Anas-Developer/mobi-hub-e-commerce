@@ -1,12 +1,18 @@
+
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [currentYear, setCurrentYear] = useState("");
+
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -70,7 +76,7 @@ export default function ForgotPasswordPage() {
         </div>
 
         <div className="text-sm text-[#64748B]">
-          © {new Date().getFullYear()} MOBI HUB. All rights reserved.
+          © {currentYear} MOBI HUB. All rights reserved.
         </div>
       </div>
 
