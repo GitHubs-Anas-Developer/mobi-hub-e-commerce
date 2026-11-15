@@ -120,10 +120,8 @@ function VideoCard({ item, onPlay }) {
 
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-100/50">
-
       {/* VIDEO AREA */}
       <div className="relative m-2.5 overflow-hidden rounded-xl bg-[#EFF6FF]">
-
         <div className="aspect-[4/4.5] overflow-hidden">
           <video
             ref={videoRef}
@@ -174,7 +172,6 @@ function VideoCard({ item, onPlay }) {
 
       {/* PRODUCT DETAILS */}
       <div className="flex flex-1 flex-col px-4 pb-4 pt-1">
-
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-1.5">
             <Sparkles size={12} className="text-[#0755E9]" />
@@ -194,7 +191,6 @@ function VideoCard({ item, onPlay }) {
 
         {/* Price + Action */}
         <div className="mt-4 flex items-end justify-between gap-2 border-t border-slate-100 pt-3">
-
           <div>
             <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">
               Starting at
@@ -223,6 +219,7 @@ function VideoCard({ item, onPlay }) {
 // ========================================
 
 export default function ShopByVideos() {
+  const [isMounted, setIsMounted] = useState(false);
   const [swiper, setSwiper] = useState(null);
 
   const [navigation, setNavigation] = useState({
@@ -233,6 +230,11 @@ export default function ShopByVideos() {
   const [activeVideo, setActiveVideo] = useState(null);
   const [muted, setMuted] = useState(true);
   const [videoError, setVideoError] = useState(false);
+
+  // Mount only in browser
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Navigation
   const updateNavigation = useCallback((instance) => {
@@ -279,17 +281,10 @@ export default function ShopByVideos() {
 
   return (
     <section className="w-full overflow-hidden bg-white py-12 sm:py-16 lg:py-20">
-
-      <div className="mx-auto w-full w-full px-4 sm:px-6 lg:px-10">
-
-        {/* ========================================
-            HEADER
-        ======================================== */}
-
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-10">
+        {/* HEADER */}
         <div className="mb-7 flex items-end justify-between gap-4 sm:mb-9">
-
           <div className="min-w-0">
-
             <div className="mb-3 inline-flex items-center gap-2">
               <span className="h-6 w-1 rounded-full bg-[#0755E9]" />
               <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
@@ -309,7 +304,6 @@ export default function ShopByVideos() {
 
           {/* Navigation */}
           <div className="flex shrink-0 items-center gap-2">
-
             <button
               type="button"
               onClick={() => swiper?.slidePrev(400)}
@@ -332,56 +326,60 @@ export default function ShopByVideos() {
           </div>
         </div>
 
-        {/* ========================================
-            VIDEO CAROUSEL
-        ======================================== */}
+        {/* VIDEO CAROUSEL */}
+        {isMounted ? (
+          <Swiper
+            modules={[FreeMode, A11y]}
+            onSwiper={(instance) => {
+              setSwiper(instance);
+              updateNavigation(instance);
+            }}
+            onSlideChange={updateNavigation}
+            onProgress={updateNavigation}
+            onResize={updateNavigation}
+            onReachBeginning={updateNavigation}
+            onReachEnd={updateNavigation}
+            onFromEdge={updateNavigation}
+            slidesPerView="auto"
+            spaceBetween={14}
+            freeMode={{
+              enabled: true,
+              momentum: true,
+              sticky: false,
+            }}
+            grabCursor
+            watchOverflow
+            breakpoints={{
+              640: { spaceBetween: 18 },
+              1024: { spaceBetween: 22 },
+            }}
+            className="!overflow-visible !pb-4"
+          >
+            {videos.map((item) => (
+              <SwiperSlide
+                key={item.id}
+                className="!h-auto !w-[245px] sm:!w-[280px] lg:!w-[290px]"
+              >
+                <VideoCard item={item} onPlay={openVideo} />
+              </SwiperSlide>
+            ))}
+          </Swiper>
+        ) : (
+          // Server-rendered fallback before Swiper mounts
+          <div className="flex gap-3 overflow-hidden pb-4 sm:gap-5">
+            {videos.map((item) => (
+              <div
+                key={item.id}
+                className="w-[245px] shrink-0 sm:w-[280px] lg:w-[290px]"
+              >
+                <VideoCard item={item} onPlay={openVideo} />
+              </div>
+            ))}
+          </div>
+        )}
 
-        <Swiper
-          modules={[FreeMode, A11y]}
-          onSwiper={(instance) => {
-            setSwiper(instance);
-            updateNavigation(instance);
-          }}
-          onSlideChange={updateNavigation}
-          onProgress={updateNavigation}
-          onResize={updateNavigation}
-          onReachBeginning={updateNavigation}
-          onReachEnd={updateNavigation}
-          onFromEdge={updateNavigation}
-          slidesPerView="auto"
-          spaceBetween={14}
-          freeMode={{
-            enabled: true,
-            momentum: true,
-            sticky: false,
-          }}
-          grabCursor
-          watchOverflow
-          breakpoints={{
-            640: { spaceBetween: 18 },
-            1024: { spaceBetween: 22 },
-          }}
-          className="!overflow-visible !pb-4"
-        >
-          {videos.map((item) => (
-            <SwiperSlide
-              key={item.id}
-              className="!h-auto !w-[245px] sm:!w-[280px] lg:!w-[290px]"
-            >
-              <VideoCard
-                item={item}
-                onPlay={openVideo}
-              />
-            </SwiperSlide>
-          ))}
-        </Swiper>
-
-        {/* ========================================
-            FOOTER LINK
-        ======================================== */}
-
+        {/* FOOTER LINK */}
         <div className="mt-6 flex items-center justify-between border-t border-slate-100 pt-5">
-
           <div>
             <p className="text-xs font-bold text-[#101828]">
               Explore more technology
@@ -401,10 +399,7 @@ export default function ShopByVideos() {
         </div>
       </div>
 
-      {/* ========================================
-          VIDEO MODAL
-      ======================================== */}
-
+      {/* VIDEO MODAL */}
       {activeVideo && (
         <div
           role="dialog"
@@ -417,7 +412,6 @@ export default function ShopByVideos() {
             onClick={(event) => event.stopPropagation()}
             className="relative w-full max-w-[420px] overflow-hidden rounded-2xl bg-black shadow-2xl"
           >
-
             {/* Close */}
             <button
               type="button"
@@ -472,7 +466,6 @@ export default function ShopByVideos() {
 
             {/* Details */}
             <div className="bg-white px-5 py-4">
-
               <p className="text-[10px] font-bold uppercase tracking-wider text-[#0755E9]">
                 {activeVideo.category}
               </p>
@@ -487,6 +480,7 @@ export default function ShopByVideos() {
 
               <Link
                 href={activeVideo.href}
+                onClick={closeVideo}
                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#0645C4]"
               >
                 <ShoppingBag size={17} />
@@ -497,7 +491,6 @@ export default function ShopByVideos() {
           </div>
         </div>
       )}
-
     </section>
   );
 }
