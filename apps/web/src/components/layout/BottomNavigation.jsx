@@ -18,7 +18,7 @@ const navigationItems = [
   { label: "Home", href: "/", icon: Home },
   { label: "Shop", href: "/products", icon: Store },
   { label: "Categories", href: "/categories", icon: LayoutGrid },
-  { label: "Orders", href: "/orders", icon: ClipboardList },
+  { label: "Orders", href: "/account/orders", icon: ClipboardList },
   { label: "Account", href: "/account", icon: UserRound },
 ];
 

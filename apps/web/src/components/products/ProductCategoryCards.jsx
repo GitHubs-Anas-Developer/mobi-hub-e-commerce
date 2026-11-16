@@ -89,7 +89,7 @@ export default function ProductCategoryCards({
               whileTap={shouldReduceMotion ? undefined : {
                 scale: 0.97,
               }}
-              className={`group w-[145px] shrink-0 overflow-hidden rounded-2xl border bg-white text-left transition-all duration-300 sm:w-[175px] lg:w-[190px] ${
+              className={`group w-[145px] shrink-0 overflow-hidden rounded-2xl border  text-left transition-all duration-300 sm:w-[175px] lg:w-[190px] ${
                 isSelected
                   ? "border-blue-600 shadow-md shadow-blue-100"
                   : "border-slate-200 hover:border-blue-300 hover:shadow-md"
@@ -97,7 +97,7 @@ export default function ProductCategoryCards({
             >
 
               {/* Image */}
-              <div className="relative aspect-[5/4] w-full overflow-hidden bg-slate-50">
+              <div className="relative aspect-[5/4] w-full overflow-hidden ">
 
                 {isAll ? (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
