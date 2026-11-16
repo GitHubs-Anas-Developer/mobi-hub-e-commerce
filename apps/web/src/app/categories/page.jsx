@@ -1,9 +1,11 @@
+
 import AllCategoriesHeader from "@/components/categories/AllCategoriesHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 
 export const metadata = {
   title: "All Categories | Mobi Hub",
-  description: "Explore mobile phones and accessories at Mobi Hub.",
+  description:
+    "Explore mobile accessories and smart gadgets at Mobi Hub.",
 };
 
 export default function CategoriesPage() {

@@ -1,7 +1,10 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { Swiper, SwiperSlide } from "swiper/react";
+
 import {
   Autoplay,
   Pagination,
@@ -62,6 +65,22 @@ const slides = [
 ];
 
 export default function AllCategoriesHeader() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Render placeholder during server prerender
+  if (!mounted) {
+    return (
+      <section
+        aria-label="Loading banners"
+        className="h-[220px] w-full animate-pulse rounded-2xl bg-slate-200 sm:h-[290px] md:h-[330px] lg:h-[370px]"
+      />
+    );
+  }
+
   return (
     <section className="w-full">
 
@@ -91,19 +110,19 @@ export default function AllCategoriesHeader() {
         }}
         className="mobi-banner-swiper overflow-hidden rounded-2xl sm:rounded-3xl"
       >
-        {slides.map((slide) => (
+        {slides.map((slide, index) => (
           <SwiperSlide key={slide.id}>
             <div className="relative isolate h-[220px] overflow-hidden bg-[#082B70] sm:h-[290px] md:h-[330px] lg:h-[370px]">
 
-              {/* Background image */}
+              {/* Banner Image */}
               <img
                 src={slide.image}
                 alt={slide.title}
-                loading={slide.id === 1 ? "eager" : "lazy"}
+                loading={index === 0 ? "eager" : "lazy"}
                 className="absolute inset-0 h-full w-full object-cover object-center"
               />
 
-              {/* Image overlay */}
+              {/* Image Overlay */}
               <div className="absolute inset-0 bg-gradient-to-r from-[#061D4D]/85 via-[#082B70]/50 to-transparent" />
 
               {/* Content */}
@@ -115,6 +134,7 @@ export default function AllCategoriesHeader() {
 
                 <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight text-white sm:mt-4 sm:text-4xl lg:text-5xl">
                   {slide.title}
+
                   <span className="mt-1 block text-blue-200">
                     {slide.highlight}
                   </span>
@@ -126,6 +146,7 @@ export default function AllCategoriesHeader() {
 
                 {/* Features */}
                 <div className="mt-3 flex flex-wrap gap-2 sm:mt-5 sm:gap-3">
+
                   <div className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-2.5 py-1.5 text-[9px] font-medium text-white backdrop-blur-md sm:px-3 sm:py-2 sm:text-xs">
                     <ShieldCheck size={14} />
                     {slide.feature1}
@@ -135,24 +156,30 @@ export default function AllCategoriesHeader() {
                     <Truck size={14} />
                     {slide.feature2}
                   </div>
+
                 </div>
 
+                {/* Discover More */}
                 <div className="mt-3 inline-flex w-fit items-center gap-2 text-xs font-bold text-white sm:mt-5 sm:text-sm">
                   Discover More
                   <ArrowRight size={17} />
                 </div>
+
               </div>
             </div>
           </SwiperSlide>
         ))}
       </Swiper>
 
-      {/* Slider navigation */}
+      {/* Navigation Controls */}
       <div className="mt-4 flex items-center justify-between px-1">
 
+        {/* Pagination */}
         <div className="mobi-banner-pagination flex items-center gap-2" />
 
+        {/* Previous / Next */}
         <div className="flex items-center gap-2">
+
           <button
             type="button"
             aria-label="Previous banner"
@@ -168,10 +195,11 @@ export default function AllCategoriesHeader() {
           >
             <ChevronRight size={18} />
           </button>
+
         </div>
       </div>
 
-      {/* Pagination styling */}
+      {/* Pagination Styles */}
       <style jsx global>{`
         .mobi-banner-pagination .swiper-pagination-bullet {
           width: 7px;
