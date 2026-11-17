@@ -751,7 +751,7 @@ export default function ProductsPage() {
 
   return (
     <>
-      <main className="min-h-screen w-full bg-slate-50/60">
+      <main className="min-h-screen w-full">
 
         <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
 
