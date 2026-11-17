@@ -4,17 +4,49 @@ const objectIdSchema = z
   .string()
   .regex(/^[0-9a-fA-F]{24}$/, "Invalid MongoDB ObjectId");
 
-export const createOrderSchema = z.object({
-  addressId: objectIdSchema,
-  paymentMethod: z.enum(["COD", "Online"]),
-  couponCode: z
-    .string()
-    .trim()
-    .min(3)
-    .max(30)
-    .transform((value) => value.toUpperCase())
-    .optional(),
+const directCheckoutItemSchema = z.object({
+  productId: objectIdSchema,
+  variantId: objectIdSchema,
+  quantity: z.coerce.number().int().min(1).max(100),
 });
+
+export const createOrderSchema = z
+  .object({
+    addressId: objectIdSchema,
+
+    paymentMethod: z.enum(["COD", "Online"]),
+
+    couponCode: z
+      .string()
+      .trim()
+      .min(3)
+      .max(30)
+      .transform((value) => value.toUpperCase())
+      .optional(),
+
+    checkoutType: z.enum(["cart", "direct"]).default("cart"),
+
+    items: z.array(directCheckoutItemSchema).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.checkoutType === "direct") {
+      if (!data.items || data.items.length !== 1) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Direct checkout requires exactly one product",
+          path: ["items"],
+        });
+      }
+    }
+
+    if (data.checkoutType === "cart" && data.items !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Items should not be provided for cart checkout",
+        path: ["items"],
+      });
+    }
+  });
 
 export const orderIdSchema = z.object({
   orderId: objectIdSchema,

@@ -85,9 +85,22 @@ export const createOrder = async (userId, data) => {
   try {
     session.startTransaction();
 
-    const { addressId, paymentMethod, couponCode } = data;
+    const {
+      addressId,
+      paymentMethod,
+      couponCode,
+      checkoutType = "cart",
+      items: directItems,
+    } = data;
 
-    // 1. Validate shipping address
+    const isDirectCheckout = checkoutType === "direct";
+
+    // 1. Validate checkout type
+    if (!["cart", "direct"].includes(checkoutType)) {
+      throw createError("Invalid checkout type", 400);
+    }
+
+    // 2. Validate shipping address
     const address = await Address.findOne({
       _id: addressId,
       user: userId,
@@ -99,27 +112,73 @@ export const createOrder = async (userId, data) => {
       throw createError("Shipping address not found", 404);
     }
 
-    // 2. Get user's cart
-    const cart = await Cart.findOne({ user: userId })
-      .session(session)
-      .populate({
+    // 3. Get checkout items
+    let cart = null;
+    let checkoutItems = [];
+
+    if (isDirectCheckout) {
+      if (!Array.isArray(directItems) || directItems.length !== 1) {
+        throw createError("Direct checkout requires exactly one product", 400);
+      }
+
+      const directItem = directItems[0];
+
+      if (
+        !mongoose.isValidObjectId(directItem.productId) ||
+        !mongoose.isValidObjectId(directItem.variantId)
+      ) {
+        throw createError("Invalid product or variant", 400);
+      }
+
+      const quantity = Number(directItem.quantity);
+
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+        throw createError("Invalid product quantity", 400);
+      }
+
+      checkoutItems = [
+        {
+          productId: directItem.productId,
+          variantId: directItem.variantId,
+          quantity,
+        },
+      ];
+    } else {
+      // Normal cart checkout
+      if (directItems !== undefined) {
+        throw createError(
+          "Direct checkout items are not allowed for cart checkout",
+          400,
+        );
+      }
+
+      cart = await Cart.findOne({ user: userId }).session(session).populate({
         path: "items.product",
         options: { session },
       });
 
-    if (!cart || cart.items.length === 0) {
-      throw createError("Your cart is empty", 400);
+      if (!cart || !cart.items || cart.items.length === 0) {
+        throw createError("Your cart is empty", 400);
+      }
+
+      checkoutItems = cart.items;
     }
 
+    // 4. Validate products and prepare order items
     const orderItems = [];
     let subtotal = 0;
 
-    // 3. Validate products and prepare order items
-    for (const item of cart.items) {
-      const product = item.product;
+    for (const item of checkoutItems) {
+      const product = isDirectCheckout
+        ? await Product.findById(item.productId).session(session)
+        : item.product;
 
       if (!product || !product.isActive) {
-        throw createError("A product in your cart is unavailable", 400);
+        throw createError("A product is unavailable", 400);
+      }
+
+      if (!mongoose.isValidObjectId(item.variantId)) {
+        throw createError("Invalid product variant", 400);
       }
 
       const variant = product.variants.id(item.variantId);
@@ -128,11 +187,17 @@ export const createOrder = async (userId, data) => {
         throw createError("A product variant is unavailable", 400);
       }
 
-      if (variant.stock < item.quantity) {
+      const quantity = Number(item.quantity);
+
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+        throw createError("Invalid product quantity", 400);
+      }
+
+      if (variant.stock < quantity) {
         throw createError(`Insufficient stock for ${product.name}`, 400);
       }
 
-      const itemSubtotal = variant.sellingPrice * item.quantity;
+      const itemSubtotal = variant.sellingPrice * quantity;
 
       subtotal += itemSubtotal;
 
@@ -144,14 +209,14 @@ export const createOrder = async (userId, data) => {
         variantId: variant._id,
         sku: variant.sku,
         attributes: variant.attributes,
-        quantity: item.quantity,
+        quantity,
         mrp: variant.mrp,
         sellingPrice: variant.sellingPrice,
         subtotal: itemSubtotal,
       });
     }
 
-    // 4. Calculate coupon discount
+    // 5. Calculate coupon discount
     let discount = 0;
 
     const couponSnapshot = {
@@ -227,7 +292,7 @@ export const createOrder = async (userId, data) => {
       couponSnapshot.discountAmount = discount;
     }
 
-    // 5. Update coupon usage inside transaction
+    // 6. Update coupon usage inside transaction
     if (appliedCoupon) {
       const couponFilter = {
         _id: appliedCoupon._id,
@@ -290,11 +355,11 @@ export const createOrder = async (userId, data) => {
       }
     }
 
-    // 6. Calculate final order amount
+    // 7. Calculate final order amount
     const shippingFee = 0;
     const totalAmount = subtotal + shippingFee - discount;
 
-    // 7. Create order inside transaction
+    // 8. Create order inside transaction
     const [order] = await Order.create(
       [
         {
@@ -324,7 +389,7 @@ export const createOrder = async (userId, data) => {
       { session },
     );
 
-    // 8. Deduct stock and create inventory history
+    // 9. Deduct stock and create inventory history
     for (const [index, item] of order.items.entries()) {
       await updateVariantStock({
         productId: item.product,
@@ -342,15 +407,16 @@ export const createOrder = async (userId, data) => {
       });
     }
 
-    // 9. Clear cart inside transaction
-    cart.items = [];
-    await cart.save({ session });
+    // 10. Clear cart only for normal cart checkout
+    if (!isDirectCheckout) {
+      cart.items = [];
+      await cart.save({ session });
+    }
 
-    // 10. Commit transaction
-    // 10. Commit transaction
+    // 11. Commit transaction
     await session.commitTransaction();
 
-    // 11. Send notifications after successful transaction
+    // 12. Send notifications after successful transaction
     await sendOrderNotifications({
       customerId: userId,
       order,
