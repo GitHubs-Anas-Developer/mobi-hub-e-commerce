@@ -11,6 +11,7 @@ import ShopByVideos from "@/components/home/ShopByVideos";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import TrustBar from "@/components/home/TrustBar";
 import PromoBannerSection from "@/components/home/PromoBannerSection";
+import BrandSection from "@/components/brands/BrandSection";
 
 export default function Home() {
   // Product states
@@ -78,6 +79,9 @@ export default function Home() {
       <div className="">
         <CategorySection />
       </div>
+
+      {/* BRANDS */}
+      <BrandSection />
 
       {/* PROMOTIONAL BANNERS */}
       <PromoBannerSection />
