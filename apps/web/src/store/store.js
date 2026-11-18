@@ -7,6 +7,7 @@ import notificationReducer from "./slices/notificationSlice";
 import categoryReducer from "./slices/categorySlice";
 import brandReducer from "./slices/brandSlice";
 import relatedProductsReducer from "./slices/relatedProductsSlice";
+import searchReducer from "./slices/searchSlice";
 
 export const store = configureStore({
   reducer: {
@@ -17,5 +18,6 @@ export const store = configureStore({
     categories: categoryReducer,
     brands: brandReducer,
     relatedProducts: relatedProductsReducer,
+    search: searchReducer,
   },
 });

@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname  } from "next/navigation";
 
 import { toast } from "sonner";
 import { X, RotateCcw } from "lucide-react";
@@ -162,7 +162,35 @@ export default function ProductsPage() {
   // SEARCH
   // ========================================
 
-  const [search, setSearch] = useState("");
+// SEARCH STATE
+const [search, setSearch] = useState("");
+
+// Sync URL search and listen for immediate search updates
+useEffect(() => {
+  // Read initial URL search
+  const params = new URLSearchParams(window.location.search);
+
+  setSearch(params.get("search") || "");
+
+  const handleSearchUpdate = (event) => {
+    const newSearch = event.detail?.search || "";
+
+    setSearch(newSearch);
+    setPage(1);
+  };
+
+  window.addEventListener(
+    "mobi-hub-search",
+    handleSearchUpdate
+  );
+
+  return () => {
+    window.removeEventListener(
+      "mobi-hub-search",
+      handleSearchUpdate
+    );
+  };
+}, []);
 
   // ========================================
   // SORTING
