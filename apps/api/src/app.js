@@ -24,6 +24,7 @@ import uploadRoutes from "./routes/upload.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import adminUserRoutes from "./routes/admin-user.routes.js";
 import recentlyViewedRoutes from "./routes/recentlyViewed.routes.js";
+import searchRoutes from "./routes/search.routes.js"
 
 const app = express();
 
@@ -72,6 +73,7 @@ app.use("/api/v1/admin/upload", uploadRoutes);
 app.use("/api/v1/brands", brandRoutes);
 app.use("/api/v1/admin/users", adminUserRoutes);
 app.use("/api/v1/recently-viewed", recentlyViewedRoutes);
+app.use("/api/v1/search", searchRoutes);
 
 // Default route
 app.get("/", (req, res) => {
