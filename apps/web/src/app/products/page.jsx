@@ -42,6 +42,7 @@ import ShopBanner from "@/components/products/ProductCategoryBanner";
 
 // Mini Cart Drawer
 import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
 // ========================================
 // CONSTANTS
@@ -956,6 +957,12 @@ export default function ProductsPage() {
               )}
 
             </section>
+             <section>
+          <RecentlyViewed
+            title="Recently Viewed Products"
+            limit={5}
+          />
+        </section>
           </div>
         </div>
       </main>

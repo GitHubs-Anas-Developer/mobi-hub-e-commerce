@@ -117,7 +117,7 @@ export default function ProductCard({
 
       {/* Product Image Section */}
 
-      <div className="relative w-full overflow-hidden bg-slate-50">
+      <div className="relative w-full overflow-hidden ">
 
         <Link
           href={`/products/${product.slug}`}

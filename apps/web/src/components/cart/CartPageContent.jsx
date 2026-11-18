@@ -23,6 +23,7 @@ import {
   getItemPrice,
   getItemStock,
 } from "./cart.utils";
+import RecentlyViewed from "../recently-viewed/RecentlyViewed";
 
 export default function CartPageContent() {
   const dispatch = useDispatch();
@@ -40,7 +41,8 @@ export default function CartPageContent() {
 
   // Total quantity
   const totalItems = items.reduce(
-    (sum, item) => sum + Number(item?.quantity || 0),
+    (sum, item) =>
+      sum + Number(item?.quantity || 0),
     0
   );
 
@@ -126,13 +128,13 @@ export default function CartPageContent() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] pb-28 lg:pb-12">
-      <div className="mx-auto w-full  px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+    <main className="min-h-screen lg:pb-12">
+      <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
 
-        {/* Header */}
+        {/* Cart Header */}
         <CartHeader totalItems={totalItems} />
 
-        {/* Loading */}
+        {/* Cart Loading */}
         {isLoading && items.length === 0 ? (
           <div className="rounded-2xl border border-slate-200 bg-white py-24 text-center">
             <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#0755e9]" />
@@ -179,6 +181,15 @@ export default function CartPageContent() {
             />
           </>
         )}
+
+        {/* Recently Viewed Products */}
+        <section className="mt-12 sm:mt-16">
+          <RecentlyViewed
+            title="Recently Viewed Products"
+            limit={5}
+          />
+        </section>
+
       </div>
     </main>
   );

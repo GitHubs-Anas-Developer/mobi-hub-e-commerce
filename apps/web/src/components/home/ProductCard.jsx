@@ -35,7 +35,7 @@ export default function ProductCard({ product }) {
     <article className="group flex h-full min-w-0 flex-col rounded-[22px] border border-slate-200/70 bg-white p-2.5 transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_15px_35px_rgba(15,23,42,0.08)] sm:p-3">
 
       {/* Image Panel */}
-      <div className="relative overflow-hidden rounded-[17px] bg-[#F0F5FF]">
+      <div className="relative overflow-hidden ">
 
         <Link
           href={`/products/${product.slug}`}

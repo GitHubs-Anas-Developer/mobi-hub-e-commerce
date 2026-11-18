@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,12 +26,14 @@ import WishlistHeader from "@/components/wishlist/WishlistHeader";
 import WishlistEmptyState from "@/components/wishlist/WishlistEmptyState";
 import WishlistProductCard from "@/components/wishlist/WishlistProductCard";
 
+
 import {
   fetchWishlist,
   removeFromWishlist,
 } from "@/store/thunks/wishlistThunks";
 
 import { addToCart } from "@/store/thunks/cartThunks";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
 /* ----------------------------------
    Helpers
@@ -183,7 +186,7 @@ function WishlistPageContent() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-[#F8FAFC]">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <motion.div
           animate={
             shouldReduceMotion
@@ -219,7 +222,7 @@ function WishlistPageContent() {
         }
         animate={{ opacity: 1 }}
         transition={{ duration: 0.35 }}
-        className="min-h-screen bg-[#F8FAFC]"
+        className="min-h-screen "
       >
         <div className="mx-auto w-full px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
 
@@ -305,6 +308,15 @@ function WishlistPageContent() {
               </motion.div>
             </>
           )}
+
+          {/* Recently Viewed Products */}
+          <section className="mt-12 sm:mt-16">
+            <RecentlyViewed
+              title="Recently Viewed Products"
+              limit={5}
+            />
+          </section>
+
         </div>
       </motion.main>
 

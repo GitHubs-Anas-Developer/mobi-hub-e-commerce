@@ -1,6 +1,7 @@
 
 import AllCategoriesHeader from "@/components/categories/AllCategoriesHeader";
 import CategoryGrid from "@/components/categories/CategoryGrid";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
 export const metadata = {
   title: "All Categories | Mobi Hub",
@@ -31,6 +32,14 @@ export default function CategoriesPage() {
           <div className="mt-6">
             <CategoryGrid />
           </div>
+        </section>
+
+            {/* Recently Viewed Products */}
+        <section className="mt-12 sm:mt-16">
+          <RecentlyViewed
+            title="Recently Viewed Products"
+            limit={10}
+          />
         </section>
 
       </div>

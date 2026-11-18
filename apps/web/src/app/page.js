@@ -12,6 +12,7 @@ import WhyChooseUs from "@/components/home/WhyChooseUs";
 import TrustBar from "@/components/home/TrustBar";
 import PromoBannerSection from "@/components/home/PromoBannerSection";
 import BrandSection from "@/components/brands/BrandSection";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
 export default function Home() {
   // Product states
@@ -103,6 +104,8 @@ export default function Home() {
           loading={newArrivalsLoading}
           error={newArrivalsError}
         />
+
+        <RecentlyViewed title="Recently Viewed" limit={10} />
 
         {/* SHOP BY VIDEOS */}
 

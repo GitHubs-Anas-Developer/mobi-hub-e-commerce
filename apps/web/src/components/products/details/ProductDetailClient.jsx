@@ -45,7 +45,8 @@ import ProductActions from "./ProductActions";
 import ProductServiceHighlights from "./ProductServiceHighlights";
 import ProductDescription from "./ProductDescription";
 import ProductSpecifications from "./ProductSpecifications";
-
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+import recentlyViewedService from "@/services/recentlyViewed.service";
 /* =====================================
    ANIMATION VARIANTS
 ===================================== */
@@ -255,6 +256,29 @@ export default function ProductDetailClient({ slug }) {
   useEffect(() => {
     fetchProduct();
   }, [fetchProduct]);
+
+  /* =====================================
+   TRACK RECENTLY VIEWED PRODUCT
+===================================== */
+
+useEffect(() => {
+  if (!product?._id || !isAuthenticated) return;
+
+  const trackProduct = async () => {
+    try {
+      await recentlyViewedService.addRecentlyViewed(
+        product._id
+      );
+    } catch (error) {
+      console.error(
+        "Recently viewed tracking failed:",
+        error
+      );
+    }
+  };
+
+  trackProduct();
+}, [product?._id, isAuthenticated]);
 
   /* =====================================
      ACTIVE VARIANTS
@@ -791,6 +815,13 @@ export default function ProductDetailClient({ slug }) {
             />
           </motion.section>
 
+{/* RECENTLY VIEWED PRODUCTS */}
+
+        <RecentlyViewed
+        title="Recently Viewed Products"
+        limit={5}
+        excludeProductId={product._id}
+         />
         </div>
       </motion.main>
     </AnimatePresence>

@@ -15,9 +15,9 @@ import categoryService from "@/services/categoryService";
 
 import CategoryCard from "@/components/categories/CategoryCard";
 import CategorySkeleton from "@/components/categories/CategorySkeleton";
+import RecentlyViewed from "../recently-viewed/RecentlyViewed";
 
 export default function SubcategoryPageClient({ params }) {
-  // Resolve Next.js runtime params inside Suspense
   const { categoryId } = use(params);
 
   const [category, setCategory] = useState(null);
@@ -188,6 +188,15 @@ export default function SubcategoryPageClient({ params }) {
             </div>
           )}
         </section>
+
+        {/* Recently Viewed Products */}
+        <section className="mt-12 sm:mt-16">
+          <RecentlyViewed
+            title="Recently Viewed Products"
+            limit={5}
+          />
+        </section>
+
       </div>
     </main>
   );

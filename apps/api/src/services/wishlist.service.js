@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 import Wishlist from "../models/wishlist.model.js";
 import Product from "../models/product.model.js";
@@ -6,6 +7,15 @@ const createError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
+};
+
+// Reusable Wishlist Populate
+const populateWishlist = async (wishlistId) => {
+  return await Wishlist.findById(wishlistId).populate({
+    path: "products",
+    select:
+      "name slug brand thumbnail basePrice totalStock isActive variants",
+  });
 };
 
 // Get user's wishlist
@@ -19,10 +29,7 @@ export const getWishlist = async (userId) => {
     });
   }
 
-  return await Wishlist.findById(wishlist._id).populate({
-    path: "products",
-    select: "name slug brand thumbnail basePrice totalStock isActive",
-  });
+  return await populateWishlist(wishlist._id);
 };
 
 // Add product to wishlist
@@ -50,58 +57,65 @@ export const addToWishlist = async (userId, productId) => {
   }
 
   const alreadyExists = wishlist.products.some(
-    (id) => id.toString() === productId,
+    (id) => id.toString() === productId
   );
 
   if (alreadyExists) {
-    throw createError("Product already exists in wishlist", 409);
+    throw createError(
+      "Product already exists in wishlist",
+      409
+    );
   }
 
   wishlist.products.push(productId);
 
   await wishlist.save();
 
-  return await Wishlist.findById(wishlist._id).populate({
-    path: "products",
-    select: "name slug brand thumbnail basePrice totalStock isActive",
-  });
+  return await populateWishlist(wishlist._id);
 };
 
 // Remove product from wishlist
-export const removeFromWishlist = async (userId, productId) => {
+export const removeFromWishlist = async (
+  userId,
+  productId
+) => {
   if (!mongoose.isValidObjectId(productId)) {
     throw createError("Invalid product ID");
   }
 
-  const wishlist = await Wishlist.findOne({ user: userId });
+  const wishlist = await Wishlist.findOne({
+    user: userId,
+  });
 
   if (!wishlist) {
     throw createError("Wishlist not found", 404);
   }
 
   const productExists = wishlist.products.some(
-    (id) => id.toString() === productId,
+    (id) => id.toString() === productId
   );
 
   if (!productExists) {
-    throw createError("Product not found in wishlist", 404);
+    throw createError(
+      "Product not found in wishlist",
+      404
+    );
   }
 
   wishlist.products = wishlist.products.filter(
-    (id) => id.toString() !== productId,
+    (id) => id.toString() !== productId
   );
 
   await wishlist.save();
 
-  return await Wishlist.findById(wishlist._id).populate({
-    path: "products",
-    select: "name slug brand thumbnail basePrice totalStock isActive",
-  });
+  return await populateWishlist(wishlist._id);
 };
 
 // Clear wishlist
 export const clearWishlist = async (userId) => {
-  const wishlist = await Wishlist.findOne({ user: userId });
+  const wishlist = await Wishlist.findOne({
+    user: userId,
+  });
 
   if (!wishlist) {
     throw createError("Wishlist not found", 404);
