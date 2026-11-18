@@ -5,6 +5,7 @@ import {
   getAllProducts,
   getProductById,
   getProductBySlug,
+  getRelatedProducts,
   updateProduct,
   deleteProduct,
   toggleProductStatus,
@@ -27,6 +28,13 @@ router.get("/", getAllProducts);
 
 // Get product by slug
 router.get("/slug/:slug", getProductBySlug);
+
+// Get Related Products
+router.get(
+  "/:productId/related",
+  validate(productIdSchema, "params"),
+  getRelatedProducts,
+);
 
 // Get product by ID
 router.get("/:productId", validate(productIdSchema, "params"), getProductById);

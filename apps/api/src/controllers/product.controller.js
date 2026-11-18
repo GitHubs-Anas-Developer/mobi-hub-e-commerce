@@ -155,3 +155,24 @@ export const toggleProductStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// 7. Get Related Products (Public)
+export const getRelatedProducts = async (req, res, next) => {
+  try {
+    const { productId } = req.params;
+    const limit = req.query.limit || 10;
+
+    const products = await productService.getRelatedProducts(
+      productId,
+      limit,
+    );
+
+    res.status(200).json({
+      success: true,
+      results: products.length,
+      data: products,
+    });
+  } catch (error) {
+    next(error);
+  }
+};

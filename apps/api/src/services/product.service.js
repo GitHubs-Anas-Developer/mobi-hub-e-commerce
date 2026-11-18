@@ -379,3 +379,46 @@ export const toggleProductStatus = async (productId) => {
 
   return product;
 };
+
+// 7. Get Related Products (Public)
+export const getRelatedProducts = async (productId, limit = 10) => {
+  if (!mongoose.isValidObjectId(productId)) {
+    throw createError("Invalid product ID");
+  }
+
+  const currentProduct = await Product.findOne({
+    _id: productId,
+    isActive: true,
+  }).select("_id category brand basePrice");
+
+  if (!currentProduct) {
+    throw createError("Product not found", 404);
+  }
+
+  const safeLimit = Math.min(20, Math.max(1, Number(limit) || 10));
+
+  const minPrice = currentProduct.basePrice * 0.7;
+  const maxPrice = currentProduct.basePrice * 1.3;
+
+  const products = await Product.find({
+    _id: { $ne: currentProduct._id },
+    category: currentProduct.category,
+    isActive: true,
+    totalStock: { $gt: 0 },
+    basePrice: { $gte: minPrice, $lte: maxPrice },
+  })
+    .populate("category", "name slug")
+    .sort({
+      brand: currentProduct.brand === "" ? 1 : -1,
+      createdAt: -1,
+    })
+    .limit(safeLimit);
+
+  products.sort((a, b) => {
+    const aSameBrand = a.brand === currentProduct.brand ? 1 : 0;
+    const bSameBrand = b.brand === currentProduct.brand ? 1 : 0;
+    return bSameBrand - aSameBrand;
+  });
+
+  return products;
+};

@@ -47,6 +47,7 @@ import ProductDescription from "./ProductDescription";
 import ProductSpecifications from "./ProductSpecifications";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 import recentlyViewedService from "@/services/recentlyViewed.service";
+import RelatedProducts from "@/components/related-products/RelatedProducts";
 /* =====================================
    ANIMATION VARIANTS
 ===================================== */
@@ -815,13 +816,34 @@ useEffect(() => {
             />
           </motion.section>
 
-{/* RECENTLY VIEWED PRODUCTS */}
+      {/* RECENTLY VIEWED PRODUCTS */}
 
-        <RecentlyViewed
-        title="Recently Viewed Products"
-        limit={5}
-        excludeProductId={product._id}
-         />
+     {/* RELATED PRODUCTS */}
+
+<motion.section
+  variants={sectionReveal}
+  initial="hidden"
+  whileInView="visible"
+  viewport={{
+    once: true,
+    amount: 0.1,
+  }}
+  className="mt-12"
+>
+  <RelatedProducts
+    productId={product._id}
+    title="Related Products"
+    subtitle="Explore similar products you may like."
+    limit={10}
+  />
+</motion.section>
+
+{/* RECENTLY VIEWED PRODUCTS */}
+<RecentlyViewed
+  title="Recently Viewed Products"
+  limit={5}
+  excludeProductId={product._id}
+/>
         </div>
       </motion.main>
     </AnimatePresence>
