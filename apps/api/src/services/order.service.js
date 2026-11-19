@@ -14,6 +14,8 @@ import sendEmail from "./email.service.js";
 import orderConfirmationTemplate from "../templates/emails/order-confirmation.template.js";
 import adminNewOrderTemplate from "../templates/emails/admin-new-order.template.js";
 import orderStatusTemplate from "../templates/emails/order-status.template.js";
+import { createShiprocketOrder } from "./shiprocket.service.js";
+import shiprocketConfig from "../config/shiprocket.config.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -490,6 +492,7 @@ export const createOrder = async (userId, data) => {
           orderNumber: generateOrderNumber(),
           user: userId,
           items: orderItems,
+
           shippingAddress: {
             fullName: address.fullName,
             phone: address.phone,
@@ -502,12 +505,27 @@ export const createOrder = async (userId, data) => {
             pincode: address.pincode,
             country: address.country,
           },
+
           subtotal,
           shippingFee,
           discount,
           coupon: couponSnapshot,
           totalAmount,
           paymentMethod,
+
+          // Initial order status
+          orderStatus: "Pending",
+
+          // Initial order status history
+          orderStatusHistory: [
+            {
+              status: "Pending",
+              note: "Order placed successfully",
+              changedBy: userId,
+              source: "SYSTEM",
+              timestamp: new Date(),
+            },
+          ],
         },
       ],
       { session },
@@ -702,6 +720,14 @@ export const cancelOrder = async (orderId, userId) => {
     order.orderStatus = "Cancelled";
     order.cancelledAt = new Date();
 
+    order.orderStatusHistory.push({
+      status: "Cancelled",
+      note: "Order cancelled by customer",
+      changedBy: userId,
+      source: "USER",
+      timestamp: new Date(),
+    });
+
     await order.save({ session });
 
     // 6. Commit transaction
@@ -825,10 +851,15 @@ const ORDER_STATUS_TRANSITIONS = {
   Shipped: ["Delivered"],
 };
 
-export const updateOrderStatus = async (orderId, orderStatus) => {
+export const updateOrderStatus = async (
+  orderId,
+  orderStatus,
+  changedBy = null,
+) => {
   console.log("UPDATE ORDER STATUS STARTED:", {
     orderId,
     orderStatus,
+    changedBy,
   });
 
   const order = await Order.findById(orderId);
@@ -853,11 +884,21 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
     );
   }
 
+  // Update order status
   order.orderStatus = orderStatus;
 
   if (orderStatus === "Delivered") {
     order.deliveredAt = new Date();
   }
+
+  // Add order status history
+  order.orderStatusHistory.push({
+    status: orderStatus,
+    note: `Order status updated to ${orderStatus}`,
+    changedBy,
+    source: "ADMIN",
+    timestamp: new Date(),
+  });
 
   await order.save();
 
@@ -956,4 +997,161 @@ export const updatePaymentStatus = async (orderId, paymentStatus) => {
   await order.save();
 
   return order;
+};
+
+export const createMockShipment = async (orderId, adminId = null) => {
+  if (!shiprocketConfig.testMode) {
+    throw createError(
+      "Mock shipment creation is available only in test mode",
+      403,
+    );
+  }
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  if (order.orderStatus === "Cancelled") {
+    throw createError("Cannot create shipment for a cancelled order", 400);
+  }
+
+  if (order.shipment?.shipmentId) {
+    throw createError("Shipment already exists for this order", 409);
+  }
+
+  if (!["Confirmed", "Processing"].includes(order.orderStatus)) {
+    throw createError(
+      "Order must be Confirmed or Processing before shipment creation",
+      400,
+    );
+  }
+
+  const mockResponse = await createShiprocketOrder({
+    order_id: order.orderNumber,
+  });
+
+  order.shipment.provider = "SHIPROCKET";
+  order.shipment.shipmentId = String(mockResponse.shipment_id);
+  order.shipment.currentStatus = "NEW";
+  order.shipment.trackingHistory.push({
+    status: "NEW",
+    description: "Mock shipment created for testing",
+    source: "SYSTEM",
+    timestamp: new Date(),
+  });
+
+  await order.save();
+
+  return order;
+};
+
+const MOCK_TRACKING_STEPS = [
+  "NEW",
+  "PICKUP SCHEDULED",
+  "PICKED UP",
+  "IN TRANSIT",
+  "OUT FOR DELIVERY",
+  "DELIVERED",
+];
+
+export const updateMockShipmentTracking = async (
+  orderId,
+  { status, description, location = "" },
+) => {
+  if (!shiprocketConfig.testMode) {
+    throw createError("Mock tracking is available only in test mode", 403);
+  }
+
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  if (!order.shipment?.shipmentId) {
+    throw createError("Shipment not found for this order", 404);
+  }
+
+  if (order.orderStatus === "Cancelled") {
+    throw createError("Cannot update tracking for a cancelled order", 400);
+  }
+
+  const normalizedStatus = String(status || "")
+    .trim()
+    .toUpperCase();
+
+  const currentIndex = MOCK_TRACKING_STEPS.indexOf(
+    order.shipment.currentStatus,
+  );
+
+  const nextIndex = MOCK_TRACKING_STEPS.indexOf(normalizedStatus);
+
+  if (nextIndex === -1) {
+    throw createError("Invalid tracking status", 400);
+  }
+
+  if (nextIndex !== currentIndex + 1) {
+    throw createError(
+      `Invalid tracking transition. Next status must be ${
+        MOCK_TRACKING_STEPS[currentIndex + 1] || "none"
+      }`,
+      400,
+    );
+  }
+
+  if (!description?.trim()) {
+    throw createError("Tracking description is required", 400);
+  }
+
+  order.shipment.currentStatus = normalizedStatus;
+
+  order.shipment.trackingHistory.push({
+    status: normalizedStatus,
+    description: description.trim(),
+    location: location.trim(),
+    source: "SYSTEM",
+    timestamp: new Date(),
+  });
+
+  if (normalizedStatus === "DELIVERED") {
+    order.shipment.deliveredAt = new Date();
+  }
+
+  await order.save();
+
+  return order;
+};
+
+export const getUserOrderTracking = async (orderId, userId) => {
+  const order = await Order.findOne({
+    _id: orderId,
+    user: userId,
+  })
+    .select("orderNumber orderStatus createdAt shipment")
+    .lean();
+
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  if (!order.shipment?.shipmentId) {
+    throw createError("Shipment not created for this order", 404);
+  }
+
+  return {
+    orderNumber: order.orderNumber,
+    orderStatus: order.orderStatus,
+    createdAt: order.createdAt,
+    shipment: {
+      provider: order.shipment.provider,
+      shipmentId: order.shipment.shipmentId,
+      awbCode: order.shipment.awbCode,
+      courierName: order.shipment.courierName,
+      trackingUrl: order.shipment.trackingUrl,
+      currentStatus: order.shipment.currentStatus,
+      estimatedDeliveryDate: order.shipment.estimatedDeliveryDate,
+      trackingHistory: order.shipment.trackingHistory,
+    },
+  };
 };

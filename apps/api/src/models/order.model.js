@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// Order item schema
 const orderItemSchema = new mongoose.Schema(
   {
     product: {
@@ -56,6 +57,7 @@ const orderItemSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Shipping address schema
 const shippingAddressSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true },
@@ -72,6 +74,7 @@ const shippingAddressSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Coupon snapshot schema
 const couponSnapshotSchema = new mongoose.Schema(
   {
     couponId: {
@@ -101,6 +104,158 @@ const couponSnapshotSchema = new mongoose.Schema(
   { _id: false },
 );
 
+// Internal order status history
+const orderStatusHistorySchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: [
+        "Pending",
+        "Confirmed",
+        "Processing",
+        "Shipped",
+        "Delivered",
+        "Cancelled",
+      ],
+      required: true,
+    },
+    note: {
+      type: String,
+      default: "",
+    },
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    source: {
+      type: String,
+      enum: ["ADMIN", "USER", "SYSTEM"],
+      default: "SYSTEM",
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  { _id: true },
+);
+
+// Courier tracking event schema
+const trackingEventSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      default: "",
+    },
+    location: {
+      type: String,
+      default: "",
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now,
+    },
+    source: {
+      type: String,
+      enum: ["ADMIN", "SHIPROCKET", "SYSTEM"],
+      default: "SYSTEM",
+    },
+    externalEventId: {
+      type: String,
+      default: null,
+    },
+  },
+  { _id: true },
+);
+
+// Shipment location schema
+const shipmentLocationSchema = new mongoose.Schema(
+  {
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
+  },
+  { _id: false },
+);
+
+// Shipment schema
+const shipmentSchema = new mongoose.Schema(
+  {
+    provider: {
+      type: String,
+      enum: ["SHIPROCKET", "SELF", "OTHER"],
+      default: "SHIPROCKET",
+    },
+    shipmentId: {
+      type: String,
+      default: null,
+    },
+    awbCode: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    courierName: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    courierCompanyId: {
+      type: Number,
+      default: null,
+    },
+    trackingUrl: {
+      type: String,
+      default: null,
+    },
+    currentStatus: {
+      type: String,
+      default: "PENDING",
+      trim: true,
+    },
+    estimatedDeliveryDate: {
+      type: Date,
+      default: null,
+    },
+    pickupScheduledAt: {
+      type: Date,
+      default: null,
+    },
+    shippedAt: {
+      type: Date,
+      default: null,
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
+    lastLocation: {
+      type: String,
+      default: null,
+    },
+    lastLocationCoordinates: {
+      type: shipmentLocationSchema,
+      default: () => ({}),
+    },
+    trackingHistory: {
+      type: [trackingEventSchema],
+      default: [],
+    },
+  },
+  { _id: false },
+);
+
+// Main order schema
 const orderSchema = new mongoose.Schema(
   {
     orderNumber: {
@@ -190,6 +345,18 @@ const orderSchema = new mongoose.Schema(
       default: "Pending",
     },
 
+    // Internal Mobi Hub order status timeline
+    orderStatusHistory: {
+      type: [orderStatusHistorySchema],
+      default: [],
+    },
+
+    // Shiprocket / courier shipment information
+    shipment: {
+      type: shipmentSchema,
+      default: () => ({}),
+    },
+
     cancelledAt: {
       type: Date,
       default: null,
@@ -199,6 +366,7 @@ const orderSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
     returnRequestVersion: {
       type: Number,
       default: 0,

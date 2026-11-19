@@ -11,6 +11,7 @@ import {
 
 import sendEmail from "../services/email.service.js";
 import orderConfirmationTemplate from "../templates/emails/order-confirmation.template.js";
+import { getUserOrderTracking } from "../services/order.service.js";
 
 export const placeOrder = async (req, res, next) => {
   try {
@@ -109,6 +110,7 @@ export const changeOrderStatus = async (req, res, next) => {
     const order = await updateOrderStatus(
       req.validatedData.params.orderId,
       req.validatedData.body.orderStatus,
+      req.user._id, // Admin ID
     );
 
     res.status(200).json({
@@ -148,6 +150,23 @@ export const fetchAdminOrderById = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: { order },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchUserOrderTracking = async (req, res, next) => {
+  try {
+    const tracking = await getUserOrderTracking(
+      req.params.orderId,
+      req.user?._id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Order tracking fetched successfully",
+      data: tracking,
     });
   } catch (error) {
     next(error);
