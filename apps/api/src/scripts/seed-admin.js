@@ -10,7 +10,7 @@ const createAdmin = async () => {
 
     await mongoose.connect(process.env.MONGODB_URI);
 
-    const email = "admin@mobihub.com";
+    const email = "anas9895559625@gmail.com";
     const password = "Admin@12345";
 
     const existingAdmin = await User.findOne({ email });

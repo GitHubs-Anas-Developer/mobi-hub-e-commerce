@@ -10,6 +10,10 @@ import CouponUsage from "../models/coupon-usage.model.js";
 import { updateVariantStock } from "./inventory.service.js";
 import User from "../models/user.model.js";
 import { createNotification } from "./notification.service.js";
+import sendEmail from "./email.service.js";
+import orderConfirmationTemplate from "../templates/emails/order-confirmation.template.js";
+import adminNewOrderTemplate from "../templates/emails/admin-new-order.template.js";
+import orderStatusTemplate from "../templates/emails/order-status.template.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -76,6 +80,126 @@ const sendOrderNotifications = async ({
     }
   } catch (error) {
     console.error("Order notification error:", error.message);
+  }
+};
+
+const sendOrderConfirmationEmail = async (order, userId) => {
+  try {
+    const user = await User.findById(userId).select("name email").lean();
+
+    if (!user?.email) {
+      console.warn(
+        `Order confirmation skipped: customer email not found for ${order.orderNumber}`,
+      );
+      return;
+    }
+
+    await sendEmail({
+      to: user.email,
+      subject: `Order Confirmed - ${order.orderNumber}`,
+      html: orderConfirmationTemplate(order),
+      text: [
+        `Hello ${order.shippingAddress.fullName},`,
+        `Your Mobi Hub order ${order.orderNumber} has been confirmed.`,
+        `Total: INR ${order.totalAmount}`,
+        "Thank you for shopping with Mobi Hub.",
+      ].join("\n"),
+    });
+
+    console.log(`Order confirmation email sent: ${order.orderNumber}`);
+  } catch (error) {
+    console.error(
+      `Order confirmation email failed for ${order.orderNumber}:`,
+      error.message,
+    );
+  }
+};
+
+const sendAdminNewOrderEmail = async (order, userId) => {
+  try {
+    const [customer, adminEmail] = await Promise.all([
+      User.findById(userId).select("name email").lean(),
+      Promise.resolve(process.env.ADMIN_EMAIL),
+    ]);
+
+    if (!adminEmail) {
+      console.warn("Admin order email skipped: ADMIN_EMAIL is missing");
+      return;
+    }
+
+    if (!customer?.email) {
+      console.warn(
+        `Admin order email skipped: customer email missing for ${order.orderNumber}`,
+      );
+      return;
+    }
+
+    await sendEmail({
+      to: adminEmail,
+      subject: `New Order Received - ${order.orderNumber}`,
+      html: adminNewOrderTemplate(order, customer),
+      text: [
+        "New order received - Mobi Hub",
+        `Order Number: ${order.orderNumber}`,
+        `Customer: ${order.shippingAddress.fullName}`,
+        `Customer Email: ${customer.email}`,
+        `Phone: ${order.shippingAddress.phone}`,
+        `Total: INR ${order.totalAmount}`,
+        `Payment Method: ${order.paymentMethod}`,
+      ].join("\n"),
+    });
+
+    console.log(`Admin order email sent: ${order.orderNumber}`);
+  } catch (error) {
+    console.error(
+      `Admin order email failed for ${order.orderNumber}:`,
+      error.message,
+    );
+  }
+};
+
+const sendOrderStatusEmail = async (order) => {
+  console.log("STATUS EMAIL FUNCTION CALLED:", order.orderNumber);
+
+  try {
+    const user = await User.findById(order.user).select("name email").lean();
+
+    if (!user?.email) {
+      console.warn(
+        "STATUS EMAIL SKIPPED: Customer email not found",
+        order.orderNumber,
+      );
+      return;
+    }
+
+    const html = orderStatusTemplate(order);
+
+    if (typeof html !== "string" || !html.trim()) {
+      throw new Error("Order status email template is empty or invalid");
+    }
+
+    const result = await sendEmail({
+      to: user.email,
+      subject: `Mobi Hub - Order ${order.orderNumber} ${order.orderStatus}`,
+      html,
+      text: [
+        `Hello ${order.shippingAddress?.fullName || user.name || "Customer"},`,
+        `Your order ${order.orderNumber} is now ${order.orderStatus}.`,
+        `Total: INR ${order.totalAmount}`,
+        "Thank you for shopping with Mobi Hub.",
+      ].join("\n"),
+    });
+
+    console.log("STATUS EMAIL SUCCESS:", {
+      orderNumber: order.orderNumber,
+      email: user.email,
+      messageId: result.messageId,
+    });
+  } catch (error) {
+    console.error("STATUS EMAIL ERROR:", {
+      orderNumber: order.orderNumber,
+      error: error.message,
+    });
   }
 };
 
@@ -416,7 +540,7 @@ export const createOrder = async (userId, data) => {
     // 11. Commit transaction
     await session.commitTransaction();
 
-    // 12. Send notifications after successful transaction
+    // 12. Send in-app notifications
     await sendOrderNotifications({
       customerId: userId,
       order,
@@ -425,6 +549,12 @@ export const createOrder = async (userId, data) => {
       message: `Your order ${order.orderNumber} has been placed successfully.`,
       notifyAdmins: true,
     });
+
+    // 13. Send customer order confirmation email
+    await sendOrderConfirmationEmail(order, userId);
+
+    // 14. Send admin new order email
+    await sendAdminNewOrderEmail(order, userId);
 
     return order;
   } catch (error) {
@@ -696,11 +826,23 @@ const ORDER_STATUS_TRANSITIONS = {
 };
 
 export const updateOrderStatus = async (orderId, orderStatus) => {
+  console.log("UPDATE ORDER STATUS STARTED:", {
+    orderId,
+    orderStatus,
+  });
+
   const order = await Order.findById(orderId);
 
   if (!order) {
     throw createError("Order not found", 404);
   }
+
+  const ORDER_STATUS_TRANSITIONS = {
+    Pending: ["Confirmed"],
+    Confirmed: ["Processing"],
+    Processing: ["Shipped"],
+    Shipped: ["Delivered"],
+  };
 
   const allowedStatuses = ORDER_STATUS_TRANSITIONS[order.orderStatus];
 
@@ -719,6 +861,12 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
 
   await order.save();
 
+  console.log("ORDER STATUS SAVED:", order.orderNumber, orderStatus);
+
+  // Send customer email
+  await sendOrderStatusEmail(order);
+
+  // In-app notification
   const notificationByStatus = {
     Confirmed: {
       type: "ORDER_CONFIRMED",
@@ -751,6 +899,8 @@ export const updateOrderStatus = async (orderId, orderStatus) => {
       ...notification,
     });
   }
+
+  console.log("UPDATE ORDER STATUS COMPLETED:", order.orderNumber);
 
   return order;
 };

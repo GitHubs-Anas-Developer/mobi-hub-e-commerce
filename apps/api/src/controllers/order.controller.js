@@ -9,9 +9,29 @@ import {
   getAdminOrderById,
 } from "../services/order.service.js";
 
+import sendEmail from "../services/email.service.js";
+import orderConfirmationTemplate from "../templates/emails/order-confirmation.template.js";
+
 export const placeOrder = async (req, res, next) => {
   try {
     const order = await createOrder(req.user._id, req.validatedData.body);
+
+    // Send order confirmation email
+    try {
+      await sendEmail({
+        to: order.email,
+        subject: `Order Confirmed - ${order.orderNumber}`,
+        html: orderConfirmationTemplate({
+          customerName: order.customerName,
+          orderNumber: order.orderNumber,
+          items: order.items,
+          totalAmount: order.totalAmount,
+        }),
+        text: `Your Mobi Hub order ${order.orderNumber} has been confirmed.`,
+      });
+    } catch (emailError) {
+      console.error("Order confirmation email failed:", emailError.message);
+    }
 
     res.status(201).json({
       success: true,
@@ -84,6 +104,8 @@ export const fetchAllOrders = async (req, res, next) => {
 
 export const changeOrderStatus = async (req, res, next) => {
   try {
+    console.log("CHANGE ORDER STATUS CONTROLLER CALLED");
+
     const order = await updateOrderStatus(
       req.validatedData.params.orderId,
       req.validatedData.body.orderStatus,
@@ -95,6 +117,7 @@ export const changeOrderStatus = async (req, res, next) => {
       data: order,
     });
   } catch (error) {
+    console.error("CHANGE ORDER STATUS ERROR:", error.message);
     next(error);
   }
 };
