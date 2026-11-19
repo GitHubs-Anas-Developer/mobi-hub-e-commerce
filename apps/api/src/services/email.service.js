@@ -1,6 +1,7 @@
 import transporter from "../config/mailer.js";
+import passwordResetTemplate from "../templates/emails/password-reset.template.js";
 
-const sendEmail = async ({ to, subject, html, text }) => {
+export const sendEmail = async ({ to, subject, html, text }) => {
   if (!to || !subject || !html) {
     throw new Error("Missing required email fields");
   }
@@ -40,4 +41,19 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 };
 
-export default sendEmail;
+export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
+  const template = passwordResetTemplate({
+    name,
+    resetUrl,
+  });
+
+  return sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  });
+};
+
+
+export default {sendEmail}

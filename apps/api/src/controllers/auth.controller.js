@@ -11,6 +11,8 @@ import {
 } from "../services/refresh-token.service.js";
 
 import User from "../models/user.model.js";
+import { randomBytes, createHash } from "node:crypto";
+import { sendPasswordResetEmail } from "../services/email.service.js";
 
 // Cookie configuration
 const getCookieOptions = (path) => ({
@@ -229,9 +231,10 @@ export const logoutUser = async (req, res, next) => {
 };
 
 // Forgot Password
+
 export const forgotPassword = async (req, res, next) => {
   try {
-    const { email } = req.body || {};
+    const { email } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -244,43 +247,69 @@ export const forgotPassword = async (req, res, next) => {
 
     const user = await User.findOne({
       email: normalizedEmail,
+      isActive: true,
     });
 
+    // Always return the same response to avoid revealing whether
+    // an email address has an account.
+    const response = {
+      success: true,
+      message:
+        "If an account exists with this email, a password reset link will be sent.",
+    };
+
     if (!user) {
-      return res.status(200).json({
-        success: true,
-        message:
-          "If an account exists for that email, a reset link has been generated.",
-      });
+      return res.status(200).json(response);
     }
 
-    const resetToken = crypto.randomBytes(32).toString("hex");
+    // Generate a secure random token.
+    const resetToken = randomBytes(32).toString("hex");
 
-    const hashedToken = crypto
-      .createHash("sha256")
+    // Store only the hashed token in MongoDB.
+    user.resetPasswordToken = createHash("sha256")
       .update(resetToken)
       .digest("hex");
 
-    user.resetPasswordToken = hashedToken;
     user.resetPasswordExpires = Date.now() + 15 * 60 * 1000;
 
     await user.save({ validateBeforeSave: false });
 
-    return res.status(200).json({
-      success: true,
-      message: "Password reset token generated successfully.",
-      resetToken,
-      expiresInMinutes: 15,
-    });
+    try {
+      const frontendUrl = new URL(process.env.CLIENT_URL);
+
+      if (!["http:", "https:"].includes(frontendUrl.protocol)) {
+        throw new Error("Invalid CLIENT_URL protocol");
+      }
+
+      frontendUrl.pathname = "/reset-password";
+      frontendUrl.search = "";
+      frontendUrl.searchParams.set("token", resetToken);
+
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl: frontendUrl.toString(),
+      });
+    } catch (emailError) {
+      // Invalidate the token if the email could not be sent.
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+
+      await user.save({ validateBeforeSave: false });
+
+      throw emailError;
+    }
+
+    return res.status(200).json(response);
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
 
 // Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
-    const { token, password } = req.body || {};
+    const { token, password } = req.body;
 
     if (!token || !password) {
       return res.status(400).json({
@@ -296,34 +325,44 @@ export const resetPassword = async (req, res, next) => {
       });
     }
 
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    // Hash the token received from the frontend.
+    const hashedToken = createHash("sha256")
+      .update(token)
+      .digest("hex");
 
+    // Find a user with a valid, unexpired reset token.
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() },
+      resetPasswordExpires: { $gt: new Date() },
+      isActive: true,
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: "Reset token is invalid or has expired",
+        message: "Invalid or expired password reset link",
       });
     }
 
+    // Update password. Your User model pre-save hook hashes it.
     user.password = password;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpires = null;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
 
     await user.save();
 
+    // Revoke all existing refresh-token sessions.
+    await revokeAllUserRefreshTokens(user._id);
+
     return res.status(200).json({
       success: true,
-      message: "Password reset successfully",
+      message: "Password reset successful. Please log in again.",
     });
   } catch (error) {
-    return next(error);
+    next(error);
   }
 };
+
 
 // Update User Profile
 export const updateUserProfile = async (req, res, next) => {

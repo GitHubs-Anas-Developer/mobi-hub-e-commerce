@@ -1,40 +1,74 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import authService from "@/services/authService";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentYear, setCurrentYear] = useState("");
 
   useEffect(() => {
     setCurrentYear(String(new Date().getFullYear()));
   }, []);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     setError("");
+    setSuccessMessage("");
     setIsSubmitted(false);
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail) {
       setError("Please enter your email address.");
       return;
     }
 
-    // Frontend demo only.
-    // Actual email verification will be implemented later.
-    setIsSubmitted(true);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(trimmedEmail)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const response = await authService.forgotPassword(trimmedEmail);
+
+      if (response?.success) {
+        setIsSubmitted(true);
+
+        setSuccessMessage(
+          response.message ||
+            "If an account exists with this email, a password reset link will be sent.",
+        );
+      } else {
+        setError(
+          response?.message ||
+            "Unable to process your request. Please try again.",
+        );
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Something went wrong. Please try again later.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
     setIsSubmitted(false);
+    setSuccessMessage("");
     setError("");
   };
 
@@ -83,7 +117,10 @@ export default function ForgotPasswordPage() {
       {/* Right Panel */}
       <div className="flex-1 bg-white flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
         {/* Mobile Logo */}
-        <div className="flex lg:hidden items-center gap-2.5 mb-10 mt-6">
+        <Link
+          href="/"
+          className="flex lg:hidden items-center gap-2.5 mb-10 mt-6"
+        >
           <div className="w-8 h-8 bg-[#1D4ED8] rounded-lg flex items-center justify-center shadow-sm">
             <svg
               className="w-5 h-5 text-white"
@@ -95,7 +132,7 @@ export default function ForgotPasswordPage() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2 2v14a2 2 0 002 2z"
               />
             </svg>
           </div>
@@ -103,7 +140,7 @@ export default function ForgotPasswordPage() {
           <span className="text-xl font-bold text-[#1D4ED8] tracking-tight">
             MOBI HUB
           </span>
-        </div>
+        </Link>
 
         {/* Form Container */}
         <div className="w-full max-w-[420px] my-auto">
@@ -136,7 +173,8 @@ export default function ForgotPasswordPage() {
                 placeholder="Enter your email"
                 autoComplete="email"
                 required
-                className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] placeholder:text-[#64748B] outline-none focus:border-[#1D4ED8] focus:ring-1 focus:ring-[#1D4ED8] transition-all shadow-sm"
+                disabled={isSubmitting}
+                className="w-full h-12 px-4 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] placeholder:text-[#64748B] outline-none focus:border-[#1D4ED8] focus:ring-1 focus:ring-[#1D4ED8] transition-all shadow-sm disabled:bg-gray-50"
               />
             </div>
 
@@ -146,8 +184,11 @@ export default function ForgotPasswordPage() {
                 role="status"
                 className="p-3 rounded-lg text-sm bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]"
               >
-                Email submitted successfully. Password recovery will be
-                available once email verification is implemented.
+                <p className="font-semibold mb-1">
+                  Request submitted successfully!
+                </p>
+                <p>{successMessage}</p>
+                <p className="mt-2">Please check your inbox and spam folder.</p>
               </div>
             )}
 
@@ -161,12 +202,38 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={!email.trim()}
+              disabled={!email.trim() || isSubmitting}
               className="w-full h-12 mt-4 bg-[#1D4ED8] hover:bg-blue-800 text-white font-semibold text-base rounded-lg transition-colors disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer shadow-sm"
             >
-              Continue
+              {isSubmitting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg
+                    className="w-5 h-5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                    />
+                  </svg>
+                  Sending...
+                </span>
+              ) : (
+                "Continue"
+              )}
             </button>
           </form>
 
