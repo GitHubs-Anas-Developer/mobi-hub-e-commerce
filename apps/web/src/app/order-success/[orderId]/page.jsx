@@ -158,7 +158,7 @@ function DetailRow({ label, value, valueClass = "" }) {
 
 function OrderSuccessContent() {
   const params = useParams();
-  const orderId = params.orderId;
+  const orderId = params?.orderId;
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -207,7 +207,11 @@ function OrderSuccessContent() {
       }
     };
 
-    if (orderId) {
+    if (!orderId || typeof orderId !== "string") {
+      setOrder(null);
+      setError("Order ID is missing from the URL.");
+      setLoading(false);
+    } else {
       fetchOrder();
     }
 
@@ -294,7 +298,7 @@ function OrderSuccessContent() {
       {/* Scroll Progress */}
       <motion.div
         style={{ scaleX }}
-        className="fixed left-0 top-0 z-50 h-[3px] w-full origin-left bg-[#0755E9]"
+        className="fixed left-0 top-0 z-50 h-[3px] w-full origin-left"
       />
 
       <motion.div
@@ -321,7 +325,7 @@ function OrderSuccessContent() {
           variants={itemVariants}
           className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-10"
         >
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-full ounded-full bg-blue-100/60 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-full rounded-full bg-blue-100/60 blur-3xl" />
 
           <div className="relative flex flex-col items-center text-center">
             <motion.div
@@ -676,8 +680,19 @@ function OrderSuccessContent() {
 
         <motion.div
           variants={itemVariants}
-          className="flex flex-col justify-center gap-3 pt-2 sm:flex-row"
+          className="flex flex-col justify-center gap-3 pt-2 sm:flex-row sm:flex-wrap"
         >
+          {!isCancelled && order.shipment?.shipmentId && (
+            <Link
+              href={`/order-success/${order._id}/tracking`}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0645C4]"
+            >
+              <Truck size={17} />
+              Track Your Shipment
+              <ArrowRight size={16} />
+            </Link>
+          )}
+
           <Link
             href="/account/orders"
             className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0645C4] hover:shadow-lg hover:shadow-blue-500/20"
@@ -719,7 +734,7 @@ export default function OrderSuccessPage() {
   return (
     <ProtectedRoute>
       <main className="min-h-screen bg-[#F8FAFC] py-6 sm:py-10">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-10 xl:px-14">
           <OrderSuccessContent />
         </div>
       </main>

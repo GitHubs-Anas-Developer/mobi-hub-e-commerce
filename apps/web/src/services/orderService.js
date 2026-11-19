@@ -16,6 +16,28 @@ const orderService = {
     return response.data;
   },
 
+  // Customer order tracking
+  getOrderTracking: async (orderId) => {
+    console.log("TRACKING API REQUEST:", `/orders/${orderId}/tracking`);
+
+    try {
+      const response = await axiosInstance.get(`/orders/${orderId}/tracking`, {
+        timeout: 15000,
+      });
+
+      console.log("TRACKING API SUCCESS:", response.data);
+      return response.data;
+    } catch (error) {
+      console.error("TRACKING API FAILED:", {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+
+      throw error;
+    }
+  },
+
   cancelOrder: async (orderId) => {
     const response = await axiosInstance.patch(`/orders/${orderId}/cancel`);
     return response.data;
