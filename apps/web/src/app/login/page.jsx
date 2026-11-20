@@ -1,7 +1,7 @@
 
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -38,6 +38,30 @@ function LoginPageContent() {
   const [resendingEmail, setResendingEmail] = useState(false);
   const [resendMessage, setResendMessage] = useState("");
 
+  // Handle Google login callback status
+  useEffect(() => {
+    const googleStatus = searchParams.get("google");
+
+    if (googleStatus === "failed") {
+      setFormError("Google sign-in failed. Please try again.");
+    }
+  }, [searchParams]);
+
+  // Google authentication
+  const handleGoogleLogin = () => {
+  setFormError("");
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+  if (!apiUrl) {
+    setFormError("Authentication server URL is not configured.");
+    return;
+  }
+
+  window.location.href = `${apiUrl.replace(/\/$/, "")}/auth/google`;
+};
+
+  // Email and password login
   const handleSubmit = async (event) => {
     event.preventDefault();
 
@@ -67,8 +91,9 @@ function LoginPageContent() {
         return;
       }
 
-      // Only allow internal application redirects.
+      // Only allow internal application redirects
       const next = searchParams.get("next");
+
       const safeNext =
         next?.startsWith("/") && !next.startsWith("//")
           ? next
@@ -97,6 +122,7 @@ function LoginPageContent() {
     }
   };
 
+  // Resend email verification
   const handleResendVerification = async () => {
     try {
       setResendingEmail(true);
@@ -132,12 +158,17 @@ function LoginPageContent() {
           className="relative hidden overflow-hidden bg-[#082b70] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20"
         >
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
+
           <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
 
-          <Link href="/" className="relative z-10 flex items-center gap-3">
+          <Link
+            href="/"
+            className="relative z-10 flex items-center gap-3"
+          >
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-700">
               <Smartphone size={27} />
             </span>
+
             <span className="text-2xl font-extrabold tracking-tight">
               Mobi <span className="text-blue-300">Hub</span>
             </span>
@@ -167,6 +198,7 @@ function LoginPageContent() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
                   <Truck size={21} />
                 </span>
+
                 <div>
                   <p className="font-semibold">Reliable Delivery</p>
                   <p className="text-sm text-blue-100/70">
@@ -179,6 +211,7 @@ function LoginPageContent() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
                   <ShieldCheck size={21} />
                 </span>
+
                 <div>
                   <p className="font-semibold">Secure Shopping</p>
                   <p className="text-sm text-blue-100/70">
@@ -191,6 +224,7 @@ function LoginPageContent() {
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
                   <Headphones size={21} />
                 </span>
+
                 <div>
                   <p className="font-semibold">Customer Support</p>
                   <p className="text-sm text-blue-100/70">
@@ -223,6 +257,7 @@ function LoginPageContent() {
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <Smartphone size={22} />
               </span>
+
               <span className="text-xl font-extrabold text-slate-900">
                 Mobi <span className="text-blue-600">Hub</span>
               </span>
@@ -257,11 +292,16 @@ function LoginPageContent() {
             {emailNotVerified && (
               <div className="mb-5 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                 <div className="flex items-start gap-3">
-                  <Mail className="mt-0.5 shrink-0 text-amber-600" size={20} />
+                  <Mail
+                    className="mt-0.5 shrink-0 text-amber-600"
+                    size={20}
+                  />
+
                   <div>
                     <p className="font-semibold text-amber-900">
                       Email verification required
                     </p>
+
                     <p className="mt-1 break-all text-sm text-amber-700">
                       {email.trim()}
                     </p>
@@ -299,7 +339,7 @@ function LoginPageContent() {
               </div>
             )}
 
-            {/* LOGIN FORM */}
+            {/* EMAIL / PASSWORD LOGIN */}
             <form onSubmit={handleSubmit} className="space-y-5">
 
               <div>
@@ -374,7 +414,9 @@ function LoginPageContent() {
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
                   >
                     {showPassword ? (
@@ -405,6 +447,52 @@ function LoginPageContent() {
               </button>
             </form>
 
+            {/* GOOGLE LOGIN */}
+            <div className="mt-6">
+              <div className="relative mb-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200" />
+                </div>
+
+                <div className="relative flex justify-center">
+                  <span className="bg-slate-50 px-4 text-xs font-medium text-slate-400">
+                    OR CONTINUE WITH
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-slate-50 active:scale-[0.99]"
+              >
+                <svg
+                  viewBox="0 0 48 48"
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path
+                    fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.25 5.47-4.72 7.16l7.65 5.94c4.47-4.13 7.11-10.2 7.11-17.57Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M10.53 28.59A14.4 14.4 0 0 1 9.75 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A23.9 23.9 0 0 0 0 24c0 3.88.93 7.55 2.56 10.78l7.97-6.19Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.9-5.88l-7.65-5.94c-2.13 1.43-4.85 2.28-8.25 2.28-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48Z"
+                  />
+                </svg>
+
+                Continue with Google
+              </button>
+            </div>
+
             {/* REGISTER */}
             <div className="mt-8 text-center">
               <p className="text-sm text-slate-500">
@@ -427,11 +515,17 @@ function LoginPageContent() {
 
               <p className="mt-4 text-center text-xs text-slate-400">
                 By signing in, you agree to Mobi Hub's{" "}
-                <Link href="/terms" className="text-blue-600 hover:underline">
+                <Link
+                  href="/terms"
+                  className="text-blue-600 hover:underline"
+                >
                   Terms
                 </Link>{" "}
                 and{" "}
-                <Link href="/privacy" className="text-blue-600 hover:underline">
+                <Link
+                  href="/privacy"
+                  className="text-blue-600 hover:underline"
+                >
                   Privacy Policy
                 </Link>.
               </p>

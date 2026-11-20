@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -81,15 +80,13 @@ function ResetPasswordForm() {
 
     if (!token) {
       setValidationError(
-        "Invalid or missing password reset link. Please request a new link."
+        "Invalid or missing password reset link. Please request a new link.",
       );
       return;
     }
 
     if (formData.password.length < 8) {
-      setValidationError(
-        "Password must be at least 8 characters long."
-      );
+      setValidationError("Password must be at least 8 characters long.");
       return;
     }
 
@@ -110,7 +107,7 @@ function ResetPasswordForm() {
         setIsSubmitted(true);
 
         setSuccessMessage(
-          response.message || "Your password has been reset successfully."
+          response.message || "Your password has been reset successfully.",
         );
 
         setFormData({
@@ -118,14 +115,12 @@ function ResetPasswordForm() {
           confirmPassword: "",
         });
       } else {
-        setValidationError(
-          response?.message || "Unable to reset password."
-        );
+        setValidationError(response?.message || "Unable to reset password.");
       }
     } catch (error) {
       setValidationError(
         error?.response?.data?.message ||
-          "Unable to reset password. Please try again."
+          "Unable to reset password. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -135,7 +130,6 @@ function ResetPasswordForm() {
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="grid min-h-screen lg:grid-cols-2">
-
         {/* LEFT BRAND SECTION */}
         <motion.section
           initial={{ opacity: 0, x: -24 }}
@@ -143,7 +137,6 @@ function ResetPasswordForm() {
           transition={{ duration: 0.55, ease: "easeOut" }}
           className="relative hidden overflow-hidden bg-[#082b70] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20"
         >
-
           <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
 
           <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
@@ -159,7 +152,6 @@ function ResetPasswordForm() {
           </Link>
 
           <div className="relative z-10 max-w-lg">
-
             <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-blue-100">
               <ShieldCheck size={16} />
               Account Security
@@ -167,19 +159,15 @@ function ResetPasswordForm() {
 
             <h1 className="text-4xl font-bold leading-tight xl:text-5xl">
               Secure your account.
-              <span className="mt-2 block text-blue-300">
-                Start fresh.
-              </span>
+              <span className="mt-2 block text-blue-300">Start fresh.</span>
             </h1>
 
             <p className="mt-6 max-w-md text-base leading-7 text-blue-100/80">
-              Create a strong new password to protect your
-              personal information, orders and account details
-              with Mobi Hub.
+              Create a strong new password to protect your personal information,
+              orders and account details with Mobi Hub.
             </p>
 
             <div className="mt-10 space-y-5">
-
               <div className="flex items-center gap-4">
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
                   <Truck size={21} />
@@ -218,7 +206,6 @@ function ResetPasswordForm() {
                   </p>
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -234,9 +221,7 @@ function ResetPasswordForm() {
           transition={{ duration: 0.5, delay: 0.12, ease: "easeOut" }}
           className="flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12"
         >
-
           <div className="w-full max-w-md">
-
             {/* MOBILE BRAND */}
             <Link
               href="/"
@@ -253,15 +238,12 @@ function ResetPasswordForm() {
 
             {/* HEADER */}
             <div className="mb-8">
-
               <p className="mb-3 text-sm font-semibold text-blue-600">
                 ACCOUNT RECOVERY
               </p>
 
               <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-                {isSubmitted
-                  ? "Password updated!"
-                  : "Create new password"}
+                {isSubmitted ? "Password updated!" : "Create new password"}
               </h2>
 
               <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -273,7 +255,6 @@ function ResetPasswordForm() {
 
             {/* SUCCESS STATE */}
             {isSubmitted ? (
-
               <motion.div
                 key="reset-success"
                 initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -281,7 +262,6 @@ function ResetPasswordForm() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="space-y-5"
               >
-
                 <div
                   role="status"
                   className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700"
@@ -289,13 +269,9 @@ function ResetPasswordForm() {
                   <CheckCircle2 size={21} className="mt-0.5 shrink-0" />
 
                   <div>
-                    <p className="font-semibold">
-                      Password reset successful!
-                    </p>
+                    <p className="font-semibold">Password reset successful!</p>
 
-                    <p className="mt-1 leading-6">
-                      {successMessage}
-                    </p>
+                    <p className="mt-1 leading-6">{successMessage}</p>
                   </div>
                 </div>
 
@@ -307,11 +283,8 @@ function ResetPasswordForm() {
                   Continue to Login
                   <ArrowRight size={18} />
                 </button>
-
               </motion.div>
-
             ) : !token ? (
-
               /* INVALID TOKEN STATE */
               <motion.div
                 key="invalid-token"
@@ -320,13 +293,12 @@ function ResetPasswordForm() {
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className="space-y-5"
               >
-
                 <div
                   role="alert"
                   className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700"
                 >
-                  Invalid or missing password reset link.
-                  Please request a new reset link.
+                  Invalid or missing password reset link. Please request a new
+                  reset link.
                 </div>
 
                 <Link
@@ -336,11 +308,8 @@ function ResetPasswordForm() {
                   Request New Reset Link
                   <ArrowRight size={18} />
                 </Link>
-
               </motion.div>
-
             ) : (
-
               /* RESET PASSWORD FORM */
               <motion.form
                 key="reset-form"
@@ -350,10 +319,8 @@ function ResetPasswordForm() {
                 onSubmit={handleSubmit}
                 className="space-y-5"
               >
-
                 {/* NEW PASSWORD */}
                 <div>
-
                   <label
                     htmlFor="password"
                     className="mb-2 block text-sm font-semibold text-slate-700"
@@ -362,7 +329,6 @@ function ResetPasswordForm() {
                   </label>
 
                   <div className="relative">
-
                     <LockKeyhole
                       size={19}
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -389,19 +355,13 @@ function ResetPasswordForm() {
                       }
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
                     >
-                      {showPassword ? (
-                        <EyeOff size={19} />
-                      ) : (
-                        <Eye size={19} />
-                      )}
+                      {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
                     </button>
-
                   </div>
 
                   {/* PASSWORD STRENGTH */}
                   {formData.password && (
                     <div className="pt-3">
-
                       <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((level) => (
                           <div
@@ -429,15 +389,12 @@ function ResetPasswordForm() {
                               : "Strong"}
                         </span>
                       </p>
-
                     </div>
                   )}
-
                 </div>
 
                 {/* CONFIRM PASSWORD */}
                 <div>
-
                   <label
                     htmlFor="confirmPassword"
                     className="mb-2 block text-sm font-semibold text-slate-700"
@@ -446,7 +403,6 @@ function ResetPasswordForm() {
                   </label>
 
                   <div className="relative">
-
                     <LockKeyhole
                       size={19}
                       className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
@@ -467,9 +423,7 @@ function ResetPasswordForm() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setShowConfirmPassword((prev) => !prev)
-                      }
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
                       aria-label={
                         showConfirmPassword
                           ? "Hide confirm password"
@@ -483,7 +437,6 @@ function ResetPasswordForm() {
                         <Eye size={19} />
                       )}
                     </button>
-
                   </div>
                 </div>
 
@@ -515,13 +468,11 @@ function ResetPasswordForm() {
                     </>
                   )}
                 </button>
-
               </motion.form>
             )}
 
             {/* SECURITY FOOTER */}
             <div className="mt-10 border-t border-slate-200 pt-6">
-
               <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
                 <ShieldCheck size={16} className="text-green-600" />
                 Secure account authentication
@@ -541,9 +492,7 @@ function ResetPasswordForm() {
               >
                 Back to shopping
               </Link>
-
             </div>
-
           </div>
         </motion.section>
       </div>

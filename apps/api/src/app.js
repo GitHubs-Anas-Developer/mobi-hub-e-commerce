@@ -1,6 +1,11 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import session from "express-session";
+import MongoStore from "connect-mongo";
+import passport from "passport";
+
+import "./config/passport.js";
 
 import { errorMiddleware } from "./middlewares/error.middleware.js";
 
@@ -24,16 +29,28 @@ import uploadRoutes from "./routes/upload.routes.js";
 import brandRoutes from "./routes/brand.routes.js";
 import adminUserRoutes from "./routes/admin-user.routes.js";
 import recentlyViewedRoutes from "./routes/recentlyViewed.routes.js";
-import searchRoutes from "./routes/search.routes.js"
+import searchRoutes from "./routes/search.routes.js";
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === "production";
+
+// Trust proxy in production
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
+// Payment webhook must receive raw body
 app.use("/api/v1/payments/webhook", express.raw({ type: "application/json" }));
 
+// JSON and URL-encoded body parsing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Cookie parser
 app.use(cookieParser());
 
+// CORS configuration
 const allowedOrigins = (process.env.CLIENT_URL || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -52,9 +69,48 @@ app.use(
   }),
 );
 
-// Health Check
+// Validate Google OAuth session configuration
+if (!process.env.SESSION_SECRET) {
+  throw new Error("SESSION_SECRET is missing");
+}
+
+if (!process.env.MONGODB_URI) {
+  throw new Error("MONGODB_URI is missing");
+}
+
+// Google OAuth session configuration
+app.use(
+  session({
+    name: "mobi_hub.sid",
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI,
+      collectionName: "sessions",
+      ttl: 14 * 24 * 60 * 60,
+    }),
+
+    cookie: {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax",
+      maxAge: 14 * 24 * 60 * 60 * 1000,
+    },
+  }),
+);
+
+// Passport initialization
+app.use(passport.initialize());
+
+// Health check
 app.use("/api/v1/health", healthRoutes);
+
+// Authentication
 app.use("/api/v1/auth", authRoutes);
+
+// Main routes
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/cart", cartRoutes);
@@ -64,33 +120,37 @@ app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+
+// Admin routes
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
 app.use("/api/v1/admin/inventory", inventoryRoutes);
-app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/v1/returns", returnRoutes);
 app.use("/api/v1/admin/products", adminProductRoutes);
 app.use("/api/v1/admin/upload", uploadRoutes);
-app.use("/api/v1/brands", brandRoutes);
 app.use("/api/v1/admin/users", adminUserRoutes);
+
+// Other routes
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/returns", returnRoutes);
+app.use("/api/v1/brands", brandRoutes);
 app.use("/api/v1/recently-viewed", recentlyViewedRoutes);
 app.use("/api/v1/search", searchRoutes);
 
 // Default route
 app.get("/", (req, res) => {
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
     message: "Welcome to MOBI HUB API",
   });
 });
 
-// 404 Handler
+// 404 handler
 app.use((req, res, next) => {
   const error = new Error("Route not found");
   error.statusCode = 404;
   next(error);
 });
 
-// Error Middleware (Always last)
+// Error middleware (always last)
 app.use(errorMiddleware);
 
 export default app;

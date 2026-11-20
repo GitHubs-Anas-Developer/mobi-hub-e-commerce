@@ -24,11 +24,30 @@ const userSchema = new mongoose.Schema(
       ],
     },
 
+    // Local password is required only for local accounts
     password: {
       type: String,
-      required: [true, "Password is required"],
+      required: function () {
+        return this.authProvider === "local";
+      },
       minlength: [8, "Password must be at least 8 characters"],
       select: false,
+    },
+
+    // Authentication provider
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+      required: true,
+    },
+
+    // Google account ID
+    googleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      default: undefined,
     },
 
     phone: {
@@ -102,17 +121,19 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// Normalize email before saving
+// Normalize email before validation
 userSchema.pre("validate", function () {
   if (this.email) {
     this.email = this.email.toLowerCase().trim();
   }
 });
 
+// Hash password only when modified
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) {
+  if (!this.isModified("password") || !this.password) {
     return;
   }
+
   this.password = await bcrypt.hash(this.password, 12);
 });
 

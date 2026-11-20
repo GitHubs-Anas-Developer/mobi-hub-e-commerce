@@ -286,6 +286,15 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
+    // Google-only accounts cannot use password login
+    if (!user.password) {
+      return res.status(401).json({
+        success: false,
+        message: "This account uses Google login. Please continue with Google.",
+        code: "GOOGLE_LOGIN_REQUIRED",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
@@ -478,7 +487,7 @@ export const forgotPassword = async (req, res, next) => {
 // Reset Password
 export const resetPassword = async (req, res, next) => {
   try {
-    const { token, password } = req.body;
+    const { token, password } = req.body || {};
 
     if (!token || !password) {
       return res.status(400).json({
@@ -494,10 +503,10 @@ export const resetPassword = async (req, res, next) => {
       });
     }
 
-    // Hash the token received from the frontend.
+    // Hash the token received from the frontend
     const hashedToken = createHash("sha256").update(token).digest("hex");
 
-    // Find a user with a valid, unexpired reset token.
+    // Find user with valid, unexpired reset token
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
       resetPasswordExpires: { $gt: new Date() },
@@ -511,14 +520,20 @@ export const resetPassword = async (req, res, next) => {
       });
     }
 
-    // Update password. Your User model pre-save hook hashes it.
+    // Update password
     user.password = password;
+
+    // Enable email/password login
+    user.authProvider = "local";
+
+    // Clear reset token
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
+    // User model pre-save hook hashes the password
     await user.save();
 
-    // Revoke all existing refresh-token sessions.
+    // Revoke all existing refresh-token sessions
     await revokeAllUserRefreshTokens(user._id);
 
     return res.status(200).json({
@@ -526,7 +541,7 @@ export const resetPassword = async (req, res, next) => {
       message: "Password reset successful. Please log in again.",
     });
   } catch (error) {
-    next(error);
+    return next(error);
   }
 };
 
@@ -619,6 +634,16 @@ export const changePassword = async (req, res, next) => {
       });
     }
 
+    // Google-only users must set a password through password reset first
+    if (!user.password) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "You do not have a password yet. Please set your password using the forgot password option.",
+        code: "PASSWORD_NOT_SET",
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
       user.password,
@@ -635,10 +660,10 @@ export const changePassword = async (req, res, next) => {
 
     await user.save();
 
-    // Revoke all existing refresh-token sessions.
+    // Revoke all existing refresh-token sessions
     await revokeAllUserRefreshTokens(user._id);
 
-    // Clear current authentication cookies.
+    // Clear current authentication cookies
     clearAuthCookies(res);
 
     return res.status(200).json({

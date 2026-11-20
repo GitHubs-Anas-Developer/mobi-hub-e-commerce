@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -23,11 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
 import axiosInstance from "@/lib/axios";
 
-export default function LoginModal({
-  isOpen,
-  onClose,
-  onSwitchToRegister,
-}) {
+export default function LoginModal({ isOpen, onClose, onSwitchToRegister }) {
   const router = useRouter();
   const { dispatch, isLoading } = useAuth();
 
@@ -74,7 +69,7 @@ export default function LoginModal({
 
       if (event.key === "Tab" && modalRef.current) {
         const elements = modalRef.current.querySelectorAll(
-          'button:not([disabled]), input:not([disabled]), a[href]'
+          "button:not([disabled]), input:not([disabled]), a[href]",
         );
 
         if (!elements.length) return;
@@ -82,16 +77,10 @@ export default function LoginModal({
         const first = elements[0];
         const last = elements[elements.length - 1];
 
-        if (
-          event.shiftKey &&
-          document.activeElement === first
-        ) {
+        if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
-        } else if (
-          !event.shiftKey &&
-          document.activeElement === last
-        ) {
+        } else if (!event.shiftKey && document.activeElement === last) {
           event.preventDefault();
           first.focus();
         }
@@ -139,14 +128,11 @@ export default function LoginModal({
     }
 
     try {
-      const response = await dispatch(
-        loginUser({ email, password })
-      ).unwrap();
+      const response = await dispatch(loginUser({ email, password })).unwrap();
 
       onClose?.();
 
-      const role =
-        response?.user?.role || response?.role;
+      const role = response?.user?.role || response?.role;
 
       if (role === "admin") {
         router.push("/admin");
@@ -154,8 +140,7 @@ export default function LoginModal({
         router.push("/");
       }
     } catch (error) {
-      const errorCode =
-        error?.code || error?.response?.data?.code;
+      const errorCode = error?.code || error?.response?.data?.code;
 
       const errorMessage =
         typeof error === "string"
@@ -166,9 +151,7 @@ export default function LoginModal({
 
       if (errorCode === "EMAIL_NOT_VERIFIED") {
         setEmailNotVerified(true);
-        setFormError(
-          "Please verify your email before logging in."
-        );
+        setFormError("Please verify your email before logging in.");
       } else {
         setFormError(errorMessage);
       }
@@ -187,12 +170,12 @@ export default function LoginModal({
       });
 
       setResendMessage(
-        "If your account needs verification, a new verification email has been sent."
+        "If your account needs verification, a new verification email has been sent.",
       );
     } catch (error) {
       setFormError(
         error?.response?.data?.message ||
-          "Unable to resend verification email. Please try again."
+          "Unable to resend verification email. Please try again.",
       );
     } finally {
       setResendingEmail(false);
@@ -201,8 +184,16 @@ export default function LoginModal({
 
   // GOOGLE LOGIN
   const handleGoogleLogin = () => {
-    // Connect your existing Google OAuth handler here.
-    console.info("Google OAuth is not connected yet.");
+    setFormError("");
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!apiUrl) {
+      setFormError("Authentication server URL is not configured.");
+      return;
+    }
+
+    window.location.href = `${apiUrl.replace(/\/$/, "")}/auth/google`;
   };
 
   if (!mounted || !isOpen) return null;
@@ -245,7 +236,6 @@ export default function LoginModal({
         </button>
 
         <div className="px-4 py-5 sm:px-6 sm:py-6">
-
           {/* BRAND */}
           <div className="mb-4 flex items-center justify-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
@@ -284,12 +274,8 @@ export default function LoginModal({
           {/* EMAIL VERIFICATION ACTION */}
           {emailNotVerified && (
             <div className="mb-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
-
               <div className="flex items-start gap-2">
-                <Mail
-                  size={18}
-                  className="mt-0.5 shrink-0 text-amber-600"
-                />
+                <Mail size={18} className="mt-0.5 shrink-0 text-amber-600" />
 
                 <div>
                   <p className="text-sm font-semibold text-amber-800">
@@ -335,7 +321,6 @@ export default function LoginModal({
 
           {/* LOGIN FORM */}
           <form onSubmit={handleSubmit} className="space-y-4">
-
             {/* EMAIL */}
             <div>
               <label
@@ -394,19 +379,11 @@ export default function LoginModal({
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setShowPassword((prev) => !prev)
-                  }
-                  aria-label={
-                    showPassword ? "Hide password" : "Show password"
-                  }
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
                 >
-                  {showPassword ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -456,9 +433,7 @@ export default function LoginModal({
           {/* DIVIDER */}
           <div className="my-4 flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-200" />
-            <span className="text-[11px] text-slate-400">
-              OR
-            </span>
+            <span className="text-[11px] text-slate-400">OR</span>
             <div className="h-px flex-1 bg-slate-200" />
           </div>
 
@@ -468,12 +443,7 @@ export default function LoginModal({
             onClick={handleGoogleLogin}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 48 48"
-              aria-hidden="true"
-            >
+            <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
               <path
                 fill="#4285F4"
                 d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11c-.5 2.5-1.9 4.6-4 6v5h6.5c3.8-3.5 6.1-8.6 6.1-14.7z"
@@ -511,10 +481,9 @@ export default function LoginModal({
             <ShieldCheck size={14} className="text-green-600" />
             Secure and protected login
           </div>
-
         </div>
       </motion.div>
     </motion.div>,
-    document.body
+    document.body,
   );
 }
