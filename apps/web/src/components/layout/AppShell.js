@@ -11,11 +11,25 @@ import BottomNavigation from "./BottomNavigation";
 function AppShellContent({ children }) {
   const pathname = usePathname();
 
+  // Admin routes
   const isAdminRoute = pathname.startsWith("/admin");
 
-  // Admin Layout
-  if (isAdminRoute) {
-    return <main className="flex-1">{children}</main>;
+  // Authentication routes
+  const authRoutes = [
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
+    "/verify-email",
+  ];
+
+  const isAuthRoute = authRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+
+  // Admin and Authentication Layout
+  if (isAdminRoute || isAuthRoute) {
+    return <main className="flex-1 min-h-screen bg-white">{children}</main>;
   }
 
   // Store Layout
@@ -37,7 +51,11 @@ function AppShellContent({ children }) {
 
 export default function AppShell({ children }) {
   return (
-    <Suspense fallback={<main className="flex-1">{children}</main>}>
+    <Suspense
+      fallback={
+        <main className="flex-1 min-h-screen bg-white">{children}</main>
+      }
+    >
       <AppShellContent>{children}</AppShellContent>
     </Suspense>
   );

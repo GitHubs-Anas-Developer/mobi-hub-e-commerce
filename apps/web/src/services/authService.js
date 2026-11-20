@@ -49,6 +49,24 @@ const resetPassword = async (resetData) => {
   return response.data;
 };
 
+// Verify Email
+const verifyEmail = async (token) => {
+  const response = await axiosInstance.post("/auth/verify-email", {
+    token,
+  });
+
+  return response.data;
+};
+
+// Resend Verification Email
+const resendVerificationEmail = async (email) => {
+  const response = await axiosInstance.post("/auth/resend-verification", {
+    email,
+  });
+
+  return response.data;
+};
+
 const authService = {
   register,
   login,
@@ -58,6 +76,8 @@ const authService = {
   changePassword,
   forgotPassword,
   resetPassword,
+  verifyEmail,
+  resendVerificationEmail,
 };
 
 export default authService;

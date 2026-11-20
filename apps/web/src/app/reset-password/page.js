@@ -1,9 +1,26 @@
+
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Smartphone,
+  LockKeyhole,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+  CheckCircle2,
+  ShoppingBag,
+  Truck,
+  Headphones,
+} from "lucide-react";
+
 import authService from "@/services/authService";
+import { motion } from "motion/react";
 
 function ResetPasswordForm() {
   const router = useRouter();
@@ -31,7 +48,6 @@ function ResetPasswordForm() {
     setCurrentYear(String(new Date().getFullYear()));
   }, []);
 
-  // Password strength
   const getPasswordStrength = (password) => {
     let score = 0;
 
@@ -57,7 +73,6 @@ function ResetPasswordForm() {
     setValidationError("");
   };
 
-  // Reset Password API
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -66,13 +81,15 @@ function ResetPasswordForm() {
 
     if (!token) {
       setValidationError(
-        "Invalid or missing password reset link. Please request a new link.",
+        "Invalid or missing password reset link. Please request a new link."
       );
       return;
     }
 
     if (formData.password.length < 8) {
-      setValidationError("Password must be at least 8 characters long.");
+      setValidationError(
+        "Password must be at least 8 characters long."
+      );
       return;
     }
 
@@ -92,19 +109,23 @@ function ResetPasswordForm() {
       if (response?.success) {
         setIsSubmitted(true);
 
-        setSuccessMessage(response.message || "Password reset successful.");
+        setSuccessMessage(
+          response.message || "Your password has been reset successfully."
+        );
 
         setFormData({
           password: "",
           confirmPassword: "",
         });
       } else {
-        setValidationError(response?.message || "Unable to reset password.");
+        setValidationError(
+          response?.message || "Unable to reset password."
+        );
       }
     } catch (error) {
       setValidationError(
-        error.response?.data?.message ||
-          "Unable to reset password. Please try again.",
+        error?.response?.data?.message ||
+          "Unable to reset password. Please try again."
       );
     } finally {
       setIsSubmitting(false);
@@ -112,305 +133,421 @@ function ResetPasswordForm() {
   };
 
   return (
-    <div className="min-h-screen flex font-sans antialiased">
-      {/* Left Panel */}
-      <div className="hidden lg:flex lg:w-[40%] bg-[#F8FAFC] flex-col justify-between p-12 border-r border-[#E2E8F0]">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-3 w-fit">
-          <div className="w-10 h-10 bg-[#1D4ED8] rounded-xl flex items-center justify-center shadow-md">
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
+    <main className="min-h-screen bg-slate-50">
+      <div className="grid min-h-screen lg:grid-cols-2">
 
-          <span className="text-2xl font-bold text-[#1D4ED8] tracking-tight">
-            MOBI HUB
-          </span>
-        </Link>
-
-        {/* Hero Content */}
-        <div>
-          <h2 className="text-3xl font-bold text-[#0F172A] leading-tight mb-4">
-            Secure your digital lifestyle.
-          </h2>
-
-          <p className="text-base text-[#64748B] max-w-sm">
-            Create a strong, new password to protect your personal information,
-            orders, and payment details.
-          </p>
-        </div>
-
-        {/* Footer */}
-        <div className="text-sm text-[#64748B]">
-          © {currentYear} MOBI HUB. All rights reserved.
-        </div>
-      </div>
-
-      {/* Right Panel */}
-      <div className="flex-1 bg-white flex flex-col justify-center items-center p-6 sm:p-12 overflow-y-auto">
-        {/* Mobile Logo */}
-        <Link
-          href="/"
-          className="flex lg:hidden items-center gap-2.5 mb-10 mt-6"
+        {/* LEFT BRAND SECTION */}
+        <motion.section
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+          className="relative hidden overflow-hidden bg-[#082b70] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20"
         >
-          <div className="w-8 h-8 bg-[#1D4ED8] rounded-lg flex items-center justify-center shadow-sm">
-            <svg
-              className="w-5 h-5 text-white"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
 
-          <span className="text-xl font-bold text-[#1D4ED8] tracking-tight">
-            MOBI HUB
-          </span>
-        </Link>
+          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
 
-        {/* Form Container */}
-        <div className="w-full max-w-[420px] my-auto">
-          {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-[32px] font-bold text-[#0F172A] tracking-tight mb-2">
-              Create new password
+          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
+
+          <Link href="/" className="relative z-10 flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-700">
+              <Smartphone size={27} />
+            </span>
+
+            <span className="text-2xl font-extrabold tracking-tight">
+              Mobi <span className="text-blue-300">Hub</span>
+            </span>
+          </Link>
+
+          <div className="relative z-10 max-w-lg">
+
+            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-blue-100">
+              <ShieldCheck size={16} />
+              Account Security
+            </span>
+
+            <h1 className="text-4xl font-bold leading-tight xl:text-5xl">
+              Secure your account.
+              <span className="mt-2 block text-blue-300">
+                Start fresh.
+              </span>
             </h1>
 
-            <p className="text-base text-[#64748B]">
-              Create a strong password for your MOBI HUB account.
+            <p className="mt-6 max-w-md text-base leading-7 text-blue-100/80">
+              Create a strong new password to protect your
+              personal information, orders and account details
+              with Mobi Hub.
             </p>
-          </div>
 
-          {/* Success State */}
-          {isSubmitted ? (
-            <div className="space-y-5">
-              <div
-                role="status"
-                className="p-4 rounded-lg text-sm bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0]"
-              >
-                <div className="font-semibold mb-1">
-                  Password reset successful!
+            <div className="mt-10 space-y-5">
+
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
+                  <Truck size={21} />
+                </span>
+
+                <div>
+                  <p className="font-semibold">Reliable Delivery</p>
+                  <p className="text-sm text-blue-100/70">
+                    Track your orders with ease.
+                  </p>
                 </div>
-
-                {successMessage}
               </div>
 
-              <button
-                type="button"
-                onClick={() => router.push("/login")}
-                className="w-full h-12 bg-[#1D4ED8] hover:bg-blue-800 text-white font-semibold text-base rounded-lg transition-colors cursor-pointer shadow-sm"
-              >
-                Continue to Login
-              </button>
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
+                  <ShieldCheck size={21} />
+                </span>
+
+                <div>
+                  <p className="font-semibold">Secure Shopping</p>
+                  <p className="text-sm text-blue-100/70">
+                    Your account security matters.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
+                  <Headphones size={21} />
+                </span>
+
+                <div>
+                  <p className="font-semibold">Customer Support</p>
+                  <p className="text-sm text-blue-100/70">
+                    Help when you need it.
+                  </p>
+                </div>
+              </div>
+
             </div>
-          ) : !token ? (
-            /* Invalid Token State */
-            <div className="space-y-5">
-              <div
-                role="alert"
-                className="p-4 rounded-lg text-sm bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA]"
+          </div>
+
+          <p className="relative z-10 text-xs text-blue-100/60">
+            © {currentYear} Mobi Hub. All rights reserved.
+          </p>
+        </motion.section>
+
+        {/* RIGHT RESET PASSWORD SECTION */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.12, ease: "easeOut" }}
+          className="flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12"
+        >
+
+          <div className="w-full max-w-md">
+
+            {/* MOBILE BRAND */}
+            <Link
+              href="/"
+              className="mb-10 flex items-center justify-center gap-2 lg:hidden"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <Smartphone size={22} />
+              </span>
+
+              <span className="text-xl font-extrabold text-slate-900">
+                Mobi <span className="text-blue-600">Hub</span>
+              </span>
+            </Link>
+
+            {/* HEADER */}
+            <div className="mb-8">
+
+              <p className="mb-3 text-sm font-semibold text-blue-600">
+                ACCOUNT RECOVERY
+              </p>
+
+              <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                {isSubmitted
+                  ? "Password updated!"
+                  : "Create new password"}
+              </h2>
+
+              <p className="mt-3 text-sm leading-6 text-slate-500">
+                {isSubmitted
+                  ? "Your account password has been successfully updated."
+                  : "Create a strong password to secure your Mobi Hub account."}
+              </p>
+            </div>
+
+            {/* SUCCESS STATE */}
+            {isSubmitted ? (
+
+              <motion.div
+                key="reset-success"
+                initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="space-y-5"
               >
-                Invalid or missing password reset link. Please request a new
-                reset link.
+
+                <div
+                  role="status"
+                  className="flex items-start gap-3 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-700"
+                >
+                  <CheckCircle2 size={21} className="mt-0.5 shrink-0" />
+
+                  <div>
+                    <p className="font-semibold">
+                      Password reset successful!
+                    </p>
+
+                    <p className="mt-1 leading-6">
+                      {successMessage}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => router.replace("/login")}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                >
+                  Continue to Login
+                  <ArrowRight size={18} />
+                </button>
+
+              </motion.div>
+
+            ) : !token ? (
+
+              /* INVALID TOKEN STATE */
+              <motion.div
+                key="invalid-token"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="space-y-5"
+              >
+
+                <div
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700"
+                >
+                  Invalid or missing password reset link.
+                  Please request a new reset link.
+                </div>
+
+                <Link
+                  href="/forgot-password"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+                >
+                  Request New Reset Link
+                  <ArrowRight size={18} />
+                </Link>
+
+              </motion.div>
+
+            ) : (
+
+              /* RESET PASSWORD FORM */
+              <motion.form
+                key="reset-form"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                onSubmit={handleSubmit}
+                className="space-y-5"
+              >
+
+                {/* NEW PASSWORD */}
+                <div>
+
+                  <label
+                    htmlFor="password"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    New Password
+                  </label>
+
+                  <div className="relative">
+
+                    <LockKeyhole
+                      size={19}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="Enter new password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                      className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
+                    >
+                      {showPassword ? (
+                        <EyeOff size={19} />
+                      ) : (
+                        <Eye size={19} />
+                      )}
+                    </button>
+
+                  </div>
+
+                  {/* PASSWORD STRENGTH */}
+                  {formData.password && (
+                    <div className="pt-3">
+
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <div
+                            key={level}
+                            className={`h-1.5 flex-1 rounded-full transition-colors ${
+                              passwordStrength >= level
+                                ? passwordStrength <= 2
+                                  ? "bg-red-500"
+                                  : passwordStrength <= 3
+                                    ? "bg-yellow-500"
+                                    : "bg-green-500"
+                                : "bg-slate-200"
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <p className="mt-2 text-xs text-slate-500">
+                        Password strength:{" "}
+                        <span className="font-semibold">
+                          {passwordStrength <= 2
+                            ? "Weak"
+                            : passwordStrength <= 3
+                              ? "Medium"
+                              : "Strong"}
+                        </span>
+                      </p>
+
+                    </div>
+                  )}
+
+                </div>
+
+                {/* CONFIRM PASSWORD */}
+                <div>
+
+                  <label
+                    htmlFor="confirmPassword"
+                    className="mb-2 block text-sm font-semibold text-slate-700"
+                  >
+                    Confirm Password
+                  </label>
+
+                  <div className="relative">
+
+                    <LockKeyhole
+                      size={19}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+
+                    <input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="Confirm new password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      required
+                      className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowConfirmPassword((prev) => !prev)
+                      }
+                      aria-label={
+                        showConfirmPassword
+                          ? "Hide confirm password"
+                          : "Show confirm password"
+                      }
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff size={19} />
+                      ) : (
+                        <Eye size={19} />
+                      )}
+                    </button>
+
+                  </div>
+                </div>
+
+                {/* VALIDATION ERROR */}
+                {validationError && (
+                  <div
+                    role="alert"
+                    className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                  >
+                    {validationError}
+                  </div>
+                )}
+
+                {/* SUBMIT */}
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={19} className="animate-spin" />
+                      Resetting Password...
+                    </>
+                  ) : (
+                    <>
+                      Reset Password
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+
+              </motion.form>
+            )}
+
+            {/* SECURITY FOOTER */}
+            <div className="mt-10 border-t border-slate-200 pt-6">
+
+              <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+                <ShieldCheck size={16} className="text-green-600" />
+                Secure account authentication
               </div>
 
               <Link
-                href="/forgot-password"
-                className="block w-full text-center h-12 leading-[48px] bg-[#1D4ED8] hover:bg-blue-800 text-white font-semibold rounded-lg"
+                href="/login"
+                className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
               >
-                Request New Reset Link
+                <ArrowLeft size={17} />
+                Back to Login
               </Link>
+
+              <Link
+                href="/"
+                className="mt-4 block text-center text-sm font-medium text-slate-500 transition hover:text-blue-600"
+              >
+                Back to shopping
+              </Link>
+
             </div>
-          ) : (
-            /* Reset Password Form */
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* New Password */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-medium text-[#0F172A]"
-                >
-                  New Password
-                </label>
 
-                <div className="relative flex items-center">
-                  <input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="Enter new password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                    className="w-full h-12 pl-4 pr-16 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] placeholder:text-[#64748B] outline-none focus:border-[#1D4ED8] focus:ring-1 focus:ring-[#1D4ED8] transition-all shadow-sm"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-4 text-xs font-medium text-[#64748B] hover:text-[#1D4ED8] transition-colors"
-                    aria-label="Toggle password visibility"
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-
-                {/* Password Strength */}
-                {formData.password && (
-                  <div className="pt-2">
-                    <div className="flex gap-1">
-                      {[1, 2, 3, 4, 5].map((level) => (
-                        <div
-                          key={level}
-                          className={`h-1.5 flex-1 rounded-full transition-colors ${
-                            passwordStrength >= level
-                              ? passwordStrength <= 2
-                                ? "bg-red-500"
-                                : passwordStrength <= 3
-                                  ? "bg-yellow-500"
-                                  : "bg-green-500"
-                              : "bg-gray-200"
-                          }`}
-                        />
-                      ))}
-                    </div>
-
-                    <p className="text-xs text-[#64748B] mt-1">
-                      Password strength:{" "}
-                      {passwordStrength <= 2
-                        ? "Weak"
-                        : passwordStrength <= 3
-                          ? "Medium"
-                          : "Strong"}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Confirm Password */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="confirmPassword"
-                  className="text-sm font-medium text-[#0F172A]"
-                >
-                  Confirm Password
-                </label>
-
-                <div className="relative flex items-center">
-                  <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    placeholder="Confirm new password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    required
-                    className="w-full h-12 pl-4 pr-16 bg-white border border-[#E2E8F0] rounded-lg text-sm text-[#0F172A] placeholder:text-[#64748B] outline-none focus:border-[#1D4ED8] focus:ring-1 focus:ring-[#1D4ED8] transition-all shadow-sm"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    className="absolute right-4 text-xs font-medium text-[#64748B] hover:text-[#1D4ED8] transition-colors"
-                    aria-label="Toggle confirm password visibility"
-                  >
-                    {showConfirmPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Validation Error */}
-              {validationError && (
-                <div
-                  role="alert"
-                  className="p-3 rounded-lg text-sm bg-[#FEF2F2] text-[#991B1B] border border-[#FECACA]"
-                >
-                  {validationError}
-                </div>
-              )}
-
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full h-12 mt-4 bg-[#1D4ED8] hover:bg-blue-800 disabled:bg-blue-300 disabled:cursor-not-allowed text-white font-semibold text-base rounded-lg transition-colors cursor-pointer shadow-sm"
-              >
-                {isSubmitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg
-                      className="w-5 h-5 animate-spin"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                      />
-                    </svg>
-                    Resetting Password...
-                  </span>
-                ) : (
-                  "Reset Password"
-                )}
-              </button>
-            </form>
-          )}
-
-          {/* Back to Login */}
-          <p className="text-center text-sm text-[#64748B] mt-8">
-            <Link
-              href="/login"
-              className="text-[#1D4ED8] font-medium hover:underline inline-flex items-center justify-center gap-1"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18"
-                />
-              </svg>
-              Back to log in
-            </Link>
-          </p>
-        </div>
+          </div>
+        </motion.section>
       </div>
-    </div>
+    </main>
   );
 }
 
@@ -418,8 +555,8 @@ export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center text-[#64748B]">
-          Loading reset password page...
+        <div className="flex min-h-screen items-center justify-center bg-slate-50">
+          <Loader2 className="animate-spin text-blue-600" size={30} />
         </div>
       }
     >

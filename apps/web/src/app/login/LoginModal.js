@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 
 import {
   X,
@@ -15,10 +16,12 @@ import {
   Smartphone,
   ArrowRight,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
+import axiosInstance from "@/lib/axios";
 
 export default function LoginModal({
   isOpen,
@@ -42,6 +45,11 @@ export default function LoginModal({
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState("");
 
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
+
+  // CLIENT MOUNT
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -110,12 +118,17 @@ export default function LoginModal({
     }));
 
     setFormError("");
+    setEmailNotVerified(false);
+    setResendMessage("");
   };
 
   // LOGIN SUBMIT
   const handleSubmit = async (event) => {
     event.preventDefault();
+
     setFormError("");
+    setEmailNotVerified(false);
+    setResendMessage("");
 
     const email = formData.email.trim();
     const password = formData.password;
@@ -141,15 +154,52 @@ export default function LoginModal({
         router.push("/");
       }
     } catch (error) {
-      setFormError(
+      const errorCode =
+        error?.code || error?.response?.data?.code;
+
+      const errorMessage =
         typeof error === "string"
           ? error
           : error?.message ||
-              "Invalid email or password. Please try again."
-      );
+            error?.response?.data?.message ||
+            "Invalid email or password. Please try again.";
+
+      if (errorCode === "EMAIL_NOT_VERIFIED") {
+        setEmailNotVerified(true);
+        setFormError(
+          "Please verify your email before logging in."
+        );
+      } else {
+        setFormError(errorMessage);
+      }
     }
   };
 
+  // RESEND VERIFICATION EMAIL
+  const handleResendVerification = async () => {
+    try {
+      setResendingEmail(true);
+      setResendMessage("");
+      setFormError("");
+
+      await axiosInstance.post("/auth/resend-verification", {
+        email: formData.email.trim(),
+      });
+
+      setResendMessage(
+        "If your account needs verification, a new verification email has been sent."
+      );
+    } catch (error) {
+      setFormError(
+        error?.response?.data?.message ||
+          "Unable to resend verification email. Please try again."
+      );
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
+  // GOOGLE LOGIN
   const handleGoogleLogin = () => {
     // Connect your existing Google OAuth handler here.
     console.info("Google OAuth is not connected yet.");
@@ -158,7 +208,10 @@ export default function LoginModal({
   if (!mounted || !isOpen) return null;
 
   return createPortal(
-    <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
       className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-950/50 p-3 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
@@ -167,13 +220,16 @@ export default function LoginModal({
       }}
     >
       {/* LOGIN MODAL */}
-      <div
+      <motion.div
         ref={modalRef}
+        initial={{ opacity: 0, scale: 0.96, y: 14 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="login-modal-title"
         onMouseDown={(event) => event.stopPropagation()}
-        className="relative my-auto w-full max-w-[400px] overflow-hidden rounded-2xl bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200"
+        className="relative my-auto w-full max-w-[400px] overflow-hidden rounded-2xl bg-white shadow-2xl"
       >
         {/* TOP ACCENT */}
         <div className="h-1 w-full bg-blue-600" />
@@ -222,6 +278,58 @@ export default function LoginModal({
               className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-600"
             >
               {formError}
+            </div>
+          )}
+
+          {/* EMAIL VERIFICATION ACTION */}
+          {emailNotVerified && (
+            <div className="mb-4 space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+
+              <div className="flex items-start gap-2">
+                <Mail
+                  size={18}
+                  className="mt-0.5 shrink-0 text-amber-600"
+                />
+
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">
+                    Email verification required
+                  </p>
+
+                  <p className="mt-1 break-all text-xs leading-5 text-amber-700">
+                    {formData.email.trim()}
+                  </p>
+                </div>
+              </div>
+
+              {resendMessage && (
+                <div
+                  role="status"
+                  className="flex items-start gap-2 rounded-md border border-green-200 bg-green-50 p-2 text-xs text-green-700"
+                >
+                  <CheckCircle2 size={15} className="shrink-0" />
+                  {resendMessage}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingEmail}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white text-sm font-semibold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {resendingEmail ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Mail size={16} />
+                    Resend Verification Email
+                  </>
+                )}
+              </button>
             </div>
           )}
 
@@ -403,9 +511,10 @@ export default function LoginModal({
             <ShieldCheck size={14} className="text-green-600" />
             Secure and protected login
           </div>
+
         </div>
-      </div>
-    </div>,
+      </motion.div>
+    </motion.div>,
     document.body
   );
 }
