@@ -1,5 +1,6 @@
 import transporter from "../config/mailer.js";
 import passwordResetTemplate from "../templates/emails/password-reset.template.js";
+import emailVerificationTemplate from "../templates/emails/email-verification.template.js";
 
 export const sendEmail = async ({ to, subject, html, text }) => {
   if (!to || !subject || !html) {
@@ -45,6 +46,24 @@ export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
   const template = passwordResetTemplate({
     name,
     resetUrl,
+  });
+
+  return sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    text: template.text,
+  });
+};
+
+export const sendEmailVerificationEmail = async ({
+  to,
+  name,
+  verificationUrl,
+}) => {
+  const template = emailVerificationTemplate({
+    name,
+    verificationUrl,
   });
 
   return sendEmail({

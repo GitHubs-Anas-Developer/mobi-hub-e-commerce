@@ -12,7 +12,10 @@ import {
 
 import User from "../models/user.model.js";
 import { randomBytes, createHash } from "node:crypto";
-import { sendPasswordResetEmail } from "../services/email.service.js";
+import {
+  sendPasswordResetEmail,
+  sendEmailVerificationEmail,
+} from "../services/email.service.js";
 
 // Cookie configuration
 const getCookieOptions = (path) => ({
@@ -85,21 +88,174 @@ export const registerUser = async (req, res, next) => {
       });
     }
 
+    // Generate secure verification token
+    const verificationToken = randomBytes(32).toString("hex");
+
+    // Store only hashed token in database
+    const hashedVerificationToken = createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+    // Create user
     const user = await User.create({
       name: trimmedName,
       email: normalizedEmail,
       password,
       phone: phone ? phone.trim() : null,
+      isEmailVerified: false,
+      emailVerificationToken: hashedVerificationToken,
+      emailVerificationExpires: Date.now() + 24 * 60 * 60 * 1000,
     });
 
-    const token = generateToken(user._id);
+    try {
+      const frontendUrl = new URL(process.env.CLIENT_URL);
+
+      if (!["http:", "https:"].includes(frontendUrl.protocol)) {
+        throw new Error("Invalid CLIENT_URL protocol");
+      }
+
+      frontendUrl.pathname = "/verify-email";
+      frontendUrl.search = "";
+      frontendUrl.searchParams.set("token", verificationToken);
+
+      await sendEmailVerificationEmail({
+        to: user.email,
+        name: user.name,
+        verificationUrl: frontendUrl.toString(),
+      });
+    } catch (emailError) {
+      // Remove user if verification email could not be sent
+      await User.findByIdAndDelete(user._id);
+
+      throw emailError;
+    }
 
     return res.status(201).json({
       success: true,
-      message: "User registered successfully",
-      token,
-      user: sanitizeUser(user),
+      message:
+        "Registration successful. Please check your email to verify your account.",
     });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// Verify Email
+export const verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.body || {};
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Email verification token is required",
+      });
+    }
+
+    // Hash the token received from frontend
+    const hashedToken = createHash("sha256").update(token).digest("hex");
+
+    // Find user with valid, unexpired verification token
+    const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+      emailVerificationExpires: { $gt: new Date() },
+      isActive: true,
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired email verification link",
+      });
+    }
+
+    // Verify email
+    user.isEmailVerified = true;
+
+    // Clear verification token
+    user.emailVerificationToken = null;
+    user.emailVerificationExpires = null;
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully. You can now log in.",
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const resendVerificationEmail = async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+
+    if (!email || typeof email !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({
+      email: normalizedEmail,
+      isActive: true,
+    });
+
+    // Generic response prevents revealing account details
+    const response = {
+      success: true,
+      message:
+        "If an unverified account exists with this email, a verification link will be sent.",
+    };
+
+    if (!user || user.isEmailVerified) {
+      return res.status(200).json(response);
+    }
+
+    // Generate a new verification token
+    const verificationToken = randomBytes(32).toString("hex");
+
+    // Store only the SHA-256 hash
+    user.emailVerificationToken = createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+    // Link expires in 24 hours
+    user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await user.save({ validateBeforeSave: false });
+
+    try {
+      const frontendUrl = new URL(process.env.CLIENT_URL);
+
+      if (!["http:", "https:"].includes(frontendUrl.protocol)) {
+        throw new Error("Invalid CLIENT_URL protocol");
+      }
+
+      frontendUrl.pathname = "/verify-email";
+      frontendUrl.search = "";
+      frontendUrl.searchParams.set("token", verificationToken);
+
+      await sendEmailVerificationEmail({
+        to: user.email,
+        name: user.name,
+        verificationUrl: frontendUrl.toString(),
+      });
+    } catch (emailError) {
+      // Invalidate token if email sending fails
+      user.emailVerificationToken = null;
+      user.emailVerificationExpires = null;
+
+      await user.save({ validateBeforeSave: false });
+
+      throw emailError;
+    }
+
+    return res.status(200).json(response);
   } catch (error) {
     return next(error);
   }
@@ -139,17 +295,30 @@ export const loginUser = async (req, res, next) => {
       });
     }
 
+    // Check email verification
+    if (!user.isEmailVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
+        code: "EMAIL_NOT_VERIFIED",
+      });
+    }
+
+    // Update last login
     user.lastLoginAt = new Date();
     await user.save();
 
+    // Generate authentication tokens
     const accessToken = generateAccessToken(user._id, user.role);
     const refreshToken = await createRefreshToken(user._id);
 
+    // Set access token cookie
     res.cookie("accessToken", accessToken, {
       ...getCookieOptions("/api/v1"),
       maxAge: 15 * 60 * 1000,
     });
 
+    // Set refresh token cookie
     res.cookie("refreshToken", refreshToken, {
       ...getCookieOptions("/api/v1/auth"),
       maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -326,9 +495,7 @@ export const resetPassword = async (req, res, next) => {
     }
 
     // Hash the token received from the frontend.
-    const hashedToken = createHash("sha256")
-      .update(token)
-      .digest("hex");
+    const hashedToken = createHash("sha256").update(token).digest("hex");
 
     // Find a user with a valid, unexpired reset token.
     const user = await User.findOne({
@@ -362,7 +529,6 @@ export const resetPassword = async (req, res, next) => {
     next(error);
   }
 };
-
 
 // Update User Profile
 export const updateUserProfile = async (req, res, next) => {
