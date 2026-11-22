@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
+
 import {
   Bell,
   ChevronDown,
@@ -12,7 +13,12 @@ import {
   ShieldCheck,
   UserCircle,
 } from "lucide-react";
+
 import { logoutUser } from "@/store/thunks/authThunks";
+
+// ========================================
+// PAGE TITLES
+// ========================================
 
 const PAGE_TITLES = {
   "/admin": "Dashboard",
@@ -21,8 +27,14 @@ const PAGE_TITLES = {
   "/admin/orders": "Orders",
   "/admin/customers": "Customers",
   "/admin/reviews": "Reviews",
+  "/admin/banners": "Banners",
+  "/admin/notifications": "Notifications",
   "/admin/settings": "Settings",
 };
+
+// ========================================
+// ADMIN HEADER
+// ========================================
 
 export default function AdminHeader({ onMenuClick }) {
   const pathname = usePathname();
@@ -34,17 +46,28 @@ export default function AdminHeader({ onMenuClick }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
+  // ========================================
+  // DYNAMIC PAGE TITLE
+  // ========================================
+
   const pageTitle =
     PAGE_TITLES[pathname] ||
     Object.entries(PAGE_TITLES).find(
-      ([path]) => path !== "/admin" && pathname.startsWith(path),
+      ([path]) =>
+        path !== "/admin" && pathname.startsWith(`${path}/`),
     )?.[1] ||
     "Admin Panel";
+
+  // ========================================
+  // LOGOUT
+  // ========================================
 
   const handleLogout = async () => {
     try {
       setLoggingOut(true);
+
       await dispatch(logoutUser()).unwrap();
+
       router.replace("/login");
     } catch (error) {
       console.error("Admin logout failed:", error);
@@ -52,13 +75,24 @@ export default function AdminHeader({ onMenuClick }) {
     }
   };
 
+  // ========================================
+  // ADMIN DETAILS
+  // ========================================
+
   const adminName = user?.name || "Administrator";
   const adminEmail = user?.email || "admin@mobi-hub.com";
 
+  // ========================================
+  // UI
+  // ========================================
+
   return (
     <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6 lg:px-8">
-      {/* Left Section */}
+
+      {/* LEFT SECTION */}
       <div className="flex min-w-0 items-center gap-3">
+
+        {/* Mobile Sidebar Button */}
         <button
           type="button"
           onClick={onMenuClick}
@@ -68,6 +102,7 @@ export default function AdminHeader({ onMenuClick }) {
           <Menu size={22} />
         </button>
 
+        {/* Page Title */}
         <div>
           <h1 className="text-lg font-bold text-slate-900 sm:text-xl">
             {pageTitle}
@@ -79,8 +114,9 @@ export default function AdminHeader({ onMenuClick }) {
         </div>
       </div>
 
-      {/* Right Section */}
+      {/* RIGHT SECTION */}
       <div className="flex items-center gap-3 sm:gap-5">
+
         {/* Notifications */}
         <button
           type="button"
@@ -90,23 +126,27 @@ export default function AdminHeader({ onMenuClick }) {
         >
           <Bell size={21} />
 
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
+          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
         </button>
 
         {/* Divider */}
         <div className="hidden h-8 w-px bg-slate-200 sm:block" />
 
-        {/* Admin Profile */}
+        {/* ADMIN PROFILE */}
         <div className="relative">
+
           <button
             type="button"
             onClick={() => setProfileOpen((prev) => !prev)}
+            aria-expanded={profileOpen}
             className="flex items-center gap-2 rounded-lg p-1.5 transition hover:bg-slate-50 sm:gap-3"
           >
+            {/* Avatar */}
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700">
               <UserCircle size={23} />
             </div>
 
+            {/* Admin Name */}
             <div className="hidden text-left sm:block">
               <p className="max-w-[150px] truncate text-sm font-semibold text-slate-900">
                 {adminName}
@@ -117,6 +157,7 @@ export default function AdminHeader({ onMenuClick }) {
               </p>
             </div>
 
+            {/* Dropdown Icon */}
             <ChevronDown
               size={16}
               className={`hidden text-slate-500 transition-transform sm:block ${
@@ -125,8 +166,10 @@ export default function AdminHeader({ onMenuClick }) {
             />
           </button>
 
+          {/* PROFILE DROPDOWN */}
           {profileOpen && (
             <>
+              {/* Close Overlay */}
               <button
                 type="button"
                 aria-label="Close profile menu"
@@ -134,8 +177,12 @@ export default function AdminHeader({ onMenuClick }) {
                 onClick={() => setProfileOpen(false)}
               />
 
-              <div className="absolute top-full right-0 z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+              {/* Dropdown Content */}
+              <div className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+
+                {/* Admin Information */}
                 <div className="border-b border-slate-100 p-4">
+
                   <p className="truncate text-sm font-semibold text-slate-900">
                     {adminName}
                   </p>
@@ -150,6 +197,7 @@ export default function AdminHeader({ onMenuClick }) {
                   </div>
                 </div>
 
+                {/* Logout */}
                 <div className="p-2">
                   <button
                     type="button"
@@ -158,7 +206,10 @@ export default function AdminHeader({ onMenuClick }) {
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
                   >
                     <LogOut size={17} />
-                    {loggingOut ? "Signing out..." : "Logout"}
+
+                    {loggingOut
+                      ? "Signing out..."
+                      : "Logout"}
                   </button>
                 </div>
               </div>

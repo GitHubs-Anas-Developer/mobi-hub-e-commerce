@@ -91,7 +91,7 @@ export default function CategorySection() {
 
   return (
     <section className="w-full bg-white px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <div className="mx-auto max-w-[1440px]">
+      <div className="mx-auto w-full">
 
         {/* Header */}
         <motion.div

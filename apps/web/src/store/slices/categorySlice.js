@@ -4,18 +4,22 @@ import {
   fetchCategories,
   fetchAdminCategories,
   fetchCategoryById,
+  fetchSubCategories,
 } from "../thunks/categoryThunks";
 
 const initialState = {
   categories: [],
   adminCategories: [],
+  subCategories: [],
   selectedCategory: null,
 
   loading: false,
   adminLoading: false,
   detailLoading: false,
+  subCategoriesLoading: false,
 
   error: null,
+  subCategoriesError: null,
 };
 
 const getCategories = (response) => {
@@ -37,6 +41,10 @@ const categorySlice = createSlice({
       state.error = null;
     },
 
+    clearSubCategoriesError: (state) => {
+      state.subCategoriesError = null;
+    },
+
     clearSelectedCategory: (state) => {
       state.selectedCategory = null;
     },
@@ -44,8 +52,10 @@ const categorySlice = createSlice({
     resetCategories: (state) => {
       state.categories = [];
       state.adminCategories = [];
+      state.subCategories = [];
       state.selectedCategory = null;
       state.error = null;
+      state.subCategoriesError = null;
     },
   },
 
@@ -93,11 +103,30 @@ const categorySlice = createSlice({
       .addCase(fetchCategoryById.rejected, (state, action) => {
         state.detailLoading = false;
         state.error = action.payload;
+      })
+
+      // Fetch subcategories
+      .addCase(fetchSubCategories.pending, (state) => {
+        state.subCategoriesLoading = true;
+        state.subCategoriesError = null;
+        state.subCategories = [];
+      })
+      .addCase(fetchSubCategories.fulfilled, (state, action) => {
+        state.subCategoriesLoading = false;
+        state.subCategories = getCategories(action.payload);
+      })
+      .addCase(fetchSubCategories.rejected, (state, action) => {
+        state.subCategoriesLoading = false;
+        state.subCategoriesError = action.payload;
       });
   },
 });
 
-export const { clearCategoryError, clearSelectedCategory, resetCategories } =
-  categorySlice.actions;
+export const {
+  clearCategoryError,
+  clearSubCategoriesError,
+  clearSelectedCategory,
+  resetCategories,
+} = categorySlice.actions;
 
 export default categorySlice.reducer;

@@ -3,6 +3,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+
 import {
   LayoutDashboard,
   Package,
@@ -13,7 +14,12 @@ import {
   Settings,
   Store,
   TicketPercent,
+  Images,
 } from "lucide-react";
+
+// ========================================
+// NAVIGATION ITEMS
+// ========================================
 
 const NAV_ITEMS = [
   {
@@ -32,25 +38,30 @@ const NAV_ITEMS = [
     icon: FolderTree,
   },
   {
-  label: "Brands",
-  href: "/admin/brands",
-  icon: Store,
-},
+    label: "Banners",
+    href: "/admin/banners",
+    icon: Images,
+  },
+  {
+    label: "Brands",
+    href: "/admin/brands",
+    icon: Store,
+  },
   {
     label: "Orders",
     href: "/admin/orders",
     icon: ShoppingCart,
   },
   {
-  label: "Coupons",
-  href: "/admin/coupons",
-  icon: TicketPercent,
-},
- {
-  label: "Customers",
-  href: "/admin/users",
-  icon: Users,
-},
+    label: "Coupons",
+    href: "/admin/coupons",
+    icon: TicketPercent,
+  },
+  {
+    label: "Customers",
+    href: "/admin/users",
+    icon: Users,
+  },
   {
     label: "Reviews",
     href: "/admin/reviews",
@@ -63,9 +74,14 @@ const NAV_ITEMS = [
   },
 ];
 
+// ========================================
+// ADMIN SIDEBAR
+// ========================================
+
 export default function AdminSidebar() {
   const pathname = usePathname();
 
+  // Active menu detection
   const isActive = (href) => {
     if (href === "/admin") {
       return pathname === "/admin";
@@ -76,7 +92,8 @@ export default function AdminSidebar() {
 
   return (
     <aside className="flex h-full min-h-screen w-64 flex-col border-r border-slate-200 bg-white">
-      {/* Brand */}
+
+      {/* BRAND */}
       <Link
         href="/admin"
         className="flex h-[72px] shrink-0 items-center gap-3 border-b border-slate-200 px-6"
@@ -96,8 +113,9 @@ export default function AdminSidebar() {
         </div>
       </Link>
 
-      {/* Navigation */}
+      {/* NAVIGATION */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
+
         <p className="mb-3 px-3 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
           Main Menu
         </p>
@@ -135,9 +153,10 @@ export default function AdminSidebar() {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* FOOTER */}
       <div className="shrink-0 border-t border-slate-200 p-4">
         <div className="rounded-xl bg-slate-50 p-3">
+
           <p className="text-xs font-semibold text-slate-700">
             MOBI HUB Admin
           </p>
@@ -145,6 +164,7 @@ export default function AdminSidebar() {
           <p className="mt-1 text-[11px] text-slate-500">
             Manage your store efficiently.
           </p>
+
         </div>
       </div>
     </aside>

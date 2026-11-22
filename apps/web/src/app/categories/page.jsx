@@ -1,5 +1,5 @@
 
-import AllCategoriesHeader from "@/components/categories/AllCategoriesHeader";
+import AllCategoriesHeader from "@/components/categories/CategoriesBanner";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
@@ -11,7 +11,7 @@ export const metadata = {
 
 export default function CategoriesPage() {
   return (
-    <main className="min-h-screen bg-[#F8FAFC]">
+    <main className="min-h-screen">
       <div className="w-full px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
 
         <AllCategoriesHeader />

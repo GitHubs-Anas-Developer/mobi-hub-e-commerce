@@ -38,7 +38,7 @@ import ProductFilters from "@/components/products/ProductFilters";
 import ProductToolbar from "@/components/products/ProductToolbar";
 import ProductGrid from "@/components/products/ProductGrid";
 import ProductPagination from "@/components/products/ProductPagination";
-import ShopBanner from "@/components/products/ProductCategoryBanner";
+import ShopBanner from "@/components/products/ProductsBanner";
 
 // Mini Cart Drawer
 import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
@@ -790,8 +790,7 @@ useEffect(() => {
             total={pagination.total}
           />
 
-          {/* SHOP BANNER */}
-
+          {/* PRODUCTS PAGE BANNER */}
           <ShopBanner />
 
           {/* CATEGORY NAVIGATION */}

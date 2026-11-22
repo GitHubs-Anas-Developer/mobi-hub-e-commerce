@@ -61,6 +61,18 @@ const categoryService = {
 
     return response.data;
   },
+
+  // Get subcategories by parent category
+  getSubCategories: async (parentCategoryId) => {
+    const response = await axiosInstance.get("/categories", {
+      params: {
+        isActive: true,
+        parentCategory: parentCategoryId,
+      },
+    });
+
+    return response.data;
+  },
 };
 
 export default categoryService;

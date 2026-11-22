@@ -51,3 +51,18 @@ export const fetchCategoryById = createAsyncThunk(
     }
   },
 );
+
+export const fetchSubCategories = createAsyncThunk(
+  "categories/fetchSubCategories",
+  async (parentCategoryId, { rejectWithValue }) => {
+    try {
+      return await categoryService.getSubCategories(parentCategoryId);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message ||
+          error.message ||
+          "Failed to fetch subcategories",
+      );
+    }
+  },
+);

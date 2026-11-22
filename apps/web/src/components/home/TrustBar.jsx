@@ -49,7 +49,7 @@ export default function TrustBar() {
 
   return (
     <section className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
-      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-2 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:grid-cols-6 lg:grid-cols-5">
+      <div className="mx-auto grid w-full grid-cols-2 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:grid-cols-6 lg:grid-cols-5">
 
         {benefits.map((benefit, index) => {
           const Icon = benefit.icon;

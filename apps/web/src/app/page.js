@@ -10,24 +10,22 @@ import ProductSection from "@/components/home/ProductSection";
 import ShopByVideos from "@/components/home/ShopByVideos";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import TrustBar from "@/components/home/TrustBar";
-import PromoBannerSection from "@/components/home/PromoBannerSection";
 import BrandSection from "@/components/brands/BrandSection";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
+import PromotionalBanners from "@/components/home/PromotionalBanners";
+import BottomPromotionalBanner from "@/components/home/BottomPromotionalBanner";
+
 export default function Home() {
-  // Product states
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [newArrivals, setNewArrivals] = useState([]);
 
-  // Loading states
   const [featuredLoading, setFeaturedLoading] = useState(true);
   const [newArrivalsLoading, setNewArrivalsLoading] = useState(true);
 
-  // Error states
   const [featuredError, setFeaturedError] = useState("");
   const [newArrivalsError, setNewArrivalsError] = useState("");
 
-  // Fetch homepage products
   useEffect(() => {
     const fetchHomeProducts = async () => {
       try {
@@ -36,6 +34,7 @@ export default function Home() {
             isFeatured: true,
             limit: 8,
           }),
+
           productService.getProducts({
             isNewArrival: true,
             limit: 8,
@@ -71,33 +70,33 @@ export default function Home() {
 
   return (
     <main className="min-h-screen w-full bg-white">
-      {/* HERO BANNER */}
+      {/* 01. HERO BANNER */}
       <HeroBanner />
-      {/* CATEGORY SECTION */}
 
-      {/* TRUST BAR */}
+      {/* 02. TRUST BAR */}
       <TrustBar />
-      <div className="">
-        <CategorySection />
-      </div>
 
-      {/* BRANDS */}
+      {/* 03. SHOP BY CATEGORY */}
+      <CategorySection />
+
+      {/* 04. POPULAR BRANDS */}
       <BrandSection />
 
-      {/* PROMOTIONAL BANNERS */}
-      <PromoBannerSection />
-
-      {/* HOMEPAGE PRODUCTS AND CONTENT */}
+      {/* 05. FEATURED PRODUCTS */}
       <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
-        {/* BEST SELLERS */}
         <ProductSection
-          title="Feature Products"
+          title="Featured Products"
           products={featuredProducts}
           loading={featuredLoading}
           error={featuredError}
         />
+      </div>
 
-        {/* NEW ARRIVALS */}
+      {/* 06. MIDDLE PROMOTIONAL BANNER */}
+      <PromotionalBanners />
+
+      {/* 07. NEW ARRIVALS */}
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
         <ProductSection
           title="New Arrivals"
           products={newArrivals}
@@ -105,14 +104,18 @@ export default function Home() {
           error={newArrivalsError}
         />
 
+        {/* 08. RECENTLY VIEWED */}
         <RecentlyViewed title="Recently Viewed" limit={10} />
-
-        {/* SHOP BY VIDEOS */}
-
-        {/* WHY CHOOSE MOBI HUB */}
       </div>
+
+      {/* 09. SHOP BY VIDEOS */}
       <ShopByVideos />
+
+      {/* 10. WHY CHOOSE MOBIHUB */}
       <WhyChooseUs />
+
+      {/* 11. BOTTOM PROMOTIONAL BANNER */}
+      <BottomPromotionalBanner />
     </main>
   );
 }
