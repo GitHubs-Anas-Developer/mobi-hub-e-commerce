@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Package,
   ShoppingCart,
+  RefreshCw,
 } from "lucide-react";
 
 import { toast } from "sonner";
@@ -25,7 +26,9 @@ import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
 import WishlistHeader from "@/components/wishlist/WishlistHeader";
 import WishlistEmptyState from "@/components/wishlist/WishlistEmptyState";
 import WishlistProductCard from "@/components/wishlist/WishlistProductCard";
+import WishlistPromoBanner from "@/components/wishlist/WishlistPromoBanner";
 
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
 import {
   fetchWishlist,
@@ -33,14 +36,15 @@ import {
 } from "@/store/thunks/wishlistThunks";
 
 import { addToCart } from "@/store/thunks/cartThunks";
-import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
-/* ----------------------------------
-   Helpers
----------------------------------- */
+// ========================================
+// HELPERS
+// ========================================
 
 function getErrorMessage(error, fallback) {
-  if (typeof error === "string") return error;
+  if (typeof error === "string") {
+    return error;
+  }
 
   return (
     error?.message ||
@@ -50,9 +54,13 @@ function getErrorMessage(error, fallback) {
   );
 }
 
-/* ----------------------------------
-   Motion Variants
----------------------------------- */
+function getProductId(product) {
+  return product?._id || product?.id || "";
+}
+
+// ========================================
+// MOTION VARIANTS
+// ========================================
 
 const containerVariants = {
   hidden: {
@@ -67,40 +75,146 @@ const containerVariants = {
   },
 };
 
-/* ----------------------------------
-   Wishlist Page Content
----------------------------------- */
+// ========================================
+// LOADING COMPONENT
+// ========================================
+
+function WishlistLoading({ shouldReduceMotion }) {
+  return (
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
+      <motion.div
+        animate={
+          shouldReduceMotion
+            ? undefined
+            : { rotate: 360 }
+        }
+        transition={{
+          duration: 1,
+          repeat: Infinity,
+          ease: "linear",
+        }}
+      >
+        <Loader2
+          size={36}
+          className="text-[#0755e9]"
+        />
+      </motion.div>
+
+      <p className="text-sm font-medium text-slate-500">
+        Loading your wishlist...
+      </p>
+    </div>
+  );
+}
+
+// ========================================
+// ERROR COMPONENT
+// ========================================
+
+function WishlistError({ message, onRetry }) {
+  return (
+    <div className="flex min-h-[50vh] flex-col items-center justify-center px-4 text-center">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+        <RefreshCw
+          size={28}
+          className="text-red-500"
+        />
+      </div>
+
+      <h2 className="text-lg font-bold text-slate-900">
+        Unable to load wishlist
+      </h2>
+
+      <p className="mt-2 max-w-sm text-sm text-slate-500">
+        {message ||
+          "Something went wrong while loading your wishlist."}
+      </p>
+
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755e9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755e9] focus-visible:ring-offset-2"
+      >
+        <RefreshCw size={16} />
+        Try Again
+      </button>
+    </div>
+  );
+}
+
+// ========================================
+// WISHLIST PAGE CONTENT
+// ========================================
 
 function WishlistPageContent() {
   const dispatch = useDispatch();
   const shouldReduceMotion = useReducedMotion();
 
+  // ========================================
+  // REDUX STATE
+  // ========================================
+
   const wishlistState = useSelector(
     (state) => state.wishlist
   );
 
-  const products = wishlistState?.products || [];
-  const isLoading = wishlistState?.isLoading || false;
-  const isMutating = wishlistState?.isMutating || false;
+  const products = Array.isArray(
+    wishlistState?.products
+  )
+    ? wishlistState.products
+    : [];
+
+  const isLoading =
+    wishlistState?.isLoading ??
+    wishlistState?.loading ??
+    false;
+
+  const isMutating =
+    wishlistState?.isMutating ?? false;
+
+  // ========================================
+  // LOCAL STATE
+  // ========================================
 
   const [removingId, setRemovingId] = useState("");
   const [addingId, setAddingId] = useState("");
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
-  /* ----------------------------------
-     Fetch Wishlist
-  ---------------------------------- */
+  const [cartDrawerOpen, setCartDrawerOpen] =
+    useState(false);
 
-  useEffect(() => {
-    dispatch(fetchWishlist());
+  const [fetchError, setFetchError] = useState("");
+
+  // ========================================
+  // FETCH WISHLIST
+  // ========================================
+
+  const loadWishlist = useCallback(async () => {
+    setFetchError("");
+
+    try {
+      await dispatch(fetchWishlist()).unwrap();
+    } catch (error) {
+      const message = getErrorMessage(
+        error,
+        "Unable to load your wishlist."
+      );
+
+      setFetchError(message);
+    }
   }, [dispatch]);
 
-  /* ----------------------------------
-     Remove Wishlist Product
-  ---------------------------------- */
+  useEffect(() => {
+    loadWishlist();
+  }, [loadWishlist]);
+
+  // ========================================
+  // REMOVE WISHLIST PRODUCT
+  // ========================================
 
   const handleRemove = async (productId) => {
-    if (!productId || removingId) return;
+    if (!productId || removingId) {
+      return;
+    }
 
     setRemovingId(productId);
 
@@ -109,7 +223,9 @@ function WishlistPageContent() {
         removeFromWishlist(productId)
       ).unwrap();
 
-      toast.success("Product removed from wishlist.");
+      toast.success(
+        "Product removed from wishlist."
+      );
     } catch (error) {
       toast.error(
         getErrorMessage(
@@ -122,50 +238,71 @@ function WishlistPageContent() {
     }
   };
 
-  /* ----------------------------------
-     Add Product To Cart
-  ---------------------------------- */
+  // ========================================
+  // ADD PRODUCT TO CART
+  // ========================================
 
   const handleAddToCart = async (product) => {
-    if (!product?._id || addingId) return;
+    const productId = getProductId(product);
 
-    const activeVariants = (
-      product.variants || []
-    ).filter(
-      (variant) => variant.isActive !== false
-    );
+    if (!productId || addingId) {
+      return;
+    }
 
+    // Find active variants
+    const activeVariants = Array.isArray(
+      product?.variants
+    )
+      ? product.variants.filter(
+          (variant) =>
+            variant?.isActive !== false
+        )
+      : [];
+
+    // Select default variant or first active variant
     const selectedVariant =
       activeVariants.find(
-        (variant) => variant.isDefault
+        (variant) => variant?.isDefault === true
       ) || activeVariants[0];
 
-    if (!selectedVariant) {
+    if (!selectedVariant?._id) {
       toast.error(
         "No active variant available for this product."
       );
+
       return;
     }
 
-    if (Number(selectedVariant.stock || 0) < 1) {
+    // Stock validation
+    const availableStock = Number(
+      selectedVariant.stock ?? 0
+    );
+
+    if (
+      !Number.isFinite(availableStock) ||
+      availableStock < 1
+    ) {
       toast.error(
         "This product is currently out of stock."
       );
+
       return;
     }
 
-    setAddingId(product._id);
+    setAddingId(productId);
 
     try {
       await dispatch(
         addToCart({
-          productId: product._id,
+          productId,
           variantId: selectedVariant._id,
           quantity: 1,
         })
       ).unwrap();
 
-      toast.success("Product added to cart.");
+      toast.success(
+        "Product added to cart."
+      );
 
       setCartDrawerOpen(true);
     } catch (error) {
@@ -180,37 +317,42 @@ function WishlistPageContent() {
     }
   };
 
-  /* ----------------------------------
-     Loading UI
-  ---------------------------------- */
+  // ========================================
+  // RETRY FETCH
+  // ========================================
 
-  if (isLoading) {
+  const handleRetry = () => {
+    loadWishlist();
+  };
+
+  // ========================================
+  // LOADING UI
+  // ========================================
+
+  if (isLoading && products.length === 0) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <motion.div
-          animate={
-            shouldReduceMotion
-              ? {}
-              : { rotate: 360 }
-          }
-          transition={{
-            duration: 1,
-            repeat: Infinity,
-            ease: "linear",
-          }}
-        >
-          <Loader2
-            size={34}
-            className="text-[#0755e9]"
-          />
-        </motion.div>
-      </div>
+      <WishlistLoading
+        shouldReduceMotion={shouldReduceMotion}
+      />
     );
   }
 
-  /* ----------------------------------
-     Main UI
-  ---------------------------------- */
+  // ========================================
+  // ERROR UI
+  // ========================================
+
+  if (fetchError && products.length === 0) {
+    return (
+      <WishlistError
+        message={fetchError}
+        onRetry={handleRetry}
+      />
+    );
+  }
+
+  // ========================================
+  // MAIN UI
+  // ========================================
 
   return (
     <>
@@ -221,24 +363,35 @@ function WishlistPageContent() {
             : { opacity: 0 }
         }
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.35 }}
-        className="min-h-screen "
+        transition={{
+          duration: 0.35,
+        }}
+        className="min-h-screen"
       >
         <div className="mx-auto w-full px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
 
-          {/* Wishlist Header */}
+          {/* WISHLIST HEADER */}
+
           <WishlistHeader
             totalItems={products.length}
           />
 
-          {/* Wishlist Content */}
+          {/* WISHLIST PROMO BANNER */}
+
+          <WishlistPromoBanner />
+
+          {/* WISHLIST CONTENT */}
+
           {products.length === 0 ? (
             <WishlistEmptyState
-              shouldReduceMotion={shouldReduceMotion}
+              shouldReduceMotion={
+                shouldReduceMotion
+              }
             />
           ) : (
             <>
-              {/* Product Grid */}
+              {/* PRODUCT GRID */}
+
               <motion.section
                 variants={containerVariants}
                 initial={
@@ -247,80 +400,112 @@ function WishlistPageContent() {
                     : "hidden"
                 }
                 animate="visible"
+                aria-label="Wishlist products"
                 className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4"
               >
                 <AnimatePresence initial={false}>
-                  {products.map((product) => (
-                    <WishlistProductCard
-                      key={product._id}
-                      product={product}
-                      isMutating={isMutating}
-                      isRemoving={
-                        removingId === product._id
-                      }
-                      isAdding={
-                        addingId === product._id
-                      }
-                      shouldReduceMotion={
-                        shouldReduceMotion
-                      }
-                      onRemove={handleRemove}
-                      onAddToCart={handleAddToCart}
-                    />
-                  ))}
+                  {products.map((product) => {
+                    const productId =
+                      getProductId(product);
+
+                    if (!productId) {
+                      return null;
+                    }
+
+                    return (
+                      <WishlistProductCard
+                        key={productId}
+                        product={product}
+                        isMutating={isMutating}
+                        isRemoving={
+                          removingId === productId
+                        }
+                        isAdding={
+                          addingId === productId
+                        }
+                        shouldReduceMotion={
+                          shouldReduceMotion
+                        }
+                        onRemove={handleRemove}
+                        onAddToCart={handleAddToCart}
+                      />
+                    );
+                  })}
                 </AnimatePresence>
               </motion.section>
 
-              {/* Trust Information */}
+              {/* TRUST INFORMATION */}
+
               <motion.div
                 initial={
                   shouldReduceMotion
                     ? false
-                    : { opacity: 0, y: 12 }
+                    : {
+                        opacity: 0,
+                        y: 12,
+                      }
                 }
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                animate={{
+                  opacity: 1,
+                  y: 0,
+                }}
+                transition={{
+                  delay: shouldReduceMotion ? 0 : 0.2,
+                }}
                 className="mt-9 flex flex-wrap items-center justify-center gap-5 border-t border-slate-200 pt-7 text-xs font-medium text-slate-500 sm:gap-10"
               >
                 <div className="flex items-center gap-2">
                   <ShieldCheck
                     size={17}
                     className="text-green-600"
+                    aria-hidden="true"
                   />
-                  Secure Shopping
+
+                  <span>
+                    Secure Shopping
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <Package
                     size={17}
                     className="text-[#0755e9]"
+                    aria-hidden="true"
                   />
-                  Quality Products
+
+                  <span>
+                    Quality Products
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <ShoppingCart
                     size={17}
                     className="text-[#0755e9]"
+                    aria-hidden="true"
                   />
-                  Easy Checkout
+
+                  <span>
+                    Easy Checkout
+                  </span>
                 </div>
               </motion.div>
             </>
           )}
 
-          {/* Recently Viewed Products */}
+          {/* RECENTLY VIEWED */}
+
           <section className="mt-12 sm:mt-16">
             <RecentlyViewed
               title="Recently Viewed Products"
               limit={5}
             />
           </section>
-
         </div>
       </motion.main>
 
-      {/* Mini Cart Drawer */}
+      {/* MINI CART DRAWER */}
+
       <MiniCartDrawer
         isOpen={cartDrawerOpen}
         onClose={() => setCartDrawerOpen(false)}
@@ -329,9 +514,9 @@ function WishlistPageContent() {
   );
 }
 
-/* ----------------------------------
-   Protected Wishlist Page
----------------------------------- */
+// ========================================
+// PROTECTED WISHLIST PAGE
+// ========================================
 
 export default function WishlistPage() {
   return (

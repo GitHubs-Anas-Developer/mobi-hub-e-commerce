@@ -1,9 +1,13 @@
 
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
+
+import {
+  RefreshCw,
+} from "lucide-react";
 
 import {
   fetchCart,
@@ -23,147 +27,417 @@ import {
   getItemPrice,
   getItemStock,
 } from "./cart.utils";
+
 import RecentlyViewed from "../recently-viewed/RecentlyViewed";
+
+// ========================================
+// HELPERS
+// ========================================
+
+function getErrorMessage(error, fallback) {
+  if (typeof error === "string") {
+    return error;
+  }
+
+  return (
+    error?.message ||
+    error?.error ||
+    error?.data?.message ||
+    fallback
+  );
+}
+
+function getSafeNumber(value, fallback = 0) {
+  const number = Number(value);
+
+  return Number.isFinite(number)
+    ? number
+    : fallback;
+}
+
+// ========================================
+// LOADING COMPONENT
+// ========================================
+
+function CartLoading() {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white py-24 text-center">
+      <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-[#0755e9]" />
+
+      <p className="mt-4 text-sm font-medium text-slate-500">
+        Loading your cart...
+      </p>
+    </div>
+  );
+}
+
+// ========================================
+// ERROR COMPONENT
+// ========================================
+
+function CartError({ message, onRetry }) {
+  return (
+    <div className="flex min-h-[45vh] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-12 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+        <RefreshCw
+          size={25}
+          className="text-red-500"
+        />
+      </div>
+
+      <h2 className="mt-4 text-lg font-bold text-slate-900">
+        Unable to load your cart
+      </h2>
+
+      <p className="mt-2 max-w-sm text-sm text-slate-500">
+        {message ||
+          "Something went wrong while loading your cart."}
+      </p>
+
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755e9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645c4]"
+      >
+        <RefreshCw size={16} />
+        Try Again
+      </button>
+    </div>
+  );
+}
+
+// ========================================
+// CART PAGE CONTENT
+// ========================================
 
 export default function CartPageContent() {
   const dispatch = useDispatch();
 
-  const {
-    items = [],
-    isLoading = false,
-    isMutating = false,
-  } = useSelector((state) => state.cart || {});
+  // ========================================
+  // REDUX STATE
+  // ========================================
 
-  // Fetch cart
-  useEffect(() => {
-    dispatch(fetchCart());
+  const cartState = useSelector(
+    (state) => state.cart || {}
+  );
+
+  const items = Array.isArray(cartState.items)
+    ? cartState.items
+    : [];
+
+  const isLoading =
+    cartState.isLoading ??
+    cartState.loading ??
+    false;
+
+  const isMutating =
+    cartState.isMutating ?? false;
+
+  // ========================================
+  // LOCAL STATE
+  // ========================================
+
+  const [fetchError, setFetchError] = useState("");
+
+  const [activeItemId, setActiveItemId] =
+    useState("");
+
+  const [isClearing, setIsClearing] =
+    useState(false);
+
+  // ========================================
+  // FETCH CART
+  // ========================================
+
+  const loadCart = useCallback(async () => {
+    setFetchError("");
+
+    try {
+      await dispatch(fetchCart()).unwrap();
+    } catch (error) {
+      setFetchError(
+        getErrorMessage(
+          error,
+          "Unable to load your cart."
+        )
+      );
+    }
   }, [dispatch]);
 
-  // Total quantity
-  const totalItems = items.reduce(
-    (sum, item) =>
-      sum + Number(item?.quantity || 0),
-    0
-  );
+  useEffect(() => {
+    loadCart();
+  }, [loadCart]);
 
-  // Subtotal
-  const subtotal = items.reduce(
-    (sum, item) =>
-      sum +
-      getItemPrice(item) * Number(item?.quantity || 0),
-    0
-  );
+  // ========================================
+  // TOTAL QUANTITY
+  // ========================================
 
-  // Get error message from thunk
-  const getErrorMessage = (error, fallback) => {
-    if (typeof error === "string") return error;
-
-    return (
-      error?.message ||
-      error?.error ||
-      error?.data?.message ||
-      fallback
-    );
-  };
-
-  // Update quantity
-  const handleQuantityChange = async (item, quantity) => {
-    const stock = getItemStock(item);
-
-    if (quantity < 1) return;
-
-    if (quantity > stock) {
-      toast.error("Maximum available stock reached");
-      return;
-    }
-
-    try {
-      await dispatch(
-        updateCartItem({
-          itemId: item._id,
-          quantity,
-        })
-      ).unwrap();
-
-      toast.success("Cart updated successfully");
-    } catch (error) {
-      toast.error(
-        getErrorMessage(error, "Failed to update cart")
+  const totalItems = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const quantity = Math.max(
+        0,
+        getSafeNumber(item?.quantity)
       );
-    }
-  };
 
-  // Remove product
-  const handleRemove = async (itemId) => {
-    try {
-      await dispatch(removeCartItem(itemId)).unwrap();
+      return sum + quantity;
+    }, 0);
+  }, [items]);
 
-      toast.success("Product removed from cart");
-    } catch (error) {
-      toast.error(
-        getErrorMessage(error, "Failed to remove product")
+  // ========================================
+  // SUBTOTAL
+  // ========================================
+
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const price = Math.max(
+        0,
+        getSafeNumber(getItemPrice(item))
       );
-    }
-  };
 
-  // Clear cart
-  const handleClear = async () => {
+      const quantity = Math.max(
+        0,
+        getSafeNumber(item?.quantity)
+      );
+
+      return sum + price * quantity;
+    }, 0);
+  }, [items]);
+
+  // ========================================
+  // UPDATE QUANTITY
+  // ========================================
+
+  const handleQuantityChange = async (
+    item,
+    quantity
+  ) => {
+    const itemId = item?._id;
+
     if (
-      !window.confirm(
-        "Are you sure you want to remove all items from your cart?"
-      )
+      !itemId ||
+      activeItemId ||
+      isClearing ||
+      isMutating
     ) {
       return;
     }
 
+    const safeQuantity = Number(quantity);
+
+    if (
+      !Number.isInteger(safeQuantity) ||
+      safeQuantity < 1
+    ) {
+      return;
+    }
+
+    const stock = getSafeNumber(
+      getItemStock(item)
+    );
+
+    if (safeQuantity > stock) {
+      toast.error(
+        "Maximum available stock reached."
+      );
+
+      return;
+    }
+
+    if (safeQuantity === Number(item.quantity)) {
+      return;
+    }
+
+    setActiveItemId(itemId);
+
+    try {
+      await dispatch(
+        updateCartItem({
+          itemId,
+          quantity: safeQuantity,
+        })
+      ).unwrap();
+
+      toast.success(
+        "Cart updated successfully."
+      );
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Failed to update cart."
+        )
+      );
+    } finally {
+      setActiveItemId("");
+    }
+  };
+
+  // ========================================
+  // REMOVE PRODUCT
+  // ========================================
+
+  const handleRemove = async (itemId) => {
+    if (
+      !itemId ||
+      activeItemId ||
+      isClearing ||
+      isMutating
+    ) {
+      return;
+    }
+
+    setActiveItemId(itemId);
+
+    try {
+      await dispatch(
+        removeCartItem(itemId)
+      ).unwrap();
+
+      toast.success(
+        "Product removed from cart."
+      );
+    } catch (error) {
+      toast.error(
+        getErrorMessage(
+          error,
+          "Failed to remove product."
+        )
+      );
+    } finally {
+      setActiveItemId("");
+    }
+  };
+
+  // ========================================
+  // CLEAR CART
+  // ========================================
+
+  const handleClear = async () => {
+    if (
+      items.length === 0 ||
+      isClearing ||
+      activeItemId ||
+      isMutating
+    ) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Are you sure you want to remove all items from your cart?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsClearing(true);
+
     try {
       await dispatch(clearCart()).unwrap();
 
-      toast.success("Cart cleared successfully");
+      toast.success(
+        "Cart cleared successfully."
+      );
     } catch (error) {
       toast.error(
-        getErrorMessage(error, "Failed to clear cart")
+        getErrorMessage(
+          error,
+          "Failed to clear cart."
+        )
       );
+    } finally {
+      setIsClearing(false);
     }
   };
+
+  // ========================================
+  // RETRY
+  // ========================================
+
+  const handleRetry = () => {
+    loadCart();
+  };
+
+  // ========================================
+  // LOADING UI
+  // ========================================
+
+  if (isLoading && items.length === 0) {
+    return (
+      <main className="min-h-screen">
+        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <CartLoading />
+        </div>
+      </main>
+    );
+  }
+
+  // ========================================
+  // ERROR UI
+  // ========================================
+
+  if (fetchError && items.length === 0) {
+    return (
+      <main className="min-h-screen">
+        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
+          <CartError
+            message={fetchError}
+            onRetry={handleRetry}
+          />
+
+          <section className="mt-12 sm:mt-16">
+            <RecentlyViewed
+              title="Recently Viewed Products"
+              limit={5}
+            />
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  // ========================================
+  // MAIN UI
+  // ========================================
 
   return (
     <main className="min-h-screen lg:pb-12">
       <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-10">
 
-        {/* Cart Header */}
-        <CartHeader totalItems={totalItems} />
+        {/* CART HEADER */}
 
-        {/* Cart Loading */}
-        {isLoading && items.length === 0 ? (
-          <div className="rounded-2xl border border-slate-200 bg-white py-24 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#0755e9]" />
+        <CartHeader
+          totalItems={totalItems}
+        />
 
-            <p className="mt-4 text-sm text-slate-500">
-              Loading your cart...
-            </p>
-          </div>
-        ) : items.length === 0 ? (
+        {/* EMPTY CART */}
 
-          /* Empty Cart */
+        {items.length === 0 ? (
           <EmptyCart />
-
         ) : (
-
-          /* Cart Content */
           <>
+            {/* CART CONTENT */}
+
             <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-7">
 
-              {/* Cart Products */}
+              {/* CART PRODUCTS */}
+
               <CartItemsList
                 items={items}
-                isMutating={isMutating}
-                onQuantityChange={handleQuantityChange}
+                isMutating={
+                  isMutating ||
+                  Boolean(activeItemId) ||
+                  isClearing
+                }
+                onQuantityChange={
+                  handleQuantityChange
+                }
                 onRemove={handleRemove}
                 onClear={handleClear}
               />
 
-              {/* Order Summary */}
+              {/* ORDER SUMMARY */}
+
               <aside className="lg:sticky lg:top-24">
                 <CartOrderSummary
                   subtotal={subtotal}
@@ -174,7 +448,8 @@ export default function CartPageContent() {
               </aside>
             </div>
 
-            {/* Mobile Checkout */}
+            {/* MOBILE CHECKOUT BAR */}
+
             <CartMobileCheckoutBar
               subtotal={subtotal}
               totalItems={totalItems}
@@ -182,14 +457,14 @@ export default function CartPageContent() {
           </>
         )}
 
-        {/* Recently Viewed Products */}
+        {/* RECENTLY VIEWED */}
+
         <section className="mt-12 sm:mt-16">
           <RecentlyViewed
             title="Recently Viewed Products"
             limit={5}
           />
         </section>
-
       </div>
     </main>
   );
