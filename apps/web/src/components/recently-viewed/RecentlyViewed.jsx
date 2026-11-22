@@ -22,12 +22,11 @@ export default function RecentlyViewed({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Wait until client hydration completes
+  // Prevent hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Fetch recently viewed products
   useEffect(() => {
     if (!mounted || !isAuthenticated) {
       setProducts([]);
@@ -48,23 +47,28 @@ export default function RecentlyViewed({
 
         if (cancelled) return;
 
-        const filteredProducts = (
-          Array.isArray(response?.data)
-            ? response.data
-            : []
-        )
-          .filter(
-            (product) =>
-              String(product._id) !==
-              String(excludeProductId)
-          )
-          .slice(0, limit);
+        const safeLimit = Math.max(0, Number(limit) || 0);
+
+        const responseProducts = Array.isArray(response?.data)
+          ? response.data
+          : [];
+
+        const filteredProducts = responseProducts
+          .filter((product) => {
+            if (!product?._id) return false;
+
+            return (
+              !excludeProductId ||
+              String(product._id) !== String(excludeProductId)
+            );
+          })
+          .slice(0, safeLimit);
 
         setProducts(filteredProducts);
       } catch (err) {
         if (!cancelled) {
           setError(
-            err.response?.data?.message ||
+            err?.response?.data?.message ||
               "Unable to load recently viewed products."
           );
         }
@@ -87,8 +91,12 @@ export default function RecentlyViewed({
     excludeProductId,
   ]);
 
-  // Keep server and first client render identical
   if (!mounted || !isAuthenticated) {
+    return null;
+  }
+
+  // Hide empty section
+  if (!loading && !error && products.length === 0) {
     return null;
   }
 

@@ -24,7 +24,6 @@ const navigationItems = [
 
 export default function BottomNavigation() {
   const pathname = usePathname();
-
   const { isAuthenticated, isInitialized } = useAuth();
 
   const handleAccountClick = (event) => {
@@ -44,7 +43,7 @@ export default function BottomNavigation() {
       aria-label="Mobile navigation"
       className="fixed inset-x-0 bottom-0 z-50 w-full border-t border-slate-200/80 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_20px_rgba(15,23,42,0.06)] backdrop-blur-xl xl:hidden"
     >
-      <div className="grid h-16 w-full grid-cols-5">
+      <div className="grid h-[60px] w-full grid-cols-5">
         {navigationItems.map((item) => {
           const Icon = item.icon;
 
@@ -77,13 +76,14 @@ export default function BottomNavigation() {
               />
 
               <Icon
-                size={21}
-                strokeWidth={isActive ? 2.4 : 1.8}
+                size={20}
+                strokeWidth={isActive ? 2.3 : 1.8}
+                aria-hidden="true"
               />
 
               <span
-                className={`whitespace-nowrap text-[9px] sm:text-[10px] ${
-                  isActive ? "font-bold" : "font-medium"
+                className={`whitespace-nowrap text-[10px] ${
+                  isActive ? "font-semibold" : "font-medium"
                 }`}
               >
                 {item.label}

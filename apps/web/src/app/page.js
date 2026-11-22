@@ -10,6 +10,7 @@ import ProductSection from "@/components/home/ProductSection";
 import ShopByVideos from "@/components/home/ShopByVideos";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import TrustBar from "@/components/home/TrustBar";
+
 import BrandSection from "@/components/brands/BrandSection";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
@@ -27,95 +28,141 @@ export default function Home() {
   const [newArrivalsError, setNewArrivalsError] = useState("");
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchHomeProducts = async () => {
-      try {
-        const [featuredResult, arrivalsResult] = await Promise.allSettled([
-          productService.getProducts({
-            isFeatured: true,
-            limit: 8,
-          }),
+      const [featuredResult, arrivalsResult] = await Promise.allSettled([
+        productService.getProducts({
+          isFeatured: true,
+          limit: 8,
+        }),
 
-          productService.getProducts({
-            isNewArrival: true,
-            limit: 8,
-            sort: "newest",
-          }),
-        ]);
+        productService.getProducts({
+          isNewArrival: true,
+          limit: 8,
+          sort: "newest",
+        }),
+      ]);
 
-        if (featuredResult.status === "fulfilled") {
-          setFeaturedProducts(featuredResult.value.data || []);
-        } else {
-          setFeaturedError(
-            featuredResult.reason?.response?.data?.message ||
-              "Failed to load featured products.",
-          );
-        }
+      if (!isMounted) return;
 
-        if (arrivalsResult.status === "fulfilled") {
-          setNewArrivals(arrivalsResult.value.data || []);
-        } else {
-          setNewArrivalsError(
-            arrivalsResult.reason?.response?.data?.message ||
-              "Failed to load new arrivals.",
-          );
-        }
-      } finally {
-        setFeaturedLoading(false);
-        setNewArrivalsLoading(false);
+      if (featuredResult.status === "fulfilled") {
+        setFeaturedProducts(featuredResult.value.data || []);
+        setFeaturedError("");
+      } else {
+        setFeaturedError(
+          featuredResult.reason?.response?.data?.message ||
+            "Failed to load featured products.",
+        );
       }
+
+      if (arrivalsResult.status === "fulfilled") {
+        setNewArrivals(arrivalsResult.value.data || []);
+        setNewArrivalsError("");
+      } else {
+        setNewArrivalsError(
+          arrivalsResult.reason?.response?.data?.message ||
+            "Failed to load new arrivals.",
+        );
+      }
+
+      setFeaturedLoading(false);
+      setNewArrivalsLoading(false);
     };
 
     fetchHomeProducts();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
-    <main className="min-h-screen w-full bg-white">
+    <main className="min-h-screen w-full overflow-x-clip bg-background">
       {/* 01. HERO BANNER */}
-      <HeroBanner />
+      <section className="mb-4 sm:mb-6">
+        <HeroBanner />
+      </section>
 
       {/* 02. TRUST BAR */}
-      <TrustBar />
+      <section className="mh-section">
+        <div className="mh-container">
+          <TrustBar />
+        </div>
+      </section>
 
       {/* 03. SHOP BY CATEGORY */}
-      <CategorySection />
+      <section className="mh-section">
+        <div className="mh-container">
+          <CategorySection />
+        </div>
+      </section>
 
       {/* 04. POPULAR BRANDS */}
-      <BrandSection />
+      <section className="mh-section">
+        <div className="mh-container">
+          <BrandSection />
+        </div>
+      </section>
 
       {/* 05. FEATURED PRODUCTS */}
-      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
-        <ProductSection
-          title="Featured Products"
-          products={featuredProducts}
-          loading={featuredLoading}
-          error={featuredError}
-        />
-      </div>
+      <section className="mh-section">
+        <div className="mh-container">
+          <ProductSection
+            title="Featured Products"
+            products={featuredProducts}
+            loading={featuredLoading}
+            error={featuredError}
+          />
+        </div>
+      </section>
 
       {/* 06. MIDDLE PROMOTIONAL BANNER */}
-      <PromotionalBanners />
+      <section className="mh-section">
+        <div className="mh-container">
+          <PromotionalBanners />
+        </div>
+      </section>
 
       {/* 07. NEW ARRIVALS */}
-      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
-        <ProductSection
-          title="New Arrivals"
-          products={newArrivals}
-          loading={newArrivalsLoading}
-          error={newArrivalsError}
-        />
+      <section className="mh-section">
+        <div className="mh-container">
+          <ProductSection
+            title="New Arrivals"
+            products={newArrivals}
+            loading={newArrivalsLoading}
+            error={newArrivalsError}
+          />
+        </div>
+      </section>
 
-        {/* 08. RECENTLY VIEWED */}
-        <RecentlyViewed title="Recently Viewed" limit={10} />
-      </div>
+      {/* 08. RECENTLY VIEWED */}
+      <section className="mh-section">
+        <div className="mh-container">
+          <RecentlyViewed title="Recently Viewed" limit={10} />
+        </div>
+      </section>
 
       {/* 09. SHOP BY VIDEOS */}
-      <ShopByVideos />
+      <section className="mh-section">
+        <div className="mh-container">
+          <ShopByVideos />
+        </div>
+      </section>
 
       {/* 10. WHY CHOOSE MOBIHUB */}
-      <WhyChooseUs />
+      <section className="mh-section">
+        <div className="mh-container">
+          <WhyChooseUs />
+        </div>
+      </section>
 
       {/* 11. BOTTOM PROMOTIONAL BANNER */}
-      <BottomPromotionalBanner />
+      <section className="mh-section">
+        <div className="mh-container">
+          <BottomPromotionalBanner />
+        </div>
+      </section>
     </main>
   );
 }

@@ -32,24 +32,25 @@ export default function ProductSection({
 
   const [navigation, setNavigation] = useState({
     isBeginning: true,
-    isEnd: false,
+    isEnd: true,
   });
 
   const shouldReduceMotion = useReducedMotion();
 
-  // Motion Settings
   const initialAnimation = shouldReduceMotion
     ? false
-    : { opacity: 0, y: 24 };
+    : { opacity: 0, y: 12 };
 
-  const revealTransition = shouldReduceMotion
-    ? { duration: 0 }
-    : {
-        duration: 0.55,
-        ease: "easeOut",
-      };
+  const revealAnimation = shouldReduceMotion
+    ? undefined
+    : { opacity: 1, y: 0 };
 
-  // Update Navigation State
+  const revealTransition = {
+    duration: shouldReduceMotion ? 0 : 0.35,
+    ease: "easeOut",
+  };
+
+  // Update navigation state
   const updateNavigation = useCallback((instance) => {
     if (!instance || instance.destroyed) return;
 
@@ -60,198 +61,214 @@ export default function ProductSection({
   }, []);
 
   // Initialize Swiper
-  const handleSwiper = (instance) => {
-    setSwiper(instance);
-    updateNavigation(instance);
-  };
+  const handleSwiper = useCallback(
+    (instance) => {
+      setSwiper(instance);
+      updateNavigation(instance);
+    },
+    [updateNavigation]
+  );
 
-  // Previous Products
+  // Previous slide
   const handlePrevious = () => {
-    swiper?.slidePrev(400);
+    if (swiper && !swiper.destroyed) {
+      swiper.slidePrev(350);
+    }
   };
 
-  // Next Products
+  // Next slide
   const handleNext = () => {
-    swiper?.slideNext(400);
+    if (swiper && !swiper.destroyed) {
+      swiper.slideNext(350);
+    }
   };
+
+  const canNavigate =
+    !loading &&
+    !error &&
+    products.length > 0 &&
+    swiper &&
+    !swiper.destroyed &&
+    !swiper.isLocked;
 
   return (
-    <section className="w-full ">
+    <section className="w-full">
 
       {/* Section Header */}
       <motion.div
         initial={initialAnimation}
-        whileInView={{ opacity: 1, y: 0 }}
+        whileInView={revealAnimation}
         viewport={{ once: true, amount: 0.2 }}
         transition={revealTransition}
-        className="mb-5 flex items-end justify-between gap-3 sm:mb-6"
+        className="mb-4 flex items-end justify-between gap-3 sm:mb-5"
       >
-
-        <div className="min-w-0 pt-5">
-
-          <h2 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold tracking-tight text-[#101828] sm:text-xl lg:text-2xl">
             {title}
           </h2>
 
           {subtitle && (
-            <p className="mt-1 text-xs leading-relaxed text-slate-500 sm:text-sm">
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500 sm:text-xs">
               {subtitle}
             </p>
           )}
-
         </div>
 
         {/* Header Actions */}
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
 
           <Link
             href="/products"
-            className="hidden items-center gap-1 text-sm font-semibold text-blue-600 transition-colors hover:text-blue-800 sm:inline-flex"
+            className="
+              inline-flex items-center gap-1
+              text-[11px] font-semibold
+              text-[#0755E9]
+              transition-colors
+              hover:text-[#0645C4]
+              sm:text-xs
+            "
           >
             View All
-            <ChevronRight size={17} />
+            <ChevronRight size={14} />
           </Link>
 
-          {/* Previous Button */}
+          {/* Previous */}
           <button
             type="button"
             onClick={handlePrevious}
-            disabled={
-              loading ||
-              !!error ||
-              !swiper ||
-              navigation.isBeginning
-            }
+            disabled={!canNavigate || navigation.isBeginning}
             aria-label="Previous products"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all duration-200 hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="
+              hidden h-8 w-8 items-center justify-center
+              rounded-full border border-slate-200
+              bg-white text-slate-600
+              transition-all
+              hover:border-[#0755E9]
+              hover:bg-[#0755E9] hover:text-white
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+              sm:flex
+            "
           >
-            <ChevronLeft size={19} />
+            <ChevronLeft size={17} />
           </button>
 
-          {/* Next Button */}
+          {/* Next */}
           <button
             type="button"
             onClick={handleNext}
-            disabled={
-              loading ||
-              !!error ||
-              !swiper ||
-              navigation.isEnd
-            }
+            disabled={!canNavigate || navigation.isEnd}
             aria-label="Next products"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition-all duration-200 hover:border-blue-600 hover:bg-blue-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="
+              hidden h-8 w-8 items-center justify-center
+              rounded-full border border-slate-200
+              bg-white text-slate-600
+              transition-all
+              hover:border-[#0755E9]
+              hover:bg-[#0755E9] hover:text-white
+              disabled:cursor-not-allowed
+              disabled:opacity-30
+              sm:flex
+            "
           >
-            <ChevronRight size={19} />
+            <ChevronRight size={17} />
           </button>
-
         </div>
       </motion.div>
 
       {/* Loading State */}
       {loading ? (
-
-        <div className="flex gap-3 overflow-hidden sm:gap-4">
-
+        <div className="flex gap-3 overflow-hidden sm:gap-4 lg:gap-5">
           {Array.from({ length: 5 }).map((_, index) => (
             <div
               key={index}
-              className="w-[165px] shrink-0 animate-pulse sm:w-[210px] lg:w-[230px]"
+              className="
+                w-[155px] shrink-0
+                sm:w-[195px]
+                lg:w-[220px]
+              "
             >
               <ProductSkeleton />
             </div>
           ))}
-
         </div>
-
       ) : error ? (
-
-        /* Error State */
-        <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-4">
-
+        <div className="flex items-center gap-3 rounded-xl border border-red-100 bg-red-50 p-3 sm:p-4">
           <Package
-            size={22}
+            size={20}
             className="shrink-0 text-red-500"
           />
 
-          <p className="text-sm text-red-600">
+          <p className="text-xs text-red-600">
             {error}
           </p>
-
         </div>
-
       ) : products.length === 0 ? (
-
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-
+        <div className="
+          flex flex-col items-center justify-center
+          rounded-xl border border-dashed
+          border-slate-200 bg-slate-50
+          px-4 py-9 text-center
+        ">
           <Package
-            size={32}
-            className="mb-3 text-slate-400"
+            size={28}
+            className="mb-2 text-slate-400"
           />
 
-          <h3 className="text-sm font-semibold text-slate-800">
+          <h3 className="text-xs font-semibold text-slate-800">
             No products available
           </h3>
 
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-[10px] text-slate-500">
             Products will appear here when available.
           </p>
-
         </div>
-
       ) : (
-
-        /* Horizontal Product Slider */
+        /* Product Slider */
         <Swiper
           modules={[FreeMode, A11y]}
-
           onSwiper={handleSwiper}
           onSlideChange={updateNavigation}
-          onProgress={updateNavigation}
           onResize={updateNavigation}
           onReachBeginning={updateNavigation}
           onReachEnd={updateNavigation}
           onFromEdge={updateNavigation}
-
+          onTransitionEnd={updateNavigation}
           slidesPerView="auto"
-          spaceBetween={12}
-
+          spaceBetween={10}
           freeMode={{
             enabled: true,
             momentum: true,
-            momentumRatio: 1,
-            momentumVelocityRatio: 1,
-            momentumBounce: true,
             sticky: false,
           }}
-
           grabCursor
-          allowTouchMove
-          simulateTouch
           watchOverflow
-
           breakpoints={{
             640: {
-              spaceBetween: 16,
+              spaceBetween: 14,
             },
             1024: {
-              spaceBetween: 20,
+              spaceBetween: 18,
             },
           }}
-
+          a11y={{
+            enabled: true,
+            containerMessage: `${title || "Products"} carousel`,
+          }}
           className="!overflow-hidden !pb-3"
         >
-
           {products.map((product, index) => (
             <SwiperSlide
               key={product._id}
-              className="!h-auto !w-[165px] sm:!w-[210px] lg:!w-[230px]"
+              className="
+                !h-auto !w-[155px]
+                sm:!w-[195px]
+                lg:!w-[220px]
+              "
             >
-
-              {/* Animated Product Card */}
               <motion.div
                 initial={initialAnimation}
-                whileInView={{ opacity: 1, y: 0 }}
+                whileInView={revealAnimation}
                 viewport={{
                   once: true,
                   amount: 0.15,
@@ -260,19 +277,16 @@ export default function ProductSection({
                   ...revealTransition,
                   delay: shouldReduceMotion
                     ? 0
-                    : (index % 4) * 0.07,
+                    : (index % 4) * 0.04,
                 }}
                 className="h-full"
               >
                 <ProductCard product={product} />
               </motion.div>
-
             </SwiperSlide>
           ))}
-
         </Swiper>
       )}
-
     </section>
   );
 }

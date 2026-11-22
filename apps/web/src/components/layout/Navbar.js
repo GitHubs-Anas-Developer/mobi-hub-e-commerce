@@ -189,7 +189,7 @@ export default function Navbar() {
   const childVariants = {
     hidden: {
       opacity: 0,
-      y: 15,
+      y: 12,
     },
     visible: {
       opacity: 1,
@@ -204,8 +204,8 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
-        <div className="mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex h-[64px] items-center justify-between gap-2 sm:h-[72px] sm:gap-3 lg:gap-6">
+        <div className="mx-auto w-full px-3 sm:px-5 lg:px-8">
+          <div className="flex h-[60px] items-center justify-between gap-2 sm:h-[68px] sm:gap-3 lg:gap-5">
             {/* LEFT: MOBILE MENU + LOGO */}
             <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
               <button
@@ -214,8 +214,8 @@ export default function Navbar() {
                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileMenuOpen}
                 className="
-                  flex h-10 w-10 shrink-0 items-center justify-center
-                  rounded-xl border border-slate-200
+                  flex h-9 w-9 shrink-0 items-center justify-center
+                  rounded-lg border border-slate-200
                   text-slate-700
                   transition-all duration-200
                   hover:bg-blue-50 hover:text-blue-600
@@ -223,14 +223,14 @@ export default function Navbar() {
                   xl:hidden
                 "
               >
-                {mobileMenuOpen ? <X size={21} /> : <Menu size={21} />}
+                {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
               </button>
 
               <Logo />
             </div>
 
             {/* DESKTOP SEARCH */}
-            <div className="hidden min-w-0 max-w-[600px] flex-1 xl:block">
+            <div className="hidden min-w-0 max-w-[560px] flex-1 xl:block">
               <SearchBar />
             </div>
 
@@ -243,15 +243,15 @@ export default function Navbar() {
                 aria-label="Open search"
                 aria-expanded={mobileSearchOpen}
                 className="
-                  flex h-10 w-10 items-center justify-center
-                  rounded-xl text-slate-700
+                  flex h-9 w-9 items-center justify-center
+                  rounded-lg text-slate-700
                   transition-all duration-200
-                  hover:scale-105 hover:bg-blue-50 hover:text-blue-600
+                  hover:bg-blue-50 hover:text-blue-600
                   active:scale-95
                   xl:hidden
                 "
               >
-                <Search size={21} />
+                <Search size={19} />
               </button>
 
               <HeaderActions
@@ -307,7 +307,7 @@ export default function Navbar() {
             <motion.div
               variants={childVariants}
               className="
-                flex h-[64px] shrink-0 items-center gap-3
+                flex h-[60px] shrink-0 items-center gap-3
                 border-b border-slate-100 px-3
               "
             >
@@ -316,22 +316,22 @@ export default function Navbar() {
                 onClick={closeMobileSearch}
                 aria-label="Close search"
                 className="
-                  flex h-10 w-10 shrink-0 items-center justify-center
+                  flex h-9 w-9 shrink-0 items-center justify-center
                   rounded-full text-slate-700
                   transition-all duration-200
-                  hover:scale-105 hover:bg-slate-100
+                  hover:bg-slate-100
                   active:scale-95
                 "
               >
-                <ArrowLeft size={22} />
+                <ArrowLeft size={20} />
               </button>
 
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">
+                <p className="text-[13px] font-semibold leading-5 text-slate-900">
                   Search Mobi Hub
                 </p>
 
-                <p className="text-xs text-slate-400">
+                <p className="text-[11px] leading-4 text-slate-400">
                   Find your favourite accessories
                 </p>
               </div>
@@ -341,13 +341,13 @@ export default function Navbar() {
                 onClick={closeMobileSearch}
                 aria-label="Close search"
                 className="
-                  flex h-9 w-9 items-center justify-center
+                  flex h-8 w-8 items-center justify-center
                   rounded-full text-slate-400
                   transition-all duration-200
-                  hover:rotate-90 hover:bg-slate-100
+                  hover:bg-slate-100
                 "
               >
-                <X size={19} />
+                <X size={18} />
               </button>
             </motion.div>
 
@@ -364,7 +364,7 @@ export default function Navbar() {
               variants={childVariants}
               className="shrink-0 border-t border-slate-100 px-4 py-3"
             >
-              <p className="text-center text-xs text-slate-400">
+              <p className="text-center text-[11px] text-slate-400">
                 Discover products, brands and accessories at Mobi Hub
               </p>
             </motion.div>
