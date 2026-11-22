@@ -30,6 +30,7 @@ import brandRoutes from "./routes/brand.routes.js";
 import adminUserRoutes from "./routes/admin-user.routes.js";
 import recentlyViewedRoutes from "./routes/recentlyViewed.routes.js";
 import searchRoutes from "./routes/search.routes.js";
+import bannerRoutes from "./routes/banner.routes.js";
 
 const app = express();
 
@@ -120,6 +121,7 @@ app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/banners", bannerRoutes);
 
 // Admin routes
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
@@ -134,7 +136,6 @@ app.use("/api/v1/returns", returnRoutes);
 app.use("/api/v1/brands", brandRoutes);
 app.use("/api/v1/recently-viewed", recentlyViewedRoutes);
 app.use("/api/v1/search", searchRoutes);
-
 // Default route
 app.get("/", (req, res) => {
   return res.status(200).json({

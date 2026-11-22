@@ -63,7 +63,7 @@ const generateSlug = (name) => {
 };
 
 // 1. Create Product
-export const createProduct = async (productData) => {
+;export const createProduct = async (productData) => {
   const { category, variants, name } = productData;
 
   await validateCategory(category);
@@ -82,7 +82,7 @@ export const createProduct = async (productData) => {
   }
 
   return await Product.create(productData);
-};
+}
 
 // 2. Get All Active Products (Public)
 export const getAllProducts = async (filters = {}) => {
