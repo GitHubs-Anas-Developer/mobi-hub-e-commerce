@@ -1,14 +1,29 @@
+
 "use client";
 
+import { useMemo } from "react";
+
 import ProductCard from "./ProductCard";
-import { Package } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
 
-// Wishlist Product ID Helper
+import { Package, SearchX } from "lucide-react";
+
+import {
+  motion,
+  useReducedMotion,
+} from "motion/react";
+
+// ========================================
+// WISHLIST PRODUCT ID HELPER
+// ========================================
+
 const getWishlistProductId = (item) => {
-  if (typeof item === "string") return item;
+  if (typeof item === "string") {
+    return item;
+  }
 
-  if (!item || typeof item !== "object") return "";
+  if (!item || typeof item !== "object") {
+    return "";
+  }
 
   const productRef = item.product ?? item.productId;
 
@@ -17,45 +32,163 @@ const getWishlistProductId = (item) => {
   }
 
   if (productRef && typeof productRef === "object") {
-    return productRef._id ?? productRef.id ?? "";
+    return (
+      productRef._id ??
+      productRef.id ??
+      ""
+    );
   }
 
   return item._id ?? item.id ?? "";
 };
 
+// ========================================
+// LOADING SKELETON
+// ========================================
+
+function ProductSkeleton({ viewMode = "grid" }) {
+  if (viewMode === "list") {
+    return (
+      <div className="flex gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 sm:p-4">
+        <div className="h-28 w-28 shrink-0 animate-pulse rounded-xl bg-slate-100 sm:h-36 sm:w-36" />
+
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-3">
+          <div className="h-3 w-20 animate-pulse rounded bg-slate-100" />
+          <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+          <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+          <div className="h-5 w-24 animate-pulse rounded bg-slate-100" />
+          <div className="h-8 w-full max-w-40 animate-pulse rounded-lg bg-slate-100" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="aspect-square animate-pulse bg-slate-100" />
+
+      <div className="space-y-3 p-3 sm:p-4">
+        <div className="h-3 w-1/3 animate-pulse rounded bg-slate-100" />
+        <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
+        <div className="h-5 w-2/3 animate-pulse rounded bg-slate-100" />
+        <div className="h-9 animate-pulse rounded-lg bg-slate-100" />
+      </div>
+    </div>
+  );
+}
+
+// ========================================
+// EMPTY STATE
+// ========================================
+
+function EmptyProducts() {
+  const shouldReduceMotion = useReducedMotion();
+
+  return (
+    <motion.div
+      initial={{
+        opacity: 0,
+        y: shouldReduceMotion ? 0 : 15,
+      }}
+      animate={{
+        opacity: 1,
+        y: 0,
+      }}
+      transition={{
+        duration: shouldReduceMotion ? 0 : 0.3,
+      }}
+      className="
+        flex min-h-[300px] flex-col
+        items-center justify-center
+        rounded-2xl border border-slate-200
+        bg-white px-5 py-14 text-center
+      "
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-50">
+        <SearchX
+          size={32}
+          strokeWidth={1.6}
+          className="text-slate-300"
+        />
+      </div>
+
+      <h3 className="mt-4 text-base font-extrabold text-slate-900">
+        No products found
+      </h3>
+
+      <p className="mt-1 max-w-xs text-xs leading-5 text-slate-500 sm:text-sm">
+        We couldn't find products matching your selection.
+        Try changing your filters or search keywords.
+      </p>
+    </motion.div>
+  );
+}
+
+// ========================================
+// MAIN PRODUCT GRID
+// ========================================
+
 export default function ProductGrid({
   products = [],
   loading = false,
   viewMode = "grid",
+
   onAddToCart,
   onWishlistToggle,
+
   wishlistedProducts = [],
+
   addingProductId = null,
   wishlistIsMutating = false,
 }) {
   const shouldReduceMotion = useReducedMotion();
 
-  const gridClassName = `grid gap-3 sm:gap-4 ${
-    viewMode === "list"
-      ? "grid-cols-1"
-      : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-  }`;
+  // ========================================
+  // SAFE PRODUCT DATA
+  // ========================================
 
-  // Wishlist IDs
-  const wishlistedIds = new Set(
-    wishlistedProducts
-      .map(getWishlistProductId)
-      .filter(Boolean)
-      .map(String)
+  const safeProducts = useMemo(
+    () => (Array.isArray(products) ? products : []),
+    [products]
   );
 
-  // Animations
+  // ========================================
+  // WISHLIST IDS
+  // ========================================
+
+  const wishlistedIds = useMemo(() => {
+    return new Set(
+      (Array.isArray(wishlistedProducts)
+        ? wishlistedProducts
+        : []
+      )
+        .map(getWishlistProductId)
+        .filter(Boolean)
+        .map(String)
+    );
+  }, [wishlistedProducts]);
+
+  // ========================================
+  // GRID LAYOUT
+  // ========================================
+
+  const isListView = viewMode === "list";
+
+  const gridClassName = isListView
+    ? "grid grid-cols-1 gap-3 sm:gap-4"
+    : "grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-4";
+
+  // ========================================
+  // ANIMATION VARIANTS
+  // ========================================
+
   const containerVariants = {
     hidden: {},
 
     visible: {
       transition: {
-        staggerChildren: shouldReduceMotion ? 0 : 0.06,
+        staggerChildren: shouldReduceMotion ? 0 : 0.05,
       },
     },
   };
@@ -63,7 +196,7 @@ export default function ProductGrid({
   const itemVariants = {
     hidden: {
       opacity: 0,
-      y: shouldReduceMotion ? 0 : 18,
+      y: shouldReduceMotion ? 0 : 16,
     },
 
     visible: {
@@ -71,33 +204,28 @@ export default function ProductGrid({
       y: 0,
 
       transition: {
-        duration: shouldReduceMotion ? 0 : 0.35,
+        duration: shouldReduceMotion ? 0 : 0.3,
         ease: [0.22, 1, 0.36, 1],
       },
     },
   };
 
   // ========================================
-  // LOADING
+  // LOADING STATE
   // ========================================
 
   if (loading) {
     return (
-      <div className={gridClassName}>
+      <div
+        className={gridClassName}
+        aria-label="Loading products"
+        aria-busy="true"
+      >
         {Array.from({ length: 8 }).map((_, index) => (
-          <div
-            key={index}
-            className="overflow-hidden rounded-xl border border-slate-200 bg-white"
-          >
-            <div className="aspect-square animate-pulse bg-slate-100" />
-
-            <div className="space-y-3 p-3">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-100" />
-              <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
-              <div className="h-5 w-2/3 animate-pulse rounded bg-slate-100" />
-              <div className="h-9 animate-pulse rounded-lg bg-slate-100" />
-            </div>
-          </div>
+          <ProductSkeleton
+            key={`product-skeleton-${index}`}
+            viewMode={viewMode}
+          />
         ))}
       </div>
     );
@@ -107,38 +235,12 @@ export default function ProductGrid({
   // EMPTY STATE
   // ========================================
 
-  if (!products.length) {
-    return (
-      <motion.div
-        initial={{
-          opacity: 0,
-          y: shouldReduceMotion ? 0 : 15,
-        }}
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-        transition={{ duration: 0.3 }}
-        className="rounded-xl border border-slate-200 bg-white px-5 py-14 text-center"
-      >
-        <Package
-          size={38}
-          className="mx-auto text-slate-300"
-        />
-
-        <h3 className="mt-3 text-base font-bold text-slate-900">
-          No products found
-        </h3>
-
-        <p className="mt-1 text-sm text-slate-500">
-          Try changing your filters.
-        </p>
-      </motion.div>
-    );
+  if (safeProducts.length === 0) {
+    return <EmptyProducts />;
   }
 
   // ========================================
-  // PRODUCT GRID
+  // PRODUCT LIST
   // ========================================
 
   return (
@@ -150,14 +252,23 @@ export default function ProductGrid({
       animate="visible"
       layout
     >
-      {products.map((product) => {
-        const isWishlisted = wishlistedIds.has(
-          String(product._id)
-        );
+      {safeProducts.map((product, index) => {
+        const productId = product?._id ?? product?.id;
+
+        if (!productId) {
+          return null;
+        }
+
+        const normalizedId = String(productId);
+
+        const isWishlisted = wishlistedIds.has(normalizedId);
+
+        const isAddingToCart =
+          String(addingProductId ?? "") === normalizedId;
 
         return (
           <motion.div
-            key={product._id}
+            key={normalizedId}
             variants={itemVariants}
             layout
             className="min-w-0"
@@ -170,10 +281,11 @@ export default function ProductGrid({
           >
             <ProductCard
               product={product}
+              viewMode={viewMode}
               onAddToCart={onAddToCart}
               onWishlistToggle={onWishlistToggle}
               isWishlisted={isWishlisted}
-              addingToCart={addingProductId === product._id}
+              addingToCart={isAddingToCart}
               wishlistIsMutating={wishlistIsMutating}
             />
           </motion.div>

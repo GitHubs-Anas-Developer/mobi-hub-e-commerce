@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -9,7 +10,7 @@ import {
 } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { useRouter, usePathname  } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { toast } from "sonner";
 import { X, RotateCcw } from "lucide-react";
@@ -17,20 +18,17 @@ import { X, RotateCcw } from "lucide-react";
 import productService from "@/services/productService";
 import categoryService from "@/services/categoryService";
 
-// Cart Thunks
 import {
   fetchCart,
   addToCart,
 } from "@/store/thunks/cartThunks";
 
-// Wishlist Thunks
 import {
   fetchWishlist,
   addToWishlist,
   removeFromWishlist,
 } from "@/store/thunks/wishlistThunks";
 
-// Components
 import ProductsHeader from "@/components/products/ProductsHeader";
 import ProductCategoryCards from "@/components/products/ProductCategoryCards";
 import SubCategoryTabs from "@/components/products/SubCategoryTabs";
@@ -40,7 +38,6 @@ import ProductGrid from "@/components/products/ProductGrid";
 import ProductPagination from "@/components/products/ProductPagination";
 import ShopBanner from "@/components/products/ProductsBanner";
 
-// Mini Cart Drawer
 import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
@@ -94,24 +91,16 @@ export default function ProductsPage() {
   const pathname = usePathname();
 
   // ========================================
-  // AUTH STATE
+  // REDUX STATE
   // ========================================
 
   const isAuthenticated = useSelector(
     (state) => state.auth.isAuthenticated
   );
 
-  // ========================================
-  // CART STATE
-  // ========================================
-
   const cartIsMutating = useSelector(
     (state) => state.cart.isMutating
   );
-
-  // ========================================
-  // WISHLIST STATE
-  // ========================================
 
   const wishlistIsMutating = useSelector(
     (state) => state.wishlist.isMutating
@@ -122,17 +111,7 @@ export default function ProductsPage() {
   );
 
   // ========================================
-  // LOCAL ACTION STATE
-  // ========================================
-
-  const [addingProductId, setAddingProductId] =
-    useState(null);
-
-  const [cartDrawerOpen, setCartDrawerOpen] =
-    useState(false);
-
-  // ========================================
-  // PRODUCT DATA
+  // LOCAL STATE
   // ========================================
 
   const [products, setProducts] = useState([]);
@@ -141,14 +120,12 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const requestIdRef = useRef(0);
+  const [addingProductId, setAddingProductId] = useState(null);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
 
-  // ========================================
-  // APPLIED FILTERS
-  // ========================================
-
-  const [appliedFilters, setAppliedFilters] =
-    useState(INITIAL_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState({
+    ...INITIAL_FILTERS,
+  });
 
   const {
     category,
@@ -158,51 +135,12 @@ export default function ProductsPage() {
     maxPrice,
   } = appliedFilters;
 
-  // ========================================
-  // SEARCH
-  // ========================================
-
-// SEARCH STATE
-const [search, setSearch] = useState("");
-
-// Sync URL search and listen for immediate search updates
-useEffect(() => {
-  // Read initial URL search
-  const params = new URLSearchParams(window.location.search);
-
-  setSearch(params.get("search") || "");
-
-  const handleSearchUpdate = (event) => {
-    const newSearch = event.detail?.search || "";
-
-    setSearch(newSearch);
-    setPage(1);
-  };
-
-  window.addEventListener(
-    "mobi-hub-search",
-    handleSearchUpdate
-  );
-
-  return () => {
-    window.removeEventListener(
-      "mobi-hub-search",
-      handleSearchUpdate
-    );
-  };
-}, []);
-
-  // ========================================
-  // SORTING
-  // ========================================
-
+  const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
-
-  // ========================================
-  // PAGINATION
-  // ========================================
-
   const [page, setPage] = useState(1);
+
+  const [viewMode, setViewMode] = useState("grid");
+  const [showFilters, setShowFilters] = useState(false);
 
   const [pagination, setPagination] = useState({
     total: 0,
@@ -211,15 +149,39 @@ useEffect(() => {
     hasPrevPage: false,
   });
 
-  // ========================================
-  // UI STATE
-  // ========================================
-
-  const [viewMode, setViewMode] = useState("grid");
-  const [showFilters, setShowFilters] = useState(false);
+  const requestIdRef = useRef(0);
 
   // ========================================
-  // FETCH CART & WISHLIST
+  // SEARCH URL + HEADER SEARCH EVENT
+  // ========================================
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    setSearch(params.get("search") || "");
+
+    const handleSearchUpdate = (event) => {
+      const newSearch = event.detail?.search || "";
+
+      setSearch(newSearch);
+      setPage(1);
+    };
+
+    window.addEventListener(
+      "mobi-hub-search",
+      handleSearchUpdate
+    );
+
+    return () => {
+      window.removeEventListener(
+        "mobi-hub-search",
+        handleSearchUpdate
+      );
+    };
+  }, []);
+
+  // ========================================
+  // FETCH CART AND WISHLIST
   // ========================================
 
   useEffect(() => {
@@ -247,24 +209,22 @@ useEffect(() => {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response =
-        await categoryService.getCategories();
+      const response = await categoryService.getCategories();
 
       const data =
         response?.data?.categories ??
         response?.data ??
         [];
 
-      setCategories(
-        Array.isArray(data) ? data : []
-      );
+      setCategories(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error(
-        "Category fetching error:",
-        err
-      );
+      console.error("Category fetching error:", err);
     }
   }, []);
+
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   // ========================================
   // FETCH PRODUCTS
@@ -277,71 +237,56 @@ useEffect(() => {
       setLoading(true);
       setError("");
 
-      // API Query Parameters
       const params = {
         page,
         limit: PAGE_SIZE,
         sort,
       };
 
-      // Category
       if (category) {
         params.category = category;
       }
 
-      // Subcategory
       if (subCategory) {
         params.subCategory = subCategory;
       }
 
-      // Brand
       if (brand) {
         params.brand = brand;
       }
 
-      // Search
       if (search.trim()) {
         params.search = search.trim();
       }
 
-      // Minimum Price
       if (minPrice !== "") {
         params.minPrice = Number(minPrice);
       }
 
-      // Maximum Price
       if (maxPrice !== "") {
         params.maxPrice = Number(maxPrice);
       }
 
-      // API Request
-      const response =
-        await productService.getProducts(params);
+      const response = await productService.getProducts(params);
 
-      // Ignore outdated API responses
+      // Ignore outdated requests
       if (requestId !== requestIdRef.current) {
         return;
       }
 
-      // Extract Products
       const data =
         response?.data?.products ??
         response?.data ??
         [];
 
-      setProducts(
-        Array.isArray(data) ? data : []
-      );
+      setProducts(Array.isArray(data) ? data : []);
 
-      // Extract Pagination
       const paginationData =
         response?.pagination ??
         response?.data?.pagination ??
         {};
 
-      const total = Number(
-        paginationData.total ?? 0
-      );
+      const total = Number(paginationData.total ?? 0);
 
       const totalPages = Math.max(
         1,
@@ -354,27 +299,19 @@ useEffect(() => {
       setPagination({
         total,
         totalPages,
-
         hasNextPage: Boolean(
-          paginationData.hasNextPage ??
-          page < totalPages
+          paginationData.hasNextPage ?? page < totalPages
         ),
-
         hasPrevPage: Boolean(
-          paginationData.hasPrevPage ??
-          page > 1
+          paginationData.hasPrevPage ?? page > 1
         ),
       });
-
     } catch (err) {
       if (requestId !== requestIdRef.current) {
         return;
       }
 
-      console.error(
-        "Products fetching error:",
-        err
-      );
+      console.error("Products fetching error:", err);
 
       setProducts([]);
 
@@ -383,7 +320,6 @@ useEffect(() => {
         err?.message ||
         "Unable to load products. Please try again."
       );
-
     } finally {
       if (requestId === requestIdRef.current) {
         setLoading(false);
@@ -401,14 +337,6 @@ useEffect(() => {
   ]);
 
   // ========================================
-  // INITIAL DATA FETCH
-  // ========================================
-
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  // ========================================
   // PRODUCT FETCH EFFECT
   // ========================================
 
@@ -421,7 +349,7 @@ useEffect(() => {
   }, [fetchProducts]);
 
   // ========================================
-  // WISHLIST PRODUCT IDS
+  // WISHLIST IDS
   // ========================================
 
   const wishlistedIds = useMemo(() => {
@@ -437,11 +365,7 @@ useEffect(() => {
   // ADD TO CART
   // ========================================
 
-  const handleAddToCart = async (
-    product,
-    cardVariant
-  ) => {
-    // Authentication Check
+  const handleAddToCart = async (product, cardVariant) => {
     if (!isAuthenticated) {
       toast.info("Please sign in to continue.");
       requireLogin();
@@ -454,22 +378,15 @@ useEffect(() => {
       return;
     }
 
-    // Active Variants
-    const activeVariants = (
-      product.variants || []
-    ).filter(
+    const activeVariants = (product.variants || []).filter(
       (variant) => variant.isActive !== false
     );
 
-    // Selected Default Variant
     const selectedVariant =
       cardVariant ||
-      activeVariants.find(
-        (variant) => variant.isDefault
-      ) ||
+      activeVariants.find((variant) => variant.isDefault) ||
       activeVariants[0];
 
-    // Variant Check
     if (!selectedVariant?._id) {
       toast.error("Product option unavailable.", {
         description: "Please select a product option.",
@@ -482,7 +399,6 @@ useEffect(() => {
       return;
     }
 
-    // Stock Validation
     const stock = Number(
       selectedVariant.stock ??
       selectedVariant.quantity ??
@@ -499,7 +415,6 @@ useEffect(() => {
     try {
       setAddingProductId(product._id);
 
-      // Add to Cart API
       await dispatch(
         addToCart({
           productId: product._id,
@@ -508,27 +423,23 @@ useEffect(() => {
         })
       ).unwrap();
 
-      // Open Mini Cart Drawer
       setCartDrawerOpen(true);
-
     } catch (err) {
       toast.error(
         typeof err === "string"
           ? err
           : err?.message || "Unable to add product to cart."
       );
-
     } finally {
       setAddingProductId(null);
     }
   };
 
   // ========================================
-  // ADD / REMOVE WISHLIST
+  // WISHLIST TOGGLE
   // ========================================
 
   const handleWishlistToggle = async (product) => {
-    // Authentication Check
     if (!isAuthenticated) {
       toast.info("Please sign in to continue.");
       requireLogin();
@@ -545,22 +456,18 @@ useEffect(() => {
 
     try {
       if (alreadyWishlisted) {
-        // Remove Wishlist
         await dispatch(
           removeFromWishlist(product._id)
         ).unwrap();
 
         toast.success("Removed from wishlist.");
-
       } else {
-        // Add Wishlist
         await dispatch(
           addToWishlist(product._id)
         ).unwrap();
 
         toast.success("Added to wishlist.");
       }
-
     } catch (err) {
       toast.error(
         typeof err === "string"
@@ -624,7 +531,7 @@ useEffect(() => {
   };
 
   // ========================================
-  // CATEGORY NAVIGATION
+  // CATEGORY HANDLER
   // ========================================
 
   const handleCategoryChange = (value) => {
@@ -638,7 +545,7 @@ useEffect(() => {
   };
 
   // ========================================
-  // SUBCATEGORY NAVIGATION
+  // SUBCATEGORY HANDLER
   // ========================================
 
   const handleSubCategoryChange = (value) => {
@@ -651,7 +558,7 @@ useEffect(() => {
   };
 
   // ========================================
-  // APPLY FILTER PANEL
+  // APPLY FILTERS
   // ========================================
 
   const handleApplyFilters = (filters) => {
@@ -662,11 +569,10 @@ useEffect(() => {
       return {
         ...previous,
         ...filters,
-
         subCategory:
           nextCategory !== previous.category
             ? ""
-            : previous.subCategory,
+            : filters.subCategory ?? previous.subCategory,
       };
     });
 
@@ -716,7 +622,6 @@ useEffect(() => {
 
   const handleClearFilters = () => {
     setAppliedFilters({ ...INITIAL_FILTERS });
-
     setSearch("");
     setSort("newest");
     setPage(1);
@@ -762,14 +667,11 @@ useEffect(() => {
   const filterProps = {
     categories,
     brands,
-
     category,
     brand,
     minPrice,
     maxPrice,
-
     onApply: handleApplyFilters,
-
     showFilters,
     onClose: () => setShowFilters(false),
   };
@@ -781,7 +683,6 @@ useEffect(() => {
   return (
     <>
       <main className="min-h-screen w-full">
-
         <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
 
           {/* PRODUCTS HEADER */}
@@ -790,7 +691,8 @@ useEffect(() => {
             total={pagination.total}
           />
 
-          {/* PRODUCTS PAGE BANNER */}
+          {/* PRODUCTS BANNER */}
+
           <ShopBanner />
 
           {/* CATEGORY NAVIGATION */}
@@ -811,11 +713,11 @@ useEffect(() => {
             />
           )}
 
-          {/* FILTER + PRODUCTS GRID */}
+          {/* FILTER AND PRODUCTS GRID */}
 
           <div className="grid w-full min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[245px_minmax(0,1fr)] xl:gap-6">
 
-            {/* FILTER COMPONENT */}
+            {/* FILTERS */}
 
             <ProductFilters
               {...filterProps}
@@ -825,7 +727,7 @@ useEffect(() => {
 
             <section className="w-full min-w-0">
 
-              {/* PRODUCT TOOLBAR */}
+              {/* TOOLBAR */}
 
               <ProductToolbar
                 total={pagination.total}
@@ -846,8 +748,6 @@ useEffect(() => {
                     Active:
                   </span>
 
-                  {/* Category */}
-
                   {selectedCategory && (
                     <button
                       type="button"
@@ -858,8 +758,6 @@ useEffect(() => {
                       <X size={13} />
                     </button>
                   )}
-
-                  {/* Subcategory */}
 
                   {subCategory && (
                     <button
@@ -872,8 +770,6 @@ useEffect(() => {
                     </button>
                   )}
 
-                  {/* Brand */}
-
                   {brand && (
                     <button
                       type="button"
@@ -884,8 +780,6 @@ useEffect(() => {
                       <X size={13} />
                     </button>
                   )}
-
-                  {/* Search */}
 
                   {search && (
                     <button
@@ -898,8 +792,6 @@ useEffect(() => {
                     </button>
                   )}
 
-                  {/* Price */}
-
                   {(minPrice || maxPrice) && (
                     <button
                       type="button"
@@ -911,8 +803,6 @@ useEffect(() => {
                     </button>
                   )}
 
-                  {/* Clear All */}
-
                   <button
                     type="button"
                     onClick={handleClearFilters}
@@ -921,7 +811,6 @@ useEffect(() => {
                     <RotateCcw size={13} />
                     Clear all
                   </button>
-
                 </div>
               )}
 
@@ -945,11 +834,9 @@ useEffect(() => {
                   >
                     Try Again
                   </button>
-
                 </div>
               ) : (
                 <>
-
                   {/* PRODUCT GRID */}
 
                   <div
@@ -979,30 +866,29 @@ useEffect(() => {
                       />
                     </div>
                   )}
-
                 </>
               )}
-
             </section>
-             <section>
-          <RecentlyViewed
-            title="Recently Viewed Products"
-            limit={5}
-          />
-        </section>
           </div>
+
+          {/* RECENTLY VIEWED - OUTSIDE PRODUCTS GRID */}
+
+          <section className="mt-10 w-full">
+            <RecentlyViewed
+              title="Recently Viewed Products"
+              limit={5}
+            />
+          </section>
+
         </div>
       </main>
 
-      {/* ========================================
-          MINI CART DRAWER
-      ======================================== */}
+      {/* MINI CART DRAWER */}
 
       <MiniCartDrawer
         isOpen={cartDrawerOpen}
         onClose={() => setCartDrawerOpen(false)}
       />
-
     </>
   );
 }

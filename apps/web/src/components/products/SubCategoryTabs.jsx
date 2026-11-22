@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { motion, useReducedMotion } from "motion/react";
 
 export default function SubCategoryTabs({
@@ -12,15 +12,20 @@ export default function SubCategoryTabs({
   const shouldReduceMotion = useReducedMotion();
   const activeLayoutId = useId();
 
-  if (!subCategories.length) return null;
+  // Prepare tabs
+  const tabs = useMemo(
+    () => [
+      {
+        _id: "",
+        name: "All",
+      },
+      ...subCategories.filter((item) => item?._id),
+    ],
+    [subCategories]
+  );
 
-  const tabs = [
-    {
-      _id: "",
-      name: "All",
-    },
-    ...subCategories,
-  ];
+  // No subcategories available
+  if (!subCategories.length) return null;
 
   return (
     <section
@@ -28,9 +33,17 @@ export default function SubCategoryTabs({
       aria-label="Filter by subcategory"
     >
       {/* Subcategory Navigation */}
-      <div className="flex w-full items-center gap-2 overflow-x-auto overscroll-x-contain scroll-smooth px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
-
-        {tabs.map((item, index) => {
+      <div
+        className="
+          flex w-full items-center gap-2
+          overflow-x-auto overscroll-x-contain
+          scroll-smooth px-1 py-1
+          [scrollbar-width:none]
+          [&::-webkit-scrollbar]:hidden
+          sm:gap-2.5
+        "
+      >
+        {tabs.map((item) => {
           const isSelected =
             selectedSubCategory === item._id;
 
@@ -54,11 +67,22 @@ export default function SubCategoryTabs({
               transition={{
                 duration: shouldReduceMotion ? 0 : 0.2,
               }}
-              className={`relative flex min-h-9 shrink-0 items-center justify-center overflow-hidden rounded-full border px-4 py-2 text-xs font-semibold outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 sm:min-h-10 sm:px-5 sm:text-[13px] ${
-                isSelected
-                  ? "border-blue-600 text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
-              }`}
+              className={`
+                relative flex min-h-9 shrink-0
+                items-center justify-center overflow-hidden
+                rounded-full border px-4 py-2
+                text-xs font-semibold outline-none
+                transition-colors duration-200
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+                focus-visible:ring-offset-2
+                sm:min-h-10 sm:px-5 sm:text-[13px]
+                ${
+                  isSelected
+                    ? "border-blue-600 text-white"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
+                }
+              `}
             >
               {/* Animated Active Background */}
               {isSelected && (
@@ -79,12 +103,11 @@ export default function SubCategoryTabs({
 
               {/* Tab Label */}
               <span className="relative z-10 whitespace-nowrap">
-                {item.name}
+                {item.name || "Subcategory"}
               </span>
             </motion.button>
           );
         })}
-
       </div>
     </section>
   );

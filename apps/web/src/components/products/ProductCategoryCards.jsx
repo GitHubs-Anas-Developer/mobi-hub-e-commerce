@@ -1,9 +1,44 @@
 
 "use client";
 
+import { useMemo, useRef } from "react";
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
-import { LayoutGrid, Package, ArrowRight } from "lucide-react";
+
+import {
+  LayoutGrid,
+  Package,
+  ArrowRight,
+  Check,
+} from "lucide-react";
+
+// ========================================
+// CATEGORY IMAGE HELPER
+// ========================================
+
+const getCategoryImage = (item) => {
+  if (typeof item?.image === "string") {
+    return item.image;
+  }
+
+  return (
+    item?.image?.url ||
+    item?.image?.secure_url ||
+    item?.thumbnail?.url ||
+    (typeof item?.thumbnail === "string"
+      ? item.thumbnail
+      : "") ||
+    item?.images?.[0]?.url ||
+    (typeof item?.images?.[0] === "string"
+      ? item.images[0]
+      : "") ||
+    ""
+  );
+};
+
+// ========================================
+// PRODUCT CATEGORY CARDS
+// ========================================
 
 export default function ProductCategoryCards({
   categories = [],
@@ -12,150 +47,309 @@ export default function ProductCategoryCards({
 }) {
   const shouldReduceMotion = useReducedMotion();
 
-  const getCategoryImage = (item) => {
-    if (typeof item.image === "string") return item.image;
+  const scrollRef = useRef(null);
 
-    return (
-      item.image?.url ||
-      item.thumbnail?.url ||
-      (typeof item.thumbnail === "string" ? item.thumbnail : "") ||
-      item.images?.[0]?.url ||
-      (typeof item.images?.[0] === "string"
-        ? item.images[0]
-        : "") ||
-      ""
+  const dragState = useRef({
+    isDragging: false,
+    startX: 0,
+    scrollLeft: 0,
+    moved: false,
+  });
+
+  // ========================================
+  // CATEGORY DATA
+  // ========================================
+
+  const categoryItems = useMemo(() => {
+    const validCategories = categories
+      .filter((item) => item?._id)
+      .map((item) => ({
+        id: String(item._id),
+        name: item.name || "Category",
+        image: getCategoryImage(item),
+      }));
+
+    return [
+      {
+        id: "all",
+        name: "All Products",
+        image: null,
+      },
+      ...validCategories,
+    ];
+  }, [categories]);
+
+  // ========================================
+  // MOUSE DRAG START
+  // ========================================
+
+  const handleMouseDown = (event) => {
+    if (event.button !== 0) return;
+
+    const container = scrollRef.current;
+
+    if (!container) return;
+
+    dragState.current = {
+      isDragging: true,
+      startX: event.clientX,
+      scrollLeft: container.scrollLeft,
+      moved: false,
+    };
+  };
+
+  // ========================================
+  // MOUSE DRAG MOVE
+  // ========================================
+
+  const handleMouseMove = (event) => {
+    const container = scrollRef.current;
+    const state = dragState.current;
+
+    if (!container || !state.isDragging) return;
+
+    const distance = event.clientX - state.startX;
+
+    if (Math.abs(distance) > 5) {
+      state.moved = true;
+    }
+
+    if (state.moved) {
+      event.preventDefault();
+
+      container.scrollLeft =
+        state.scrollLeft - distance;
+    }
+  };
+
+  // ========================================
+  // MOUSE DRAG END
+  // ========================================
+
+  const handleMouseUp = () => {
+    dragState.current.isDragging = false;
+  };
+
+  // ========================================
+  // PREVENT CLICK AFTER DRAG
+  // ========================================
+
+  const handleCategoryClick = (event, categoryId) => {
+    if (dragState.current.moved) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      dragState.current.moved = false;
+      return;
+    }
+
+    onCategorySelect?.(
+      categoryId === "all" ? "" : categoryId
     );
   };
 
-  const categoryItems = [
-    { id: "all", name: "All Products", image: null },
-    ...categories.map((item) => ({
-      id: item._id,
-      name: item.name || "Category",
-      image: getCategoryImage(item),
-    })),
-  ];
+  // ========================================
+  // RENDER
+  // ========================================
 
   return (
-    <section className="w-full min-w-0 py-4 sm:py-5">
-      
-      {/* Header */}
-      <div className="mb-4 flex items-center justify-between">
+    <section
+      className="w-full min-w-0 py-6 sm:py-8"
+      aria-labelledby="shop-category-heading"
+    >
+      {/* SECTION HEADER */}
+
+      <div className="mb-6 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+          <div className="mb-2 flex items-center gap-2">
+            <span className="h-1 w-7 rounded-full bg-[#0755e9]" />
+
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0755e9]">
+              Discover
+            </span>
+          </div>
+
+          <h2
+            id="shop-category-heading"
+            className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl"
+          >
             Shop by Category
           </h2>
+
           <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Explore our mobile accessories collection
+            Find the perfect accessories for your devices
           </p>
         </div>
 
-        <span className="hidden items-center gap-1 text-sm font-semibold text-blue-600 sm:flex">
-          Explore <ArrowRight size={16} />
-        </span>
+        <div className="hidden items-center gap-1 text-xs font-semibold text-slate-400 sm:flex">
+          Swipe to explore
+          <ArrowRight size={15} />
+        </div>
       </div>
 
-      {/* Category Slider */}
-      <div className="flex gap-3 overflow-x-auto overscroll-x-contain scroll-smooth pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4">
+      {/* CATEGORY SCROLLER */}
 
+      <div
+        ref={scrollRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className="
+          -mx-1 flex gap-4 overflow-x-auto px-1 pb-4
+          overscroll-x-contain scroll-smooth
+          cursor-grab active:cursor-grabbing
+          select-none
+          [scrollbar-width:thin]
+          [&::-webkit-scrollbar]:h-1
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb]:bg-slate-300
+          sm:gap-6
+        "
+      >
         {categoryItems.map((item, index) => {
           const isAll = item.id === "all";
+
           const isSelected = isAll
             ? !selectedCategory
-            : selectedCategory === item.id;
+            : String(selectedCategory) === item.id;
 
           return (
             <motion.button
               key={item.id}
               type="button"
-              onClick={() =>
-                onCategorySelect?.(isAll ? "" : item.id)
+              onClick={(event) =>
+                handleCategoryClick(event, item.id)
               }
               aria-label={`Select ${item.name}`}
               aria-pressed={isSelected}
-              initial={shouldReduceMotion ? false : {
-                opacity: 0,
-                y: 15,
-              }}
+              initial={
+                shouldReduceMotion
+                  ? false
+                  : { opacity: 0, y: 12 }
+              }
               whileInView={{
                 opacity: 1,
                 y: 0,
               }}
-              viewport={{ once: true, amount: 0.2 }}
+              viewport={{
+                once: true,
+                amount: 0.2,
+              }}
               transition={{
-                duration: shouldReduceMotion ? 0 : 0.4,
-                delay: shouldReduceMotion ? 0 : Math.min(index * 0.04, 0.2),
+                duration: shouldReduceMotion ? 0 : 0.35,
+                delay: shouldReduceMotion
+                  ? 0
+                  : Math.min(index * 0.04, 0.2),
               }}
-              whileTap={shouldReduceMotion ? undefined : {
-                scale: 0.97,
-              }}
-              className={`group w-[145px] shrink-0 overflow-hidden rounded-2xl border  text-left transition-all duration-300 sm:w-[175px] lg:w-[190px] ${
-                isSelected
-                  ? "border-blue-600 shadow-md shadow-blue-100"
-                  : "border-slate-200 hover:border-blue-300 hover:shadow-md"
-              }`}
+              whileTap={
+                shouldReduceMotion
+                  ? undefined
+                  : { scale: 0.95 }
+              }
+              className="
+                group flex w-[92px] shrink-0
+                flex-col items-center text-center
+                sm:w-[112px]
+              "
             >
+              {/* IMAGE CIRCLE */}
 
-              {/* Image */}
-              <div className="relative aspect-[5/4] w-full overflow-hidden ">
-
-                {isAll ? (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100">
+              <div
+                className={`
+                  relative flex aspect-square w-full
+                  items-center justify-center rounded-full
+                  border-2 p-1 transition-all duration-300
+                  ${
+                    isSelected
+                      ? "border-[#0755e9] bg-blue-50 shadow-lg shadow-blue-100"
+                      : "border-transparent bg-slate-100 group-hover:border-blue-200 group-hover:bg-blue-50"
+                  }
+                `}
+              >
+                <div
+                  className={`
+                    relative flex h-full w-full
+                    items-center justify-center overflow-hidden
+                    rounded-full
+                    ${
+                      isAll
+                        ? "bg-gradient-to-br from-[#0755e9] to-[#082b70]"
+                        : "bg-white"
+                    }
+                  `}
+                >
+                  {isAll ? (
                     <LayoutGrid
-                      size={42}
-                      strokeWidth={1.5}
-                      className="text-blue-600"
+                      size={34}
+                      strokeWidth={1.6}
+                      className="text-white sm:h-10 sm:w-10"
                     />
-                  </div>
-                ) : item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    sizes="(max-width: 640px) 145px, 190px"
-                    className="object-contain p-2 transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center">
-                    <Package size={38} className="text-slate-400" />
-                  </div>
-                )}
+                  ) : item.image ? (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      draggable={false}
+                      sizes="(max-width: 640px) 92px, 112px"
+                      className="
+                        pointer-events-none
+                        object-contain p-2
+                        transition-transform duration-500
+                        group-hover:scale-110
+                      "
+                    />
+                  ) : (
+                    <Package
+                      size={34}
+                      strokeWidth={1.5}
+                      className="text-slate-300 sm:h-10 sm:w-10"
+                    />
+                  )}
+                </div>
 
-                {/* Selected Indicator */}
+                {/* SELECTED CHECK */}
+
                 {isSelected && (
-                  <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-white shadow-sm">
-                    <span className="text-xs">✓</span>
+                  <span className="absolute -right-0.5 -top-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#0755e9] text-white shadow-md">
+                    <Check size={13} strokeWidth={3} />
                   </span>
                 )}
-
               </div>
 
-              {/* Category Name */}
-              <div className="flex min-h-[52px] items-center justify-between gap-2 px-3 py-2.5">
-                <span
-                  className={`line-clamp-2 text-xs font-semibold leading-snug sm:text-sm ${
-                    isSelected
-                      ? "text-blue-600"
-                      : "text-slate-800"
-                  }`}
-                >
-                  {item.name}
-                </span>
+              {/* CATEGORY NAME */}
 
-                <ArrowRight
-                  size={15}
-                  className={`shrink-0 transition-transform duration-300 ${
+              <span
+                className={`
+                  mt-3 min-h-9 w-full line-clamp-2
+                  text-xs font-bold leading-5
+                  transition-colors sm:text-sm
+                  ${
                     isSelected
-                      ? "translate-x-0 text-blue-600"
-                      : "text-slate-400 group-hover:translate-x-1 group-hover:text-blue-600"
-                  }`}
-                />
-              </div>
+                      ? "text-[#0755e9]"
+                      : "text-slate-700 group-hover:text-[#0755e9]"
+                  }
+                `}
+              >
+                {item.name}
+              </span>
 
+              {/* ACTIVE INDICATOR */}
+
+              <span
+                className={`
+                  mt-1 h-1 rounded-full
+                  transition-all duration-300
+                  ${
+                    isSelected
+                      ? "w-7 bg-[#0755e9]"
+                      : "w-0 bg-transparent"
+                  }
+                `}
+              />
             </motion.button>
           );
         })}
-
       </div>
     </section>
   );
