@@ -15,6 +15,7 @@ import {
   Store,
   TicketPercent,
   Images,
+  Video,
 } from "lucide-react";
 
 // ========================================
@@ -41,6 +42,11 @@ const NAV_ITEMS = [
     label: "Banners",
     href: "/admin/banners",
     icon: Images,
+  },
+  {
+    label: "Product Videos",
+    href: "/admin/product-videos",
+    icon: Video,
   },
   {
     label: "Brands",
@@ -156,7 +162,6 @@ export default function AdminSidebar() {
       {/* FOOTER */}
       <div className="shrink-0 border-t border-slate-200 p-4">
         <div className="rounded-xl bg-slate-50 p-3">
-
           <p className="text-xs font-semibold text-slate-700">
             MOBI HUB Admin
           </p>
@@ -164,7 +169,6 @@ export default function AdminSidebar() {
           <p className="mt-1 text-[11px] text-slate-500">
             Manage your store efficiently.
           </p>
-
         </div>
       </div>
     </aside>

@@ -26,8 +26,12 @@ const PAGE_TITLES = {
   "/admin/categories": "Categories",
   "/admin/orders": "Orders",
   "/admin/customers": "Customers",
+  "/admin/users": "Customers",
   "/admin/reviews": "Reviews",
   "/admin/banners": "Banners",
+  "/admin/product-videos": "Product Videos",
+  "/admin/brands": "Brands",
+  "/admin/coupons": "Coupons",
   "/admin/notifications": "Notifications",
   "/admin/settings": "Settings",
 };
@@ -52,10 +56,10 @@ export default function AdminHeader({ onMenuClick }) {
 
   const pageTitle =
     PAGE_TITLES[pathname] ||
-    Object.entries(PAGE_TITLES).find(
-      ([path]) =>
-        path !== "/admin" && pathname.startsWith(`${path}/`),
-    )?.[1] ||
+    Object.entries(PAGE_TITLES)
+      .filter(([path]) => path !== "/admin")
+      .sort(([a], [b]) => b.length - a.length)
+      .find(([path]) => pathname.startsWith(`${path}/`))?.[1] ||
     "Admin Panel";
 
   // ========================================
@@ -125,7 +129,6 @@ export default function AdminHeader({ onMenuClick }) {
           aria-label="Notifications"
         >
           <Bell size={21} />
-
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
         </button>
 
@@ -182,7 +185,6 @@ export default function AdminHeader({ onMenuClick }) {
 
                 {/* Admin Information */}
                 <div className="border-b border-slate-100 p-4">
-
                   <p className="truncate text-sm font-semibold text-slate-900">
                     {adminName}
                   </p>
@@ -206,10 +208,7 @@ export default function AdminHeader({ onMenuClick }) {
                     className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
                   >
                     <LogOut size={17} />
-
-                    {loggingOut
-                      ? "Signing out..."
-                      : "Logout"}
+                    {loggingOut ? "Signing out..." : "Logout"}
                   </button>
                 </div>
               </div>
