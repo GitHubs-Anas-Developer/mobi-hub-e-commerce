@@ -1,43 +1,54 @@
 
-import { Truck, ShieldCheck, RefreshCw } from "lucide-react";
+import { Truck, ShieldCheck, Headset } from "lucide-react";
 
 const features = [
   {
     icon: Truck,
     title: "Reliable Delivery",
-    description: "Delivery details at checkout",
+    description: "Delivery details available at checkout",
   },
   {
     icon: ShieldCheck,
     title: "Secure Payments",
-    description: "Protected payment process",
+    description: "Protected and secure payment process",
   },
   {
-    icon: RefreshCw,
-    title: "Easy Support",
-    description: "We're here to help",
+    icon: Headset,
+    title: "Customer Support",
+    description: "We're here whenever you need help",
   },
 ];
 
 export default function CartTrustInfo() {
   return (
-    <div className="mt-4 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4">
-      {features.map(({ icon: Icon, title, description }) => (
-        <div key={title} className="flex items-center gap-3 py-3.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#0755e9]">
-            <Icon size={17} />
+    <section
+      aria-label="Shopping benefits"
+      className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 shadow-sm"
+    >
+      {features.map(({ icon: Icon, title, description }, index) => (
+        <div
+          key={title}
+          className={`flex items-center gap-3.5 py-4 ${
+            index !== features.length - 1
+              ? "border-b border-slate-100"
+              : ""
+          }`}
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755e9]">
+            <Icon size={19} strokeWidth={1.8} aria-hidden="true" />
           </div>
 
-          <div>
-            <p className="text-xs font-bold text-slate-800">
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-slate-800">
               {title}
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-400">
+            </h3>
+
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
               {description}
             </p>
           </div>
         </div>
       ))}
-    </div>
+    </section>
   );
 }

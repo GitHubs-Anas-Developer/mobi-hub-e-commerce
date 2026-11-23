@@ -17,7 +17,6 @@ import "swiper/css/pagination";
 export default function HeroBanner() {
   const dispatch = useDispatch();
 
-  // Home hero banners only
   const banners = useSelector(
     (state) =>
       state.banners?.bannersByPlacement?.home_hero || [],
@@ -30,7 +29,7 @@ export default function HeroBanner() {
   const [swiper, setSwiper] = useState(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Fetch home page hero banners
+  // Fetch active hero banners
   useEffect(() => {
     dispatch(
       fetchActiveBanners({
@@ -42,155 +41,195 @@ export default function HeroBanner() {
     setIsMounted(true);
   }, [dispatch]);
 
+  // Get image URL
+  const getImageUrl = (image) => {
+    if (typeof image === "string") {
+      return image;
+    }
+
+    return image?.url || image?.secure_url || "";
+  };
+
+  // Filter valid banners
+  const validBanners = banners.filter(
+    (banner) =>
+      getImageUrl(banner.desktopImage) ||
+      getImageUrl(banner.mobileImage),
+  );
+
   // Loading skeleton
-  if (loading && banners.length === 0) {
+  if (loading && validBanners.length === 0) {
     return (
-      <section className="w-full bg-white py-4 sm:py-6">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="aspect-[16/9] w-full animate-pulse rounded-2xl bg-blue-50 sm:rounded-[28px]" />
+      <section className="w-full">
+        <div className="h-auto w-full animate-pulse bg-blue-50">
+          <div className="aspect-[4/3] w-full sm:aspect-[16/6] lg:aspect-[16/5]" />
         </div>
       </section>
     );
   }
 
   // No banners
-  if (!banners.length) return null;
-
-  // Get image URL
-  const getImageUrl = (image) => {
-    if (typeof image === "string") return image;
-
-    return image?.url || image?.secure_url || "";
-  };
+  if (!validBanners.length) {
+    return null;
+  }
 
   return (
-    <section className="w-full bg-white py-4 sm:py-6">
-      <div className="mx-auto w-full px-3 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-2xl border border-blue-100 bg-[#F5F9FF] sm:rounded-[28px]">
+    <section className="w-full">
+      <div className="relative w-full overflow-hidden bg-[#F5F9FF]">
 
-          {/* Banner Slider */}
-          {isMounted && (
-            <Swiper
-              modules={[Autoplay, Pagination, A11y]}
-              onSwiper={setSwiper}
-              slidesPerView={1}
-              spaceBetween={0}
-              loop={banners.length > 1}
-              speed={800}
-              autoplay={
-                banners.length > 1
-                  ? {
-                      delay: 4500,
-                      disableOnInteraction: false,
-                      pauseOnMouseEnter: true,
-                    }
-                  : false
-              }
-              pagination={{
-                clickable: true,
-              }}
-              a11y={{
-                enabled: true,
-              }}
+        {/* Banner Slider */}
+        {isMounted && (
+          <Swiper
+            modules={[Autoplay, Pagination, A11y]}
+            onSwiper={setSwiper}
+            slidesPerView={1}
+            spaceBetween={0}
+            loop={validBanners.length > 1}
+            speed={700}
+            autoplay={
+              validBanners.length > 1
+                ? {
+                    delay: 4500,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true,
+                  }
+                : false
+            }
+            pagination={{
+              clickable: true,
+            }}
+            a11y={{
+              enabled: true,
+            }}
+            className="
+              w-full
+
+              [&_.swiper-pagination]:!bottom-3
+              sm:[&_.swiper-pagination]:!bottom-4
+              lg:[&_.swiper-pagination]:!bottom-5
+
+              [&_.swiper-pagination-bullet]:!h-1.5
+              [&_.swiper-pagination-bullet]:!w-1.5
+              [&_.swiper-pagination-bullet]:!bg-white
+              [&_.swiper-pagination-bullet]:!opacity-80
+
+              [&_.swiper-pagination-bullet-active]:!w-5
+              [&_.swiper-pagination-bullet-active]:!rounded-full
+              [&_.swiper-pagination-bullet-active]:!bg-[#0755E9]
+              [&_.swiper-pagination-bullet-active]:!opacity-100
+
+              sm:[&_.swiper-pagination-bullet]:!h-2
+              sm:[&_.swiper-pagination-bullet]:!w-2
+              sm:[&_.swiper-pagination-bullet-active]:!w-7
+            "
+          >
+            {validBanners.map((banner, index) => {
+              const desktopImage = getImageUrl(
+                banner.desktopImage,
+              );
+
+              const mobileImage = getImageUrl(
+                banner.mobileImage,
+              );
+
+              const fallbackImage =
+                desktopImage || mobileImage;
+
+              const imageAlt =
+                banner.title ||
+                "Mobi Hub mobile accessories offers";
+
+              return (
+                <SwiperSlide key={banner._id || index}>
+                  <a
+                    href={banner.buttonLink || "/products"}
+                    aria-label={imageAlt}
+                    className="block w-full"
+                  >
+                    <picture className="block w-full">
+
+                      {/* Mobile Image */}
+                      {mobileImage && (
+                        <source
+                          media="(max-width: 767px)"
+                          srcSet={mobileImage}
+                        />
+                      )}
+
+                      {/* Desktop Image */}
+                      <img
+                        src={fallbackImage}
+                        alt={imageAlt}
+                        loading={
+                          index === 0 ? "eager" : "lazy"
+                        }
+                        fetchPriority={
+                          index === 0 ? "high" : "auto"
+                        }
+                        decoding="async"
+                        className="
+                          block
+                          h-auto
+                          w-full
+                          object-cover
+                        "
+                      />
+                    </picture>
+                  </a>
+                </SwiperSlide>
+              );
+            })}
+          </Swiper>
+        )}
+
+        {/* Navigation Buttons */}
+        {validBanners.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => swiper?.slidePrev()}
+              aria-label="Previous banner"
+              disabled={!swiper}
               className="
-                [&_.swiper-pagination]:!bottom-3
-                [&_.swiper-pagination-bullet]:!h-2
-                [&_.swiper-pagination-bullet]:!w-2
-                [&_.swiper-pagination-bullet]:!bg-white
-                [&_.swiper-pagination-bullet]:!opacity-70
-                [&_.swiper-pagination-bullet-active]:!w-7
-                [&_.swiper-pagination-bullet-active]:!rounded-full
-                [&_.swiper-pagination-bullet-active]:!bg-[#0755E9]
-                [&_.swiper-pagination-bullet-active]:!opacity-100
+                absolute left-3 top-1/2 z-20
+                flex h-9 w-9 -translate-y-1/2
+                items-center justify-center
+                rounded-full border border-white/70
+                bg-white/90 text-[#0755E9]
+                shadow-md backdrop-blur
+                transition-all duration-200
+                hover:bg-[#0755E9] hover:text-white
+                disabled:opacity-50
+                sm:left-5 sm:h-11 sm:w-11
+                lg:left-8
               "
             >
-              {banners.map((banner, index) => {
-                const desktopImage = getImageUrl(
-                  banner.desktopImage,
-                );
+              <ChevronLeft size={20} />
+            </button>
 
-                const mobileImage = getImageUrl(
-                  banner.mobileImage,
-                );
-
-                const fallbackImage =
-                  desktopImage || mobileImage;
-
-                if (!fallbackImage) return null;
-
-                return (
-                  <SwiperSlide key={banner._id || index}>
-                    <a
-                      href={banner.buttonLink || "/products"}
-                      aria-label={
-                        banner.title ||
-                        "Explore Mobi Hub offers"
-                      }
-                      className="block w-full"
-                    >
-                      <picture className="block w-full">
-
-                        {/* Mobile Image */}
-                        {mobileImage && (
-                          <source
-                            media="(max-width: 767px)"
-                            srcSet={mobileImage}
-                          />
-                        )}
-
-                        {/* Desktop Image / Fallback */}
-                        <img
-                          src={fallbackImage}
-                          alt={
-                            banner.title ||
-                            "Mobi Hub promotional banner"
-                          }
-                          loading={
-                            index === 0 ? "eager" : "lazy"
-                          }
-                          fetchPriority={
-                            index === 0 ? "high" : "auto"
-                          }
-                          decoding="async"
-                          className="block h-auto w-full object-cover"
-                        />
-
-                      </picture>
-                    </a>
-                  </SwiperSlide>
-                );
-              })}
-            </Swiper>
-          )}
-
-          {/* Navigation */}
-          {banners.length > 1 && (
-            <div className="absolute bottom-10 right-4 z-20 flex gap-2 sm:bottom-5 sm:right-6">
-
-              <button
-                type="button"
-                onClick={() => swiper?.slidePrev()}
-                aria-label="Previous banner"
-                disabled={!swiper}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/90 text-[#0755E9] shadow-md backdrop-blur transition hover:bg-[#0755E9] hover:text-white disabled:opacity-50 sm:h-10 sm:w-10"
-              >
-                <ChevronLeft size={19} />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => swiper?.slideNext()}
-                aria-label="Next banner"
-                disabled={!swiper}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/90 text-[#0755E9] shadow-md backdrop-blur transition hover:bg-[#0755E9] hover:text-white disabled:opacity-50 sm:h-10 sm:w-10"
-              >
-                <ChevronRight size={19} />
-              </button>
-
-            </div>
-          )}
-
-        </div>
+            <button
+              type="button"
+              onClick={() => swiper?.slideNext()}
+              aria-label="Next banner"
+              disabled={!swiper}
+              className="
+                absolute right-3 top-1/2 z-20
+                flex h-9 w-9 -translate-y-1/2
+                items-center justify-center
+                rounded-full border border-white/70
+                bg-white/90 text-[#0755E9]
+                shadow-md backdrop-blur
+                transition-all duration-200
+                hover:bg-[#0755E9] hover:text-white
+                disabled:opacity-50
+                sm:right-5 sm:h-11 sm:w-11
+                lg:right-8
+              "
+            >
+              <ChevronRight size={20} />
+            </button>
+          </>
+        )}
       </div>
     </section>
   );

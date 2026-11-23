@@ -1,8 +1,10 @@
 
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import Image from "next/image";
+import { motion, useReducedMotion } from "motion/react";
 import { ArrowUpRight, Package } from "lucide-react";
 
 export default function CategoryCard({
@@ -10,57 +12,169 @@ export default function CategoryCard({
   index = 0,
   href,
 }) {
+  const reduceMotion = useReducedMotion();
+  const [imageError, setImageError] = useState(false);
+
+  const imageUrl =
+    typeof category?.image === "string"
+      ? category.image
+      : category?.image?.url ||
+        category?.image?.secure_url ||
+        "";
+
+  const categoryName = category?.name || "Category";
+
+  const categoryHref =
+    href ||
+    (category?._id
+      ? `/categories/${category._id}`
+      : "/categories");
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 15 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{
-        duration: 0.35,
-        delay: (index % 5) * 0.04,
+      initial={
+        reduceMotion
+          ? false
+          : { opacity: 0, y: 18 }
+      }
+      whileInView={
+        reduceMotion
+          ? undefined
+          : { opacity: 1, y: 0 }
+      }
+      viewport={{
+        once: true,
+        amount: 0.15,
       }}
+      transition={{
+        duration: reduceMotion ? 0 : 0.45,
+        delay: reduceMotion ? 0 : (index % 5) * 0.05,
+        ease: "easeOut",
+      }}
+      className="h-full"
     >
       <Link
-        href={href || `/categories/${category._id}`}
-        className="group block h-full overflow-hidden rounded-2xl border border-slate-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-900/5"
+        href={categoryHref}
+        aria-label={`Explore ${categoryName}`}
+        className="
+          group flex h-full flex-col
+          rounded-2xl bg-white
+          p-2.5
+          transition-all duration-300
+          hover:-translate-y-1
+          hover:shadow-[0_12px_35px_rgba(16,24,40,0.07)]
+          focus-visible:outline-none
+          focus-visible:ring-2
+          focus-visible:ring-[#0755E9]
+          focus-visible:ring-offset-2
+          sm:rounded-3xl sm:p-3
+        "
       >
-        {/* Category Image */}
-        <div className="relative flex aspect-[1.2/1] items-center justify-center overflow-hidden bg-white p-5 sm:p-7">
-          {category.image?.url ? (
-            <img
-              src={category.image.url}
-              alt={category.name || "Category"}
-              loading="lazy"
-              className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
+        {/* Product Image */}
+        <div
+          className="
+            relative flex aspect-square
+            items-center justify-center
+            overflow-hidden rounded-xl
+            bg-[#F8FAFC]
+            sm:rounded-2xl
+          "
+        >
+          {/* Small label */}
+          <span
+            className="
+              absolute left-3 top-3 z-10
+              rounded-full bg-white
+              px-2.5 py-1
+              text-[9px] font-semibold
+              uppercase tracking-[0.14em]
+              text-slate-400
+              shadow-sm
+            "
+          >
+            Collection
+          </span>
+
+          {/* Image */}
+          {imageUrl && !imageError ? (
+            <Image
+              src={imageUrl}
+              alt={categoryName}
+              fill
+              sizes="
+                (max-width: 640px) 45vw,
+                (max-width: 1024px) 30vw,
+                20vw
+              "
+              unoptimized
+              onError={() => setImageError(true)}
+              className="
+                object-contain
+                p-5 sm:p-7
+                transition-transform duration-700
+                ease-out
+                group-hover:scale-110
+              "
             />
           ) : (
             <Package
-              size={48}
+              size={52}
               strokeWidth={1}
               className="text-slate-300"
+              aria-hidden="true"
             />
           )}
 
-          <span className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm transition-all duration-300 group-hover:bg-[#0755E9] group-hover:text-white">
-            <ArrowUpRight size={16} />
+          {/* Arrow */}
+          <span
+            className="
+              absolute bottom-3 right-3
+              flex h-9 w-9 items-center
+              justify-center rounded-full
+              bg-white text-[#0755E9]
+              shadow-sm
+              transition-all duration-300
+              group-hover:bg-[#0755E9]
+              group-hover:text-white
+              group-hover:rotate-45
+            "
+          >
+            <ArrowUpRight
+              size={18}
+              strokeWidth={2}
+              aria-hidden="true"
+            />
           </span>
         </div>
 
         {/* Category Details */}
-        <div className="p-3 sm:p-4">
-          <h3 className="truncate text-sm font-bold text-[#101828] transition-colors group-hover:text-[#0755E9] sm:text-base">
-            {category.name}
+        <div className="px-1 pb-2 pt-4">
+          {/* Blue accent */}
+          <div
+            className="
+              mb-3 h-[3px] w-7
+              rounded-full bg-[#0755E9]
+              transition-all duration-300
+              group-hover:w-12
+            "
+          />
+
+          <h3
+            className="
+              line-clamp-1
+              text-sm font-bold
+              tracking-tight text-[#101828]
+              transition-colors duration-300
+              group-hover:text-[#0755E9]
+              sm:text-base
+            "
+          >
+            {categoryName}
           </h3>
 
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-[11px] font-medium text-slate-400 sm:text-xs">
-              Explore collection
-            </span>
-
-            <span className="text-xs font-semibold text-[#0755E9]">
-              Explore
-            </span>
-          </div>
+          <p className="mt-1 text-xs text-[#94A3B8]">
+            Explore the collection
+          </p>
         </div>
       </Link>
     </motion.div>

@@ -8,28 +8,28 @@ import Footer from "./Footer";
 import AnnouncementBar from "../home/AnnouncementBar";
 import BottomNavigation from "./BottomNavigation";
 
+const AUTH_ROUTES = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+];
+
 function AppShellContent({ children }) {
-  const pathname = usePathname();
+  const pathname = usePathname() || "/";
 
   // Admin routes
-  const isAdminRoute = pathname.startsWith("/admin");
+  const isAdminRoute = pathname === "/admin" || pathname.startsWith("/admin/");
 
   // Authentication routes
-  const authRoutes = [
-    "/login",
-    "/register",
-    "/forgot-password",
-    "/reset-password",
-    "/verify-email",
-  ];
-
-  const isAuthRoute = authRoutes.some(
+  const isAuthRoute = AUTH_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
   // Admin and Authentication Layout
   if (isAdminRoute || isAuthRoute) {
-    return <main className="flex-1 min-h-screen bg-white">{children}</main>;
+    return <main className="min-h-screen flex-1 bg-white">{children}</main>;
   }
 
   // Store Layout
@@ -39,7 +39,9 @@ function AppShellContent({ children }) {
 
       <Navbar />
 
-      <main className="flex-1 pb-20 xl:pb-0 bg-white">{children}</main>
+      <main className="min-h-screen flex-1 bg-white pb-20 xl:pb-0">
+        {children}
+      </main>
 
       <Footer />
 
@@ -53,7 +55,7 @@ export default function AppShell({ children }) {
   return (
     <Suspense
       fallback={
-        <main className="flex-1 min-h-screen bg-white">{children}</main>
+        <main className="min-h-screen flex-1 bg-white">{children}</main>
       }
     >
       <AppShellContent>{children}</AppShellContent>

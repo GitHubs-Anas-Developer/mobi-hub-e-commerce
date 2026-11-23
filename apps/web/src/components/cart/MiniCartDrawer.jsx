@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -36,40 +37,34 @@ const formatPrice = (price) => {
   return `₹${Number(price || 0).toLocaleString("en-IN")}`;
 };
 
-// Product from your actual Cart structure
+// Get product from cart item
 const getProduct = (item) => {
   return item?.product || null;
 };
 
-// Find selected variant using item.variantId
+// Get selected variant
 const getSelectedVariant = (item) => {
   const product = getProduct(item);
 
   if (!product?.variants) return null;
 
-  const variantId =
-    item?.variantId?._id || item?.variantId;
+  const variantId = item?.variantId?._id || item?.variantId;
 
   return (
     product.variants.find(
-      (variant) =>
-        String(variant._id) === String(variantId)
+      (variant) => String(variant._id) === String(variantId)
     ) || null
   );
 };
 
-// Same price calculation as your CartPage.jsx
+// Get item price
 const getItemPrice = (item) => {
   const product = getProduct(item);
 
-  return Number(
-    product?.basePrice ||
-    product?.sellingPrice ||
-    0
-  );
+  return Number(product?.basePrice || product?.sellingPrice || 0);
 };
 
-// Variant attributes
+// Get variant attributes
 const getVariantLabel = (item) => {
   const variant = getSelectedVariant(item);
 
@@ -80,7 +75,7 @@ const getVariantLabel = (item) => {
     .join(" / ");
 };
 
-// Product image
+// Get product image
 const getProductImage = (item) => {
   const product = getProduct(item);
 
@@ -91,14 +86,28 @@ const getProductImage = (item) => {
   );
 };
 
+// Get product URL safely
+const getProductHref = (product) => {
+  const identifier = product?.slug || product?._id;
+
+  return identifier
+    ? `/products/${identifier}`
+    : "/products";
+};
+
+// Get available stock
+const getAvailableStock = (item) => {
+  const product = getProduct(item);
+  const variant = getSelectedVariant(item);
+
+  return variant?.stock ?? product?.stock ?? null;
+};
+
 // ========================================
 // MINI CART DRAWER
 // ========================================
 
-export default function MiniCartDrawer({
-  isOpen,
-  onClose,
-}) {
+export default function MiniCartDrawer({ isOpen, onClose }) {
   const dispatch = useDispatch();
   const router = useRouter();
 
@@ -142,7 +151,7 @@ export default function MiniCartDrawer({
   }, [onClose]);
 
   // ========================================
-  // BODY SCROLL LOCK
+  // BODY SCROLL LOCK + ESCAPE
   // ========================================
 
   useEffect(() => {
@@ -172,8 +181,7 @@ export default function MiniCartDrawer({
 
   const totalItems = useMemo(() => {
     return items.reduce(
-      (total, item) =>
-        total + Number(item.quantity || 0),
+      (total, item) => total + Number(item.quantity || 0),
       0
     );
   }, [items]);
@@ -201,14 +209,9 @@ export default function MiniCartDrawer({
       return;
     }
 
-    const selectedVariant = getSelectedVariant(item);
+    const stock = getAvailableStock(item);
 
-    const stock = selectedVariant?.stock;
-
-    if (
-      stock != null &&
-      quantity > Number(stock)
-    ) {
+    if (stock != null && quantity > Number(stock)) {
       toast.error("Available stock limit reached.");
       return;
     }
@@ -222,14 +225,12 @@ export default function MiniCartDrawer({
           quantity,
         })
       ).unwrap();
-
     } catch (error) {
       toast.error(
         typeof error === "string"
           ? error
           : error?.message || "Unable to update quantity."
       );
-
     } finally {
       setUpdatingItemId("");
     }
@@ -245,19 +246,15 @@ export default function MiniCartDrawer({
     setRemovingItemId(itemId);
 
     try {
-      await dispatch(
-        removeCartItem(itemId)
-      ).unwrap();
+      await dispatch(removeCartItem(itemId)).unwrap();
 
       toast.success("Product removed from cart.");
-
     } catch (error) {
       toast.error(
         typeof error === "string"
           ? error
           : error?.message || "Unable to remove product."
       );
-
     } finally {
       setRemovingItemId("");
     }
@@ -273,7 +270,7 @@ export default function MiniCartDrawer({
   };
 
   const goToCheckout = () => {
-    if (!items.length) return;
+    if (!items.length || isMutating) return;
 
     onCloseRef.current?.();
     router.push("/checkout");
@@ -328,13 +325,10 @@ export default function MiniCartDrawer({
             aria-labelledby="mini-cart-title"
             className="fixed inset-x-0 bottom-0 z-[101] flex h-[88dvh] max-h-[90dvh] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:inset-y-0 sm:left-auto sm:right-0 sm:h-full sm:max-h-full sm:w-[440px] sm:rounded-none sm:rounded-l-3xl"
           >
-
             {/* HEADER */}
 
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4 sm:px-6 sm:py-5">
-
               <div className="flex items-center gap-3">
-
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#0755e9]">
                   <ShoppingBag size={21} />
                 </div>
@@ -352,7 +346,6 @@ export default function MiniCartDrawer({
                     {totalItems === 1 ? "item" : "items"} in your cart
                   </p>
                 </div>
-
               </div>
 
               <button
@@ -363,15 +356,12 @@ export default function MiniCartDrawer({
               >
                 <X size={19} />
               </button>
-
             </div>
 
             {/* EMPTY CART */}
 
             {items.length === 0 ? (
-
               <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-
                 <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-50">
                   <ShoppingCart
                     size={34}
@@ -396,19 +386,13 @@ export default function MiniCartDrawer({
                   Continue Shopping
                   <ArrowRight size={16} />
                 </button>
-
               </div>
-
             ) : (
-
               <>
-
                 {/* CART ITEMS */}
 
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
-
                   <div className="mb-3 flex items-center justify-between">
-
                     <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                       Cart Items
                     </p>
@@ -416,11 +400,9 @@ export default function MiniCartDrawer({
                     <span className="text-xs font-medium text-slate-500">
                       {items.length} products
                     </span>
-
                   </div>
 
                   <div className="divide-y divide-slate-100">
-
                     {items.map((item, index) => {
                       const product = getProduct(item);
 
@@ -428,35 +410,32 @@ export default function MiniCartDrawer({
 
                       const itemId = item._id;
 
-                      const name =
-                        product.name || "Product";
+                      const name = product.name || "Product";
 
                       const image = getProductImage(item);
 
                       const price = getItemPrice(item);
 
-                      const quantity = Number(
-                        item.quantity || 1
-                      );
+                      const quantity = Number(item.quantity || 1);
 
                       const selectedVariant =
                         getSelectedVariant(item);
 
-                      const variantLabel =
-                        getVariantLabel(item);
+                      const variantLabel = getVariantLabel(item);
 
-                      const stock = selectedVariant?.stock;
+                      const stock = getAvailableStock(item);
+
+                      const productHref = getProductHref(product);
 
                       return (
                         <div
-                          key={itemId || index}
+                          key={itemId || `${product._id || name}-${index}`}
                           className="flex gap-3 py-4"
                         >
-
                           {/* IMAGE */}
 
                           <Link
-                            href={`/products/${product.slug}`}
+                            href={productHref}
                             onClick={() => onCloseRef.current?.()}
                             className="relative h-[82px] w-[82px] shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-50"
                           >
@@ -482,17 +461,14 @@ export default function MiniCartDrawer({
                           {/* PRODUCT DETAILS */}
 
                           <div className="flex min-w-0 flex-1 flex-col">
-
                             <div className="flex items-start justify-between gap-2">
-
                               <div className="min-w-0">
-
                                 <p className="text-[10px] font-bold uppercase tracking-wide text-[#0755e9]">
                                   {product.brand || "MOBI HUB"}
                                 </p>
 
                                 <Link
-                                  href={`/products/${product.slug}`}
+                                  href={productHref}
                                   onClick={() => onCloseRef.current?.()}
                                   className="mt-1 line-clamp-2 block text-sm font-semibold leading-5 text-slate-900 hover:text-[#0755e9]"
                                 >
@@ -510,19 +486,16 @@ export default function MiniCartDrawer({
                                     SKU: {selectedVariant.sku}
                                   </p>
                                 )}
-
                               </div>
 
                               {/* REMOVE */}
 
                               <button
                                 type="button"
-                                disabled={isMutating}
-                                onClick={() =>
-                                  handleRemoveItem(itemId)
-                                }
+                                disabled={!itemId || isMutating}
+                                onClick={() => handleRemoveItem(itemId)}
                                 aria-label={`Remove ${name}`}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {removingItemId === itemId ? (
                                   <Loader2
@@ -533,13 +506,11 @@ export default function MiniCartDrawer({
                                   <Trash2 size={16} />
                                 )}
                               </button>
-
                             </div>
 
                             {/* PRICE + QUANTITY */}
 
                             <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-
                               <p className="text-sm font-extrabold text-slate-900">
                                 {formatPrice(price * quantity)}
                               </p>
@@ -547,7 +518,6 @@ export default function MiniCartDrawer({
                               {/* QUANTITY */}
 
                               <div className="flex items-center overflow-hidden rounded-lg border border-slate-200">
-
                                 <button
                                   type="button"
                                   disabled={
@@ -568,7 +538,6 @@ export default function MiniCartDrawer({
                                 </button>
 
                                 <span className="flex min-w-9 items-center justify-center text-xs font-bold text-slate-900">
-
                                   {updatingItemId === itemId ? (
                                     <Loader2
                                       size={14}
@@ -577,7 +546,6 @@ export default function MiniCartDrawer({
                                   ) : (
                                     quantity
                                   )}
-
                                 </span>
 
                                 <button
@@ -585,10 +553,8 @@ export default function MiniCartDrawer({
                                   disabled={
                                     isMutating ||
                                     updatingItemId === itemId ||
-                                    (
-                                      selectedVariant &&
-                                      quantity >= Number(stock)
-                                    )
+                                    (stock != null &&
+                                      quantity >= Number(stock))
                                   }
                                   onClick={() =>
                                     handleQuantityChange(
@@ -601,29 +567,21 @@ export default function MiniCartDrawer({
                                 >
                                   <Plus size={14} />
                                 </button>
-
                               </div>
-
                             </div>
-
                           </div>
-
                         </div>
                       );
                     })}
-
                   </div>
-
                 </div>
 
                 {/* FOOTER */}
 
                 <div className="shrink-0 border-t border-slate-200 bg-white px-5 pb-[calc(16px+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pb-6">
-
                   {/* SUBTOTAL */}
 
                   <div className="flex items-center justify-between">
-
                     <span className="text-sm font-semibold text-slate-600">
                       Subtotal ({totalItems} items)
                     </span>
@@ -631,7 +589,6 @@ export default function MiniCartDrawer({
                     <span className="text-xl font-extrabold tracking-tight text-slate-950">
                       {formatPrice(subtotal)}
                     </span>
-
                   </div>
 
                   <p className="mt-2 text-[11px] leading-5 text-slate-400">
@@ -666,16 +623,12 @@ export default function MiniCartDrawer({
                     <ShieldCheck size={14} />
                     Secure shopping at MOBI HUB
                   </div>
-
                 </div>
-
               </>
             )}
-
           </motion.aside>
         </>
       )}
     </AnimatePresence>
   );
 }
-
