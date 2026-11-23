@@ -31,6 +31,7 @@ import adminUserRoutes from "./routes/admin-user.routes.js";
 import recentlyViewedRoutes from "./routes/recentlyViewed.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import bannerRoutes from "./routes/banner.routes.js";
+import productVideoRoutes from "./routes/product-video.routes.js";
 
 const app = express();
 
@@ -122,6 +123,7 @@ app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/banners", bannerRoutes);
+app.use("/api/v1/product-videos", productVideoRoutes);
 
 // Admin routes
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
