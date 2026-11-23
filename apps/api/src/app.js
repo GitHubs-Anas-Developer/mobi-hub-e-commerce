@@ -32,6 +32,7 @@ import recentlyViewedRoutes from "./routes/recentlyViewed.routes.js";
 import searchRoutes from "./routes/search.routes.js";
 import bannerRoutes from "./routes/banner.routes.js";
 import productVideoRoutes from "./routes/product-video.routes.js";
+import newsletterRoutes from "./routes/newsletter.routes.js";
 
 const app = express();
 
@@ -124,6 +125,7 @@ app.use("/api/v1/coupons", couponRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/banners", bannerRoutes);
 app.use("/api/v1/product-videos", productVideoRoutes);
+app.use("/api/v1/newsletter", newsletterRoutes);
 
 // Admin routes
 app.use("/api/v1/admin/dashboard", dashboardRoutes);
