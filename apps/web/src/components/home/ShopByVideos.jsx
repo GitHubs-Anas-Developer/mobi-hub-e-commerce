@@ -467,9 +467,7 @@ function VideoModal({ item, onClose }) {
               Price
             </p>
 
-            <p className="text-lg font-extrabold text-[#101828]">
-              {basePrice || "Explore product"}
-            </p>
+           {price || "Explore product"}
           </div>
 
           <Link

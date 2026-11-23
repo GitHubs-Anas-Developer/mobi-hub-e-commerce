@@ -39,7 +39,7 @@ function AppShellContent({ children }) {
 
       <Navbar />
 
-      <main className="min-h-screen flex-1 bg-white pb-20 xl:pb-0">
+      <main className="min-h-screen flex-1 bg-white ">
         {children}
       </main>
 
