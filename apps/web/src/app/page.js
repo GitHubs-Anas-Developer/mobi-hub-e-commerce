@@ -10,6 +10,7 @@ import ProductSection from "@/components/home/ProductSection";
 import ShopByVideos from "@/components/home/ShopByVideos";
 import WhyChooseUs from "@/components/home/WhyChooseUs";
 import TrustBar from "@/components/home/TrustBar";
+import Newsletter from "@/components/home/Newsletter";
 
 import BrandSection from "@/components/brands/BrandSection";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
@@ -163,6 +164,9 @@ export default function Home() {
           <BottomPromotionalBanner />
         </div>
       </section>
+
+      {/* 12. NEWSLETTER */}
+      <Newsletter />
     </main>
   );
 }

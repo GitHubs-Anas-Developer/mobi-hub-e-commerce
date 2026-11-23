@@ -10,6 +10,7 @@ import relatedProductsReducer from "./slices/relatedProductsSlice";
 import searchReducer from "./slices/searchSlice";
 import bannerReducer from "./slices/bannerSlice";
 import productVideoReducer from "./slices/productVideoSlice";
+import newsletterReducer from "./slices/newsletterSlice";
 
 export const store = configureStore({
   reducer: {
@@ -23,5 +24,6 @@ export const store = configureStore({
     search: searchReducer,
     banners: bannerReducer,
     productVideos: productVideoReducer,
+    newsletter: newsletterReducer,
   },
 });
