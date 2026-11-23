@@ -82,9 +82,7 @@ const getVideoPrice = (item) => {
   const product = getProduct(item);
 
   const price =
-    product?.price ??
-    product?.sellingPrice ??
-    product?.salePrice ??
+    product?.basePrice ??
     null;
 
   if (price === null || price === undefined || price === "") {
@@ -313,21 +311,22 @@ function SectionHeader() {
         <span className="h-6 w-1 rounded-full bg-[#0755E9]" />
 
         <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
-          Mobi Hub Exclusives
+          Mobi Hub Product Stories
         </span>
       </div>
 
       <h2 className="text-2xl font-black tracking-tight text-[#101828] sm:text-3xl lg:text-4xl">
-        Watch. Discover.
-        <span className="text-[#0755E9]"> Shop.</span>
+        See It
+        <span className="text-[#0755E9]"> in Action.</span>
       </h2>
 
       <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500 sm:text-sm">
-        Get a closer look at the tech that makes everyday life better.
+        Explore our latest mobile accessories through real product videos and discover the details that matter.
       </p>
     </div>
   );
 }
+
 
 /* ========================================
    VIDEO MODAL
@@ -469,7 +468,7 @@ function VideoModal({ item, onClose }) {
             </p>
 
             <p className="text-lg font-extrabold text-[#101828]">
-              {price || "Explore product"}
+              {basePrice || "Explore product"}
             </p>
           </div>
 
@@ -639,9 +638,9 @@ export default function ShopByVideos() {
 
   return (
     <>
-      <section className="w-full overflow-hidden bg-white py-12 sm:py-16 lg:py-20">
+      <section className="w-full overflow-hidden bg-white ">
 
-        <div className="mx-auto w-full px-4 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full ">
 
           {/* HEADER */}
           <div className="mb-7 flex items-end justify-between gap-4 sm:mb-9">

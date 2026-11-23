@@ -95,7 +95,7 @@ export const getActiveProductVideosService = async ({
 
   const [videos, total] = await Promise.all([
     ProductVideo.find(filter)
-      .populate("product", "name slug price thumbnail images")
+      .populate("product", "name slug price thumbnail images basePrice")
       .sort({ displayOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -122,7 +122,7 @@ export const getAllProductVideosService = async ({ page = 1, limit = 10 }) => {
 
   const [videos, total] = await Promise.all([
     ProductVideo.find()
-      .populate("product", "name slug price")
+      .populate("product", "name slug basePrice")
       .populate("uploadedBy", "name email")
       .sort({ createdAt: -1 })
       .skip(skip)
