@@ -1,21 +1,27 @@
 
 "use client";
 
-import { Loader2, MessageSquare } from "lucide-react";
+import { Loader2, MessageSquare, RefreshCw } from "lucide-react";
 import ReviewCard from "./ReviewCard";
 
 export default function ReviewList({
   reviews = [],
   loading = false,
   error = "",
+  onRetry,
 }) {
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex min-h-40 items-center justify-center rounded-2xl border border-slate-200 bg-white">
-        <div className="flex flex-col items-center gap-3">
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+
+      {/* Loading State */}
+      {loading ? (
+        <div
+          className="flex min-h-52 flex-col items-center justify-center gap-3"
+          role="status"
+          aria-live="polite"
+        >
           <Loader2
-            size={26}
+            size={28}
             className="animate-spin text-[#0755e9]"
           />
 
@@ -23,55 +29,71 @@ export default function ReviewList({
             Loading customer reviews...
           </p>
         </div>
-      </div>
-    );
-  }
 
-  // Error state
-  if (error) {
-    return (
-      <div
-        role="alert"
-        className="rounded-xl border border-red-100 bg-red-50 px-4 py-4"
-      >
-        <p className="text-sm font-medium text-red-600">
-          {error}
-        </p>
-      </div>
-    );
-  }
+      ) : error ? (
 
-  // Empty state
-  if (!reviews.length) {
-    return (
-      <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-5 py-10 text-center">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-[#0755e9]">
-          <MessageSquare size={25} strokeWidth={1.7} />
-        </div>
-
-        <h3 className="mt-4 text-base font-bold text-[#101828]">
-          No reviews yet
-        </h3>
-
-        <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-          Be the first to share your experience with this product.
-          Your feedback helps other customers make better decisions.
-        </p>
-      </div>
-    );
-  }
-
-  // Reviews list
-  return (
-    <div className="space-y-4">
-      {reviews.map((review) => (
+        /* Error State */
         <div
-          key={review._id}
-          className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-colors duration-200 hover:border-blue-100 sm:p-5"
+          className="flex min-h-52 flex-col items-center justify-center text-center"
+          role="alert"
         >
-          <ReviewCard review={review} />
+          <MessageSquare
+            size={28}
+            className="text-red-500"
+          />
+
+          <h3 className="mt-3 text-base font-semibold text-[#101828]">
+            Unable to load reviews
+          </h3>
+
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+            {error}
+          </p>
+
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#0755e9] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0645c4]"
+            >
+              <RefreshCw size={15} />
+              Try again
+            </button>
+          )}
         </div>
-      ))}
+
+      ) : reviews.length === 0 ? (
+
+        /* Empty State */
+        <div className="flex min-h-52 flex-col items-center justify-center px-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-[#0755e9]">
+            <MessageSquare size={25} strokeWidth={1.7} />
+          </div>
+
+          <h3 className="mt-4 text-base font-bold text-[#101828]">
+            No reviews yet
+          </h3>
+
+          <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
+            Be the first to share your experience with this product.
+            Your feedback helps other customers make better decisions.
+          </p>
+        </div>
+
+      ) : (
+
+        /* Reviews List */
+        <div className="space-y-5 divide-y divide-slate-100">
+          {reviews.map((review) => (
+            <article
+              key={review._id}
+              className="pt-5 first:pt-0"
+            >
+              <ReviewCard review={review} />
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 import reviewService from "@/services/reviewService";
-
 import { REVIEW_CONFIG, REVIEW_MESSAGES } from "@/constants/review.constants";
 
 export default function useProductReviews(productId, filters = {}) {
@@ -50,8 +49,12 @@ export default function useProductReviews(productId, filters = {}) {
 
         const result = response?.data || {};
 
-        setReviews(result.reviews || []);
-        setRatingInfo(result.rating || {});
+        console.log("PRODUCT REVIEWS API RESPONSE:", result);
+
+        setReviews(Array.isArray(result.reviews) ? result.reviews : []);
+
+        setRatingInfo(result.ratingInfo || result.rating || {});
+
         setPagination(result.pagination || {});
       } catch (err) {
         console.error("Product Reviews API Error:", {
@@ -80,7 +83,6 @@ export default function useProductReviews(productId, filters = {}) {
   const refreshReviews = useCallback(
     async (pageNumber = page) => {
       setPage(pageNumber);
-
       await fetchReviews(pageNumber);
     },
     [fetchReviews, page],

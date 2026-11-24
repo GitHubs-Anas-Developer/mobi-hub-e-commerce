@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  ArrowLeft,
   ChevronRight,
   Package,
 } from "lucide-react";
@@ -604,7 +605,7 @@ useEffect(() => {
         variants={pageVariants}
         initial="hidden"
         animate="visible"
-        className="min-h-screen bg-white"
+        className="min-h-screen bg-white pb-32 sm:pb-36"
       >
         <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
 
@@ -612,8 +613,29 @@ useEffect(() => {
 
           <motion.nav
             variants={fadeUp}
+            aria-label="Breadcrumb"
             className="mb-7 flex flex-wrap items-center gap-2 text-sm text-slate-500"
           >
+            <button
+              type="button"
+              onClick={() => {
+                const previousUrl = document.referrer;
+                const cameFromThisSite =
+                  previousUrl &&
+                  new URL(previousUrl).origin === window.location.origin;
+
+                if (cameFromThisSite) {
+                  router.back();
+                } else {
+                  router.push("/products");
+                }
+              }}
+              aria-label="Go back"
+              className="mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-[#0755e9] hover:bg-blue-50 hover:text-[#0755e9] active:scale-95"
+            >
+              <ArrowLeft size={19} strokeWidth={2} />
+            </button>
+
             <Link
               href="/"
               className="transition hover:text-[#0755e9]"
@@ -639,7 +661,7 @@ useEffect(() => {
 
           {/* PRODUCT MAIN SECTION */}
 
-          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2">
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:items-stretch">
 
             {/* PRODUCT GALLERY */}
 
@@ -647,20 +669,21 @@ useEffect(() => {
               variants={fadeLeft}
               className="min-w-0"
             >
-              <ProductGallery
-                product={product}
-                productImages={productImages}
-                selectedImage={selectedImage}
-                setSelectedImage={setSelectedImage}
-                discount={discount}
-              />
+             <ProductGallery
+  productImages={productImages}
+  selectedImage={selectedImage}
+  setSelectedImage={setSelectedImage}
+  onWishlist={handleWishlist}
+  isInWishlist={isInWishlist}
+  wishlistIsMutating={wishlistIsMutating}
+/>
             </motion.div>
 
             {/* PRODUCT INFORMATION */}
 
             <motion.div
               variants={fadeRight}
-              className="min-w-0"
+              className="flex min-w-0 flex-col lg:min-h-[620px]"
             >
               <ProductInfo
                 product={product}
@@ -676,28 +699,15 @@ useEffect(() => {
                 {selectedVariant && (
                   <motion.div
                     key={selectedVariant._id}
-                    initial={{
-                      opacity: 0,
-                      y: 8,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      y: 0,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      y: -8,
-                    }}
-                    transition={{
-                      duration: 0.25,
-                    }}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25 }}
                     className="mt-5"
                   >
                     <p
                       className={`text-sm font-semibold ${
-                        canPurchase
-                          ? "text-green-600"
-                          : "text-red-600"
+                        canPurchase ? "text-green-600" : "text-red-600"
                       }`}
                     >
                       {canPurchase
@@ -710,10 +720,7 @@ useEffect(() => {
 
               {/* VARIANT SELECTOR */}
 
-              <motion.div
-                variants={fadeUp}
-                className="mt-2"
-              >
+              <motion.div variants={fadeUp} className="mt-2">
                 <ProductVariantSelector
                   variants={activeVariants}
                   selectedVariantId={selectedVariantId}
@@ -723,10 +730,7 @@ useEffect(() => {
 
               {/* QUANTITY SELECTOR */}
 
-              <motion.div
-                variants={fadeUp}
-                className="mt-6"
-              >
+              <motion.div variants={fadeUp} className="mt-6">
                 <ProductQuantitySelector
                   quantity={quantity}
                   setQuantity={setQuantity}
@@ -735,33 +739,22 @@ useEffect(() => {
                 />
               </motion.div>
 
-              {/* PRODUCT ACTIONS */}
-
-              <motion.div
-                variants={fadeUp}
-                className="mt-6"
-              >
-                <ProductActions
-                  onAddToCart={handleAddToCart}
-                  onBuyNow={handleBuyNow}
-                  onWishlist={handleWishlist}
-                  isInWishlist={isInWishlist}
-                  cartIsMutating={cartIsMutating}
-                  wishlistIsMutating={wishlistIsMutating}
-                  canPurchase={canPurchase}
-                />
-              </motion.div>
-
               {/* SERVICE HIGHLIGHTS */}
 
-              <motion.div
-                variants={fadeUp}
-                className="mt-7"
-              >
+              <motion.div variants={fadeUp} className="mt-7">
                 <ProductServiceHighlights />
               </motion.div>
+
             </motion.div>
           </div>
+
+          {/* FIXED RESPONSIVE PRODUCT ACTIONS */}
+          <ProductActions
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+            cartIsMutating={cartIsMutating}
+            canPurchase={canPurchase}
+          />
 
           {/* PRODUCT DESCRIPTION */}
 

@@ -10,21 +10,25 @@ import {
 
 const highlights = [
   {
+    id: "delivery",
     icon: Truck,
     title: "Reliable Delivery",
     description: "Fast & secure delivery",
   },
   {
+    id: "payment",
     icon: ShieldCheck,
     title: "Secure Payment",
-    description: "100% safe checkout",
+    description: "Safe checkout experience",
   },
   {
+    id: "returns",
     icon: RotateCcw,
     title: "Easy Returns",
     description: "Hassle-free returns",
   },
   {
+    id: "support",
     icon: Headphones,
     title: "Customer Support",
     description: "We're here to help",
@@ -33,19 +37,40 @@ const highlights = [
 
 export default function ProductServiceHighlights() {
   return (
-    <section className="mt-8 border-t border-[#E2E8F0] pt-6">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {highlights.map(({ icon: Icon, title, description }) => (
+    <section
+      aria-label="Shopping benefits"
+      className="mt-8 border-t border-[#E2E8F0] pt-6"
+    >
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+        {highlights.map(({ id, icon: Icon, title, description }) => (
           <div
-            key={title}
-            className="flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/70 p-3 transition-colors duration-200 hover:border-blue-100 hover:bg-blue-50/50"
+            key={id}
+            className="
+              group flex min-w-0 items-start gap-3
+              rounded-xl border border-slate-100
+              bg-slate-50/70 p-3
+              transition-all duration-200
+              hover:-translate-y-0.5
+              hover:border-blue-100
+              hover:bg-blue-50/50
+              hover:shadow-sm
+            "
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-[#0755e9]">
+            <div
+              className="
+                flex h-10 w-10 shrink-0 items-center
+                justify-center rounded-xl
+                bg-blue-100 text-[#0755e9]
+                transition-colors duration-200
+                group-hover:bg-[#0755e9]
+                group-hover:text-white
+              "
+            >
               <Icon size={20} strokeWidth={1.8} />
             </div>
 
             <div className="min-w-0">
-              <h3 className="text-xs font-bold text-[#101828] sm:text-sm">
+              <h3 className="text-xs font-bold leading-5 text-[#101828] sm:text-sm">
                 {title}
               </h3>
 

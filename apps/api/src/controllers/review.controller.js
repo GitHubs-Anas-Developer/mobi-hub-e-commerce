@@ -11,13 +11,13 @@ import {
 export const addReview = async (req, res, next) => {
   try {
     const review = await createReview(req.user._id, req.validatedData.body);
-
     res.status(201).json({
       success: true,
       message: "Review created successfully",
       data: review,
     });
   } catch (error) {
+    console.error("ADD REVIEW CONTROLLER ERROR:", error);
     next(error);
   }
 };

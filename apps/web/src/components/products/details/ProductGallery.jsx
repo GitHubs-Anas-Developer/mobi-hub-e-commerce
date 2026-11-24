@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import {
   Package,
@@ -9,282 +9,438 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Heart,
+  Loader2,
 } from "lucide-react";
 
 export default function ProductGallery({
-  product,
   productImages = [],
   selectedImage,
   setSelectedImage,
-  discount = 0,
+  discountPercentage = 0,
+  onWishlist,
+  isInWishlist = false,
+  wishlistIsMutating = false,
 }) {
-  const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isZoomed, setIsZoomed] = useState(false);
 
-  const touchStartX = useRef(0);
-  const touchStartY = useRef(0);
+  const touchStartX = useRef(null);
 
-  const currentIndex = productImages.indexOf(selectedImage);
+  const images = productImages.filter(
+    (image) => typeof image === "string" && image.trim() !== ""
+  );
 
-  /* ----------------------------------
-     Image Navigation
-  ---------------------------------- */
+  const safeSelectedImage = images.includes(selectedImage)
+    ? selectedImage
+    : images[0] || null;
 
-  const showPrevious = () => {
-    if (productImages.length <= 1) return;
+  const currentIndex = safeSelectedImage
+    ? images.indexOf(safeSelectedImage)
+    : 0;
 
-    const previousIndex =
-      currentIndex <= 0
-        ? productImages.length - 1
-        : currentIndex - 1;
+  const totalImages = images.length;
 
-    setSelectedImage(productImages[previousIndex]);
-  };
-
-  const showNext = () => {
-    if (productImages.length <= 1) return;
-
-    const nextIndex =
-      currentIndex >= productImages.length - 1
-        ? 0
-        : currentIndex + 1;
-
-    setSelectedImage(productImages[nextIndex]);
-  };
-
-  /* ----------------------------------
-     Touch Swipe
-  ---------------------------------- */
-
-  const handleTouchStart = (event) => {
-    touchStartX.current = event.touches[0].clientX;
-    touchStartY.current = event.touches[0].clientY;
-  };
-
-  const handleTouchEnd = (event) => {
-    if (productImages.length <= 1) return;
-
-    const touchEndX = event.changedTouches[0].clientX;
-    const touchEndY = event.changedTouches[0].clientY;
-
-    const differenceX = touchStartX.current - touchEndX;
-    const differenceY = touchStartY.current - touchEndY;
-
-    // Ignore vertical scrolling and small movements
-    if (
-      Math.abs(differenceX) < 50 ||
-      Math.abs(differenceX) < Math.abs(differenceY)
-    ) {
+  // Keep selected image valid when product images change.
+  useEffect(() => {
+    if (!images.length) {
+      if (selectedImage !== null) {
+        setSelectedImage(null);
+      }
       return;
     }
 
-    if (differenceX > 0) {
-      // Swipe left → Next image
-      showNext();
-    } else {
-      // Swipe right → Previous image
-      showPrevious();
+    if (!images.includes(selectedImage)) {
+      setSelectedImage(images[0]);
+    }
+  }, [images, selectedImage, setSelectedImage]);
+
+  // Reset zoom when image changes.
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [safeSelectedImage]);
+
+  const showNext = () => {
+    if (totalImages <= 1) return;
+
+    const nextIndex = (currentIndex + 1) % totalImages;
+    setSelectedImage(images[nextIndex]);
+  };
+
+  const showPrevious = () => {
+    if (totalImages <= 1) return;
+
+    const previousIndex =
+      (currentIndex - 1 + totalImages) % totalImages;
+
+    setSelectedImage(images[previousIndex]);
+  };
+
+  const handleTouchStart = (event) => {
+    touchStartX.current = event.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (event) => {
+    if (touchStartX.current === null) return;
+
+    const touchEndX = event.changedTouches[0].clientX;
+    const difference = touchStartX.current - touchEndX;
+
+    if (Math.abs(difference) > 50) {
+      difference > 0 ? showNext() : showPrevious();
+    }
+
+    touchStartX.current = null;
+  };
+
+  const handleWishlist = (event) => {
+    event.stopPropagation();
+
+    if (!wishlistIsMutating) {
+      onWishlist?.();
     }
   };
 
-  /* ----------------------------------
-     Thumbnail Selection
-  ---------------------------------- */
+  // Prevent background scrolling in fullscreen.
+  useEffect(() => {
+    if (!isFullscreen) return;
 
-  const handleThumbnailClick = (image) => {
-    setSelectedImage(image);
-  };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
 
-  return (
-    <>
-      <div className="flex flex-col gap-4 sm:flex-row sm:gap-3 lg:sticky lg:top-24 lg:self-start">
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsFullscreen(false);
+        setIsZoomed(false);
+      }
 
-        {/* ----------------------------------
-            Thumbnail Gallery
-        ---------------------------------- */}
+      if (event.key === "ArrowRight") {
+        showNext();
+      }
 
-        {productImages.length > 1 && (
-          <div className="order-2 flex gap-3 overflow-x-auto pb-2 sm:order-1 sm:w-[76px] sm:shrink-0 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:pb-0">
+      if (event.key === "ArrowLeft") {
+        showPrevious();
+      }
+    };
 
-            {productImages.map((image, index) => {
-              const isActive = selectedImage === image;
+    window.addEventListener("keydown", handleKeyDown);
 
-              return (
-                <button
-                  key={`${image}-${index}`}
-                  type="button"
-                  onClick={() => handleThumbnailClick(image)}
-                  aria-label={`View product image ${index + 1}`}
-                  aria-pressed={isActive}
-                  className={`relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-xl border bg-white p-2 transition-all duration-200 sm:h-[76px] sm:w-[76px] ${
-                    isActive
-                      ? "border-[#0755e9] ring-2 ring-blue-100"
-                      : "border-slate-200 hover:border-[#0755e9]"
-                  }`}
-                >
-                  <img
-                    src={image}
-                    alt={`${product.name || "Product"} view ${index + 1}`}
-                    className="h-full w-full object-contain"
-                  />
-                </button>
-              );
-            })}
-          </div>
-        )}
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen, currentIndex, totalImages]);
 
-        {/* ----------------------------------
-            Main Product Image
-        ---------------------------------- */}
-
-        <div className="relative order-1 min-w-0 flex-1">
-
-          <div
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
-            className="group relative flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-[#F8FAFC] touch-pan-y"
-          >
-            {selectedImage ? (
-              <img
-                src={selectedImage}
-                alt={product.name || "Product image"}
-                draggable={false}
-                className="h-full w-full select-none object-contain p-7 transition-transform duration-500 group-hover:scale-105 sm:p-10 lg:p-12"
-              />
-            ) : (
-              <Package
-                size={80}
-                strokeWidth={1.2}
-                className="text-slate-300"
-              />
-            )}
-
-            {/* Discount Badge */}
-            {discount > 0 && (
-              <span className="absolute left-4 top-4 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600">
-                {discount}% OFF
-              </span>
-            )}
-
-            {/* Previous Button */}
-            {productImages.length > 1 && (
-              <button
-                type="button"
-                onClick={showPrevious}
-                aria-label="Previous product image"
-                className="absolute left-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 opacity-100 shadow-sm transition hover:bg-white hover:text-[#0755e9] sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <ChevronLeft size={20} />
-              </button>
-            )}
-
-            {/* Next Button */}
-            {productImages.length > 1 && (
-              <button
-                type="button"
-                onClick={showNext}
-                aria-label="Next product image"
-                className="absolute right-3 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-700 opacity-100 shadow-sm transition hover:bg-white hover:text-[#0755e9] sm:opacity-0 sm:group-hover:opacity-100"
-              >
-                <ChevronRight size={20} />
-              </button>
-            )}
-
-            {/* Zoom Button */}
-            {selectedImage && (
-              <button
-                type="button"
-                onClick={() => setIsZoomOpen(true)}
-                aria-label="View fullscreen image"
-                className="absolute bottom-4 right-4 flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:border-[#0755e9] hover:text-[#0755e9]"
-              >
-                <Maximize2 size={19} />
-              </button>
-            )}
-          </div>
-
-          {/* Image Counter */}
-          {productImages.length > 1 && (
-            <div className="mt-3 text-center text-xs font-medium text-slate-400">
-              {currentIndex + 1} / {productImages.length}
-            </div>
-          )}
-
-          {productImages.length <= 1 && (
-            <p className="mt-3 text-center text-xs text-slate-400">
-              Product Image
-            </p>
-          )}
+  if (!totalImages) {
+    return (
+      <div className="flex aspect-square w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+        <div className="flex flex-col items-center gap-3 text-slate-400">
+          <Package size={48} strokeWidth={1.3} />
+          <p className="text-sm font-medium">
+            Product image unavailable
+          </p>
         </div>
       </div>
+    );
+  }
 
-      {/* ----------------------------------
-          Fullscreen Image Preview
-      ---------------------------------- */}
+  const renderWishlistButton = () => (
+    <button
+      type="button"
+      onClick={handleWishlist}
+      disabled={wishlistIsMutating}
+      aria-label={
+        isInWishlist
+          ? "Remove from wishlist"
+          : "Add to wishlist"
+      }
+      aria-pressed={isInWishlist}
+      className={`
+        absolute right-4 top-4 z-20
+        flex h-11 w-11 items-center justify-center
+        rounded-full border shadow-sm backdrop-blur-md
+        transition-all duration-200
+        disabled:cursor-not-allowed disabled:opacity-60
+        ${
+          isInWishlist
+            ? "border-red-200 bg-red-50 text-red-500"
+            : "border-slate-200 bg-white/90 text-slate-600 hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+        }
+      `}
+    >
+      {wishlistIsMutating ? (
+        <Loader2 size={19} className="animate-spin" />
+      ) : (
+        <Heart
+          size={20}
+          fill={isInWishlist ? "currentColor" : "none"}
+        />
+      )}
+    </button>
+  );
 
-      {isZoomOpen && selectedImage && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setIsZoomOpen(false)}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* Close Button */}
+  const renderImageNavigation = () => (
+    <>
+      {totalImages > 1 && (
+        <>
           <button
             type="button"
-            onClick={() => setIsZoomOpen(false)}
-            aria-label="Close image preview"
-            className="absolute right-5 top-5 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-slate-900 transition hover:bg-slate-200"
+            onClick={showPrevious}
+            aria-label="Previous image"
+            className="
+              absolute left-3 top-1/2 z-10
+              flex h-10 w-10 -translate-y-1/2
+              items-center justify-center rounded-full
+              border border-slate-200 bg-white/90
+              text-slate-700 shadow-sm backdrop-blur
+              transition hover:bg-white hover:text-[#0755e9]
+            "
           >
-            <X size={22} />
+            <ChevronLeft size={21} />
           </button>
 
-          {/* Previous Button */}
-          {productImages.length > 1 && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                showPrevious();
-              }}
-              aria-label="Previous image"
-              className="absolute left-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 hover:bg-white sm:left-8"
-            >
-              <ChevronLeft size={24} />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={showNext}
+            aria-label="Next image"
+            className="
+              absolute right-3 top-1/2 z-10
+              flex h-10 w-10 -translate-y-1/2
+              items-center justify-center rounded-full
+              border border-slate-200 bg-white/90
+              text-slate-700 shadow-sm backdrop-blur
+              transition hover:bg-white hover:text-[#0755e9]
+            "
+          >
+            <ChevronRight size={21} />
+          </button>
+        </>
+      )}
+    </>
+  );
+
+  return (
+    <section className="w-full">
+      {/* Main Gallery */}
+      <div
+        className="
+          relative aspect-square w-full overflow-hidden
+          rounded-2xl border border-slate-200
+          bg-white shadow-sm
+        "
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Main Image */}
+        <button
+          type="button"
+          onClick={() => setIsZoomed(!isZoomed)}
+          className="flex h-full w-full items-center justify-center overflow-hidden p-5 sm:p-8"
+          aria-label="Zoom product image"
+        >
+          <img
+            src={safeSelectedImage}
+            alt="Product image"
+            draggable="false"
+            className={`
+              h-full w-full select-none object-contain
+              transition-transform duration-300
+              ${isZoomed ? "scale-125" : "scale-100"}
+            `}
+          />
+        </button>
+
+        {/* Wishlist */}
+        {renderWishlistButton()}
+
+        {/* Discount Badge */}
+        {Number(discountPercentage) > 0 && (
+          <span className="
+            absolute left-4 top-4 z-10
+            rounded-full bg-red-500 px-3 py-1.5
+            text-xs font-bold text-white shadow-sm
+          ">
+            {discountPercentage}% OFF
+          </span>
+        )}
+
+        {/* Image Navigation */}
+        {renderImageNavigation()}
+
+        {/* Fullscreen Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setIsFullscreen(true);
+            setIsZoomed(false);
+          }}
+          aria-label="Open fullscreen image"
+          className="
+            absolute bottom-4 right-4 z-10
+            flex h-10 w-10 items-center justify-center
+            rounded-full border border-slate-200
+            bg-white/90 text-slate-600 shadow-sm
+            backdrop-blur transition
+            hover:bg-blue-50 hover:text-[#0755e9]
+          "
+        >
+          <Maximize2 size={18} />
+        </button>
+
+        {/* Image Counter */}
+        {totalImages > 1 && (
+          <span className="
+            absolute bottom-4 left-4 z-10
+            rounded-full bg-slate-900/70
+            px-3 py-1.5 text-xs font-medium
+            text-white backdrop-blur
+          ">
+            {currentIndex + 1} / {totalImages}
+          </span>
+        )}
+      </div>
+
+      {/* Thumbnail Gallery */}
+      {totalImages > 1 && (
+        <div className="
+          mt-4 flex gap-3 overflow-x-auto pb-2
+          scrollbar-thin scrollbar-thumb-slate-300
+        ">
+          {images.map((image, index) => {
+            const isActive = safeSelectedImage === image;
+
+            return (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                onClick={() => setSelectedImage(image)}
+                aria-label={`View product image ${index + 1}`}
+                aria-pressed={isActive}
+                className={`
+                  relative h-20 w-20 shrink-0
+                  overflow-hidden rounded-xl border-2
+                  bg-white p-1 transition-all
+                  ${
+                    isActive
+                      ? "border-[#0755e9] shadow-sm"
+                      : "border-slate-200 hover:border-slate-400"
+                  }
+                `}
+              >
+                <img
+                  src={image}
+                  alt={`Product thumbnail ${index + 1}`}
+                  loading="lazy"
+                  draggable="false"
+                  className="h-full w-full object-contain"
+                />
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Fullscreen Preview */}
+      {isFullscreen && (
+        <div
+          className="
+            fixed inset-0 z-[100]
+            flex items-center justify-center
+            bg-black/95 p-4
+          "
+          onClick={() => {
+            setIsFullscreen(false);
+            setIsZoomed(false);
+          }}
+        >
+          {/* Close */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsFullscreen(false);
+              setIsZoomed(false);
+            }}
+            aria-label="Close fullscreen"
+            className="
+              absolute right-5 top-5 z-30
+              flex h-11 w-11 items-center justify-center
+              rounded-full bg-white/10 text-white
+              transition hover:bg-white/20
+            "
+          >
+            <X size={23} />
+          </button>
+
+          {/* Fullscreen Counter */}
+          <span className="
+            absolute left-1/2 top-6 z-20
+            -translate-x-1/2 rounded-full
+            bg-white/10 px-4 py-2
+            text-sm font-medium text-white
+          ">
+            {currentIndex + 1} / {totalImages}
+          </span>
 
           {/* Fullscreen Image */}
-          <img
-            src={selectedImage}
-            alt={product.name || "Product preview"}
-            draggable={false}
+          <div
+            className="flex h-full w-full items-center justify-center overflow-hidden"
             onClick={(event) => event.stopPropagation()}
-            className="max-h-[85vh] max-w-[90vw] select-none object-contain"
-          />
+          >
+            <img
+              src={safeSelectedImage}
+              alt="Product fullscreen"
+              draggable="false"
+              onClick={() => setIsZoomed(!isZoomed)}
+              className={`
+                max-h-full max-w-full select-none
+                object-contain transition-transform duration-300
+                ${isZoomed ? "scale-150 cursor-zoom-out" : "scale-100 cursor-zoom-in"}
+              `}
+            />
+          </div>
 
-          {/* Next Button */}
-          {productImages.length > 1 && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                showNext();
-              }}
-              aria-label="Next image"
-              className="absolute right-3 top-1/2 z-20 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-slate-900 hover:bg-white sm:right-8"
-            >
-              <ChevronRight size={24} />
-            </button>
-          )}
+          {/* Fullscreen Navigation */}
+          {totalImages > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showPrevious();
+                }}
+                aria-label="Previous image"
+                className="
+                  absolute left-3 top-1/2 z-20
+                  flex h-11 w-11 -translate-y-1/2
+                  items-center justify-center rounded-full
+                  bg-white/10 text-white
+                  transition hover:bg-white/20
+                "
+              >
+                <ChevronLeft size={25} />
+              </button>
 
-          {/* Image Counter */}
-          {productImages.length > 1 && (
-            <span className="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white">
-              {currentIndex + 1} / {productImages.length}
-            </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  showNext();
+                }}
+                aria-label="Next image"
+                className="
+                  absolute right-3 top-1/2 z-20
+                  flex h-11 w-11 -translate-y-1/2
+                  items-center justify-center rounded-full
+                  bg-white/10 text-white
+                  transition hover:bg-white/20
+                "
+              >
+                <ChevronRight size={25} />
+              </button>
+            </>
           )}
         </div>
       )}
-    </>
+    </section>
   );
 }

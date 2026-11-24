@@ -25,7 +25,9 @@ export default function ProductQuantitySelector({
       return;
     }
 
-    setQuantity((current) => Math.max(1, Number(current) - 1));
+    setQuantity((current) =>
+      Math.max(1, (Number(current) || 1) - 1)
+    );
   };
 
   const handleIncrease = () => {
@@ -40,13 +42,15 @@ export default function ProductQuantitySelector({
     }
 
     setQuantity((current) =>
-      Math.min(availableStock, Number(current) + 1)
+      Math.min(
+        availableStock,
+        (Number(current) || 1) + 1
+      )
     );
   };
 
   return (
-    <section className="mt-7">
-      {/* Header */}
+    <section className="mt-7" aria-label="Product quantity">
       <div className="mb-3 flex items-center justify-between gap-3">
         <label className="text-sm font-semibold text-[#101828]">
           Quantity
@@ -60,14 +64,12 @@ export default function ProductQuantitySelector({
         )}
       </div>
 
-      {/* Quantity control */}
       <div className="flex flex-wrap items-center gap-4">
         <div
           className={`inline-flex h-12 items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition ${
-            !canPurchase ? "pointer-events-none opacity-50" : ""
+            !canPurchase ? "opacity-50" : ""
           }`}
         >
-          {/* Decrease */}
           <button
             type="button"
             onClick={handleDecrease}
@@ -78,7 +80,6 @@ export default function ProductQuantitySelector({
             <Minus size={17} />
           </button>
 
-          {/* Quantity value */}
           <span
             aria-live="polite"
             aria-atomic="true"
@@ -87,7 +88,6 @@ export default function ProductQuantitySelector({
             {currentQuantity}
           </span>
 
-          {/* Increase */}
           <button
             type="button"
             onClick={handleIncrease}
@@ -106,7 +106,6 @@ export default function ProductQuantitySelector({
         )}
       </div>
 
-      {/* Stock information */}
       {canPurchase && availableStock <= 5 && (
         <p className="mt-2 text-xs font-medium text-orange-600">
           Only {availableStock} left in stock

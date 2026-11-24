@@ -37,6 +37,14 @@ export default function BottomNavigation() {
 
   const { isAuthenticated, isInitialized } = useAuth();
 
+  // Hide bottom navigation on product detail pages.
+  const isProductDetailPage =
+    /^\/products\/[^/]+\/?$/.test(pathname);
+
+  if (isProductDetailPage) {
+    return null;
+  }
+
   const handleNavigation = (event, item) => {
     if (!item.protected) return;
 

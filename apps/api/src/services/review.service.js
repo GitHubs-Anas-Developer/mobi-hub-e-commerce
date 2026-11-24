@@ -4,12 +4,58 @@ import Order from "../models/order.model.js";
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
 
+/**
+ * Recalculate and synchronize product rating.
+ * Only visible reviews are included.
+ */
+const syncProductRating = async (productId) => {
+  const stats = await Review.aggregate([
+    {
+      $match: {
+        product: new mongoose.Types.ObjectId(productId),
+        isVisible: true,
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        average: { $avg: "$rating" },
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const average = stats[0]?.average ?? 0;
+  const count = stats[0]?.count ?? 0;
+
+  await Product.updateOne(
+    { _id: productId },
+    {
+      $set: {
+        "ratings.average": Number(average.toFixed(1)),
+        "ratings.count": count,
+      },
+    },
+  );
+
+  return {
+    average: Number(average.toFixed(1)),
+    count,
+  };
+};
+
+/**
+ * Create application error.
+ */
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
   error.statusCode = statusCode;
   return error;
 };
 
+/**
+ * Pagination helper.
+ */
 const getPagination = (query = {}) => {
   const page = Math.max(1, Number(query.page) || 1);
   const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
@@ -21,7 +67,10 @@ const getPagination = (query = {}) => {
   };
 };
 
-// Create Review
+// ============================================
+// CREATE REVIEW
+// ============================================
+
 export const createReview = async (userId, data) => {
   const { productId, rating, title, comment } = data;
 
@@ -46,8 +95,10 @@ export const createReview = async (userId, data) => {
     "items.product": productId,
   });
 
+  let review;
+
   try {
-    const review = await Review.create({
+    review = await Review.create({
       product: productId,
       user: userId,
       rating,
@@ -55,25 +106,31 @@ export const createReview = async (userId, data) => {
       comment,
       isVerifiedPurchase: Boolean(hasPurchased),
     });
-
-    return review;
   } catch (error) {
-    // Handle duplicate review caused by concurrent requests
+    // Handle duplicate review caused by concurrent requests.
     if (error.code === 11000) {
       throw createError("You have already reviewed this product", 409);
     }
 
     throw error;
   }
+
+  // Synchronize Product model rating.
+  await syncProductRating(productId);
+
+  return review;
 };
 
-// Get Product Reviews + Rating Statistics
+// ============================================
+// GET PRODUCT REVIEWS + RATING STATISTICS
+// ============================================
 
 export const getProductReviews = async (productId, query = {}) => {
   const { page, limit, skip } = getPagination(query);
 
   const { sort = "newest", rating } = query;
 
+  // Review list filter.
   const filter = {
     product: productId,
     isVisible: true,
@@ -81,7 +138,7 @@ export const getProductReviews = async (productId, query = {}) => {
 
   // Apply rating filter only to the review list.
   if (rating) {
-    filter.rating = rating;
+    filter.rating = Number(rating);
   }
 
   // Aggregation does not automatically cast string IDs.
@@ -165,11 +222,16 @@ export const getProductReviews = async (productId, query = {}) => {
   };
 };
 
-// Get My Reviews
+// ============================================
+// GET MY REVIEWS
+// ============================================
+
 export const getMyReviews = async (userId, query = {}) => {
   const { page, limit, skip } = getPagination(query);
 
-  const filter = { user: userId };
+  const filter = {
+    user: userId,
+  };
 
   const [reviews, total] = await Promise.all([
     Review.find(filter)
@@ -194,7 +256,10 @@ export const getMyReviews = async (userId, query = {}) => {
   };
 };
 
-// Update Review
+// ============================================
+// UPDATE REVIEW
+// ============================================
+
 export const updateReview = async (reviewId, userId, data) => {
   const review = await Review.findOne({
     _id: reviewId,
@@ -223,10 +288,16 @@ export const updateReview = async (reviewId, userId, data) => {
 
   await review.save();
 
+  // Recalculate rating after update.
+  await syncProductRating(review.product);
+
   return review;
 };
 
-// Delete Review
+// ============================================
+// DELETE REVIEW
+// ============================================
+
 export const deleteReview = async (reviewId, userId) => {
   const review = await Review.findOne({
     _id: reviewId,
@@ -237,14 +308,23 @@ export const deleteReview = async (reviewId, userId) => {
     throw createError("Review not found", 404);
   }
 
+  // Store product ID before deleting review.
+  const productId = review.product;
+
   await review.deleteOne();
+
+  // Recalculate rating after deletion.
+  await syncProductRating(productId);
 
   return {
     message: "Review deleted successfully",
   };
 };
 
-// Get All Reviews (Admin)
+// ============================================
+// GET ALL REVIEWS (ADMIN)
+// ============================================
+
 export const getAllReviews = async (query = {}) => {
   const { page, limit, skip } = getPagination(query);
 
@@ -259,10 +339,11 @@ export const getAllReviews = async (query = {}) => {
   }
 
   if (query.rating) {
-    filter.rating = query.rating;
+    filter.rating = Number(query.rating);
   }
 
   if (query.search?.trim()) {
+    // Escape special regex characters.
     const search = query.search.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
     const [matchingUsers, matchingProducts] = await Promise.all([
@@ -309,6 +390,7 @@ export const getAllReviews = async (query = {}) => {
 
   return {
     reviews,
+
     pagination: {
       total,
       page,
@@ -318,7 +400,10 @@ export const getAllReviews = async (query = {}) => {
   };
 };
 
-// Update Review Visibility (Admin)
+// ============================================
+// UPDATE REVIEW VISIBILITY (ADMIN)
+// ============================================
+
 export const toggleReviewVisibility = async (reviewId, isVisible) => {
   const review = await Review.findById(reviewId);
 
@@ -329,6 +414,9 @@ export const toggleReviewVisibility = async (reviewId, isVisible) => {
   review.isVisible = isVisible;
 
   await review.save();
+
+  // Recalculate rating when review visibility changes.
+  await syncProductRating(review.product);
 
   return review;
 };
