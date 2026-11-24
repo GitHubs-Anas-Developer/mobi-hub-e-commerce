@@ -136,78 +136,96 @@ export default function RegisterPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <div className="grid min-h-screen lg:grid-cols-2">
+    <main className="min-h-dvh bg-slate-50">
+      <div className="grid min-h-dvh lg:grid-cols-2">
 
         {/* LEFT BRAND SECTION */}
         <motion.section
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -15 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-          className="relative hidden overflow-hidden bg-[#082b70] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20"
+          transition={{ duration: 0.4 }}
+          className="
+            relative hidden overflow-hidden
+            bg-[#082b70] px-8 py-8 text-white
+            lg:flex lg:flex-col lg:justify-between
+            xl:px-12
+          "
         >
-          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
 
-          <Link href="/" className="relative z-10 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-700">
-              <Smartphone size={27} />
+          <Link
+            href="/"
+            className="relative z-10 flex items-center gap-2.5"
+          >
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
+              <Smartphone size={23} />
             </span>
-            <span className="text-2xl font-extrabold tracking-tight">
+
+            <span className="text-xl font-bold tracking-tight">
               Mobi <span className="text-blue-300">Hub</span>
             </span>
           </Link>
 
-          <div className="relative z-10 max-w-lg">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-blue-100">
-              <ShoppingBag size={16} />
+          <div className="relative z-10 max-w-md">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
+              <ShoppingBag size={14} />
               Join the Mobi Hub community
             </span>
 
-            <h1 className="text-4xl font-bold leading-tight xl:text-5xl">
+            <h1 className="text-3xl font-bold leading-tight xl:text-4xl">
               Your tech journey starts here.
-              <span className="mt-2 block text-blue-300">
+              <span className="mt-1 block text-blue-300">
                 Create your account.
               </span>
             </h1>
 
-            <p className="mt-6 max-w-md text-base leading-7 text-blue-100/80">
+            <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
               Explore quality mobile accessories, discover your favourite
               brands and enjoy a simple shopping experience.
             </p>
 
-            <div className="mt-10 space-y-5">
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <Truck size={21} />
+            <div className="mt-7 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                  <Truck size={19} />
                 </span>
+
                 <div>
-                  <p className="font-semibold">Reliable Delivery</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">
+                    Reliable Delivery
+                  </p>
+                  <p className="text-xs text-blue-100/70">
                     Track your orders with ease.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <ShieldCheck size={21} />
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                  <ShieldCheck size={19} />
                 </span>
+
                 <div>
-                  <p className="font-semibold">Secure Shopping</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">
+                    Secure Shopping
+                  </p>
+                  <p className="text-xs text-blue-100/70">
                     Your account security matters.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <Headphones size={21} />
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
+                  <Headphones size={19} />
                 </span>
+
                 <div>
-                  <p className="font-semibold">Customer Support</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">
+                    Customer Support
+                  </p>
+                  <p className="text-xs text-blue-100/70">
                     Help when you need it.
                   </p>
                 </div>
@@ -215,29 +233,33 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          <p className="relative z-10 text-xs text-blue-100/60">
+          <p className="relative z-10 text-[11px] text-blue-100/60">
             © {currentYear} Mobi Hub. All rights reserved.
           </p>
         </motion.section>
 
         {/* RIGHT REGISTER SECTION */}
         <motion.section
-          initial={{ opacity: 0, y: 14 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-          className="flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12"
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="
+            flex min-h-dvh items-center justify-center
+            px-4 py-6 sm:px-6 sm:py-8
+          "
         >
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-[400px]">
 
             {/* MOBILE BRAND */}
             <Link
               href="/"
-              className="mb-8 flex items-center justify-center gap-2 lg:hidden"
+              className="mb-6 flex items-center justify-center gap-2 lg:hidden"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Smartphone size={22} />
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <Smartphone size={20} />
               </span>
-              <span className="text-xl font-extrabold text-slate-900">
+
+              <span className="text-lg font-bold text-slate-900">
                 Mobi <span className="text-blue-600">Hub</span>
               </span>
             </Link>
@@ -246,43 +268,46 @@ export default function RegisterPage() {
               /* REGISTRATION SUCCESS */
               <motion.div
                 key="registration-success"
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
-                className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
+                className="
+                  rounded-xl border border-slate-200
+                  bg-white p-5 shadow-sm sm:p-6
+                "
               >
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                  <Mail size={30} />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                  <Mail size={23} />
                 </div>
 
-                <div className="mt-6 text-center">
-                  <p className="text-sm font-semibold text-blue-600">
+                <div className="mt-4 text-center">
+                  <p className="text-xs font-bold text-blue-600">
                     ONE MORE STEP
                   </p>
 
-                  <h2 className="mt-2 text-2xl font-bold text-slate-900">
+                  <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">
                     Check your inbox
                   </h2>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
+                  <p className="mt-2 text-sm leading-5 text-slate-500">
                     We have sent a verification link to:
                   </p>
 
-                  <p className="mt-2 break-all text-sm font-bold text-blue-600">
+                  <p className="mt-1.5 break-all text-sm font-bold text-blue-600">
                     {formData.email.trim()}
                   </p>
 
-                  <p className="mt-4 text-sm leading-6 text-slate-500">
-                    Open the email and click the verification link to activate
-                    your Mobi Hub account. You cannot log in until your email
-                    is verified.
+                  <p className="mt-3 text-xs leading-5 text-slate-500">
+                    Open the email and click the verification link to
+                    activate your Mobi Hub account. You cannot log in
+                    until your email is verified.
                   </p>
                 </div>
 
                 {formError && (
                   <div
                     role="alert"
-                    className="mt-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                    className="mt-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700"
                   >
                     {formError}
                   </div>
@@ -291,9 +316,9 @@ export default function RegisterPage() {
                 {resendMessage && (
                   <div
                     role="status"
-                    className="mt-5 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+                    className="mt-4 flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 p-2.5 text-xs leading-5 text-green-700"
                   >
-                    <CheckCircle2 size={18} className="shrink-0" />
+                    <CheckCircle2 size={16} className="shrink-0" />
                     {resendMessage}
                   </div>
                 )}
@@ -302,16 +327,23 @@ export default function RegisterPage() {
                   type="button"
                   onClick={handleResendVerification}
                   disabled={resendingEmail}
-                  className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="
+                    mt-4 flex h-10 w-full items-center
+                    justify-center gap-2 rounded-lg
+                    border border-blue-200 bg-blue-50
+                    text-xs font-semibold text-blue-700
+                    transition hover:bg-blue-100
+                    disabled:cursor-not-allowed disabled:opacity-60
+                  "
                 >
                   {resendingEmail ? (
                     <>
-                      <Loader2 size={18} className="animate-spin" />
+                      <Loader2 size={15} className="animate-spin" />
                       Sending...
                     </>
                   ) : (
                     <>
-                      <Mail size={18} />
+                      <Mail size={15} />
                       Resend Verification Email
                     </>
                   )}
@@ -319,58 +351,65 @@ export default function RegisterPage() {
 
                 <Link
                   href="/login"
-                  className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white transition hover:bg-blue-700"
+                  className="
+                    mt-2.5 flex h-10 w-full items-center
+                    justify-center gap-2 rounded-lg
+                    bg-blue-600 text-xs font-semibold
+                    text-white transition hover:bg-blue-700
+                  "
                 >
                   Continue to Login
-                  <ArrowRight size={18} />
+                  <ArrowRight size={16} />
                 </Link>
               </motion.div>
             ) : (
               <motion.div
                 key="registration-form"
-                initial={{ opacity: 0, y: 12 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <div className="mb-7">
-                  <p className="mb-3 text-sm font-semibold text-blue-600">
+                {/* HEADING */}
+                <div className="mb-5">
+                  <p className="mb-1.5 text-xs font-bold tracking-wide text-blue-600">
                     CREATE ACCOUNT
                   </p>
 
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[27px]">
                     Join Mobi Hub
                   </h2>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
+                  <p className="mt-1.5 text-sm leading-5 text-slate-500">
                     Create your account and start exploring our mobile
                     accessories.
                   </p>
                 </div>
 
+                {/* ERROR */}
                 {formError && (
                   <div
                     role="alert"
-                    className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                    className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-xs leading-5 text-red-700"
                   >
                     {formError}
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-3.5">
 
                   {/* NAME */}
                   <div>
                     <label
                       htmlFor="name"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
+                      className="mb-1.5 block text-xs font-semibold text-slate-700"
                     >
                       Full Name
                     </label>
 
                     <div className="relative">
                       <User
-                        size={19}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={17}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
                       <input
@@ -382,7 +421,15 @@ export default function RegisterPage() {
                         placeholder="Enter your full name"
                         autoComplete="name"
                         required
-                        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="
+                          h-11 w-full rounded-lg
+                          border border-slate-200 bg-white
+                          pl-10 pr-3 text-sm text-slate-900
+                          outline-none transition
+                          placeholder:text-slate-400
+                          focus:border-blue-500
+                          focus:ring-2 focus:ring-blue-500/10
+                        "
                       />
                     </div>
                   </div>
@@ -391,15 +438,15 @@ export default function RegisterPage() {
                   <div>
                     <label
                       htmlFor="email"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
+                      className="mb-1.5 block text-xs font-semibold text-slate-700"
                     >
                       Email Address
                     </label>
 
                     <div className="relative">
                       <Mail
-                        size={19}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={17}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
                       <input
@@ -411,7 +458,15 @@ export default function RegisterPage() {
                         placeholder="you@example.com"
                         autoComplete="email"
                         required
-                        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="
+                          h-11 w-full rounded-lg
+                          border border-slate-200 bg-white
+                          pl-10 pr-3 text-sm text-slate-900
+                          outline-none transition
+                          placeholder:text-slate-400
+                          focus:border-blue-500
+                          focus:ring-2 focus:ring-blue-500/10
+                        "
                       />
                     </div>
                   </div>
@@ -420,15 +475,15 @@ export default function RegisterPage() {
                   <div>
                     <label
                       htmlFor="password"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
+                      className="mb-1.5 block text-xs font-semibold text-slate-700"
                     >
                       Password
                     </label>
 
                     <div className="relative">
                       <LockKeyhole
-                        size={19}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={17}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
                       <input
@@ -441,19 +496,33 @@ export default function RegisterPage() {
                         autoComplete="new-password"
                         minLength={6}
                         required
-                        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="
+                          h-11 w-full rounded-lg
+                          border border-slate-200 bg-white
+                          pl-10 pr-11 text-sm text-slate-900
+                          outline-none transition
+                          placeholder:text-slate-400
+                          focus:border-blue-500
+                          focus:ring-2 focus:ring-blue-500/10
+                        "
                       />
 
                       <button
                         type="button"
                         onClick={() => setShowPassword((prev) => !prev)}
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                        className="
+                          absolute right-3.5 top-1/2
+                          -translate-y-1/2 text-slate-400
+                          transition hover:text-blue-600
+                        "
                       >
                         {showPassword ? (
-                          <EyeOff size={19} />
+                          <EyeOff size={17} />
                         ) : (
-                          <Eye size={19} />
+                          <Eye size={17} />
                         )}
                       </button>
                     </div>
@@ -463,15 +532,15 @@ export default function RegisterPage() {
                   <div>
                     <label
                       htmlFor="confirmPassword"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
+                      className="mb-1.5 block text-xs font-semibold text-slate-700"
                     >
                       Confirm Password
                     </label>
 
                     <div className="relative">
                       <LockKeyhole
-                        size={19}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={17}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
                       <input
@@ -483,7 +552,15 @@ export default function RegisterPage() {
                         placeholder="Re-enter your password"
                         autoComplete="new-password"
                         required
-                        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="
+                          h-11 w-full rounded-lg
+                          border border-slate-200 bg-white
+                          pl-10 pr-11 text-sm text-slate-900
+                          outline-none transition
+                          placeholder:text-slate-400
+                          focus:border-blue-500
+                          focus:ring-2 focus:ring-blue-500/10
+                        "
                       />
 
                       <button
@@ -496,12 +573,16 @@ export default function RegisterPage() {
                             ? "Hide confirm password"
                             : "Show confirm password"
                         }
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600"
+                        className="
+                          absolute right-3.5 top-1/2
+                          -translate-y-1/2 text-slate-400
+                          transition hover:text-blue-600
+                        "
                       >
                         {showConfirmPassword ? (
-                          <EyeOff size={19} />
+                          <EyeOff size={17} />
                         ) : (
-                          <Eye size={19} />
+                          <Eye size={17} />
                         )}
                       </button>
                     </div>
@@ -511,24 +592,33 @@ export default function RegisterPage() {
                   <button
                     type="submit"
                     disabled={Boolean(isLoading)}
-                    className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="
+                      mt-1 flex h-11 w-full items-center
+                      justify-center gap-2 rounded-lg
+                      bg-blue-600 text-sm font-semibold
+                      text-white shadow-sm shadow-blue-600/20
+                      transition hover:bg-blue-700
+                      active:scale-[0.99]
+                      disabled:cursor-not-allowed disabled:opacity-60
+                    "
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 size={19} className="animate-spin" />
+                        <Loader2 size={17} className="animate-spin" />
                         Creating Account...
                       </>
                     ) : (
                       <>
                         Create Account
-                        <ArrowRight size={18} />
+                        <ArrowRight size={17} />
                       </>
                     )}
                   </button>
                 </form>
 
-                <div className="mt-7 text-center">
-                  <p className="text-sm text-slate-500">
+                {/* LOGIN LINK */}
+                <div className="mt-5 text-center">
+                  <p className="text-xs text-slate-500">
                     Already have an account?{" "}
                     <Link
                       href="/login"
@@ -539,26 +629,40 @@ export default function RegisterPage() {
                   </p>
                 </div>
 
-                <div className="mt-8 border-t border-slate-200 pt-6">
-                  <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                    <ShieldCheck size={16} className="text-green-600" />
+                {/* SECURITY FOOTER */}
+                <div className="mt-6 border-t border-slate-200 pt-4">
+                  <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+                    <ShieldCheck
+                      size={14}
+                      className="text-green-600"
+                    />
                     Secure account authentication
                   </div>
 
-                  <p className="mt-4 text-center text-xs leading-5 text-slate-400">
+                  <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
                     By creating an account, you agree to Mobi Hub's{" "}
-                    <Link href="/terms" className="text-blue-600 hover:underline">
+                    <Link
+                      href="/terms"
+                      className="text-blue-600 hover:underline"
+                    >
                       Terms
                     </Link>{" "}
                     and{" "}
-                    <Link href="/privacy" className="text-blue-600 hover:underline">
+                    <Link
+                      href="/privacy"
+                      className="text-blue-600 hover:underline"
+                    >
                       Privacy Policy
                     </Link>.
                   </p>
 
                   <Link
                     href="/"
-                    className="mt-6 block text-center text-sm font-medium text-slate-500 transition hover:text-blue-600"
+                    className="
+                      mt-3 block text-center text-xs
+                      font-medium text-slate-500
+                      transition hover:text-blue-600
+                    "
                   >
                     ← Back to shopping
                   </Link>

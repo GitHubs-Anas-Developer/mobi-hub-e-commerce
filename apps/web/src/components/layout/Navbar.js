@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -15,37 +16,29 @@ import SearchBar from "@/components/search/SearchBar";
 import HeaderActions from "./navbar/HeaderActions";
 import MobileMenu from "./navbar/MobileMenu";
 
-import LoginModal from "../../app/login/LoginModal";
-import RegisterModal from "../../app/register/RegisterModal";
-
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
 
   const { user, isAuthenticated, isInitialized, dispatch } = useAuth();
-
   const reduxDispatch = useDispatch();
 
-  // REDUX STATE
-  const cartItems = useSelector((state) => state.cart?.items ?? []);
+  const cartItems = useSelector(
+    (state) => state.cart?.items ?? []
+  );
 
   const wishlistProducts = useSelector(
-    (state) => state.wishlist?.products ?? [],
+    (state) => state.wishlist?.products ?? []
   );
 
   const unreadCount = useSelector(
-    (state) => state.notifications?.unreadCount ?? 0,
+    (state) => state.notifications?.unreadCount ?? 0
   );
 
-  // LOCAL STATE
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
-  // null | "login" | "register"
-  const [authModal, setAuthModal] = useState(null);
-
-  // MOBILE SEARCH HANDLERS
   const openMobileSearch = useCallback(() => {
     setMobileMenuOpen(false);
     setMobileSearchOpen(true);
@@ -55,42 +48,33 @@ export default function Navbar() {
     setMobileSearchOpen(false);
   }, []);
 
-  // AUTH MODAL HANDLERS
+  // FULL-PAGE AUTH NAVIGATION
   const openLogin = useCallback(() => {
     setMobileMenuOpen(false);
     closeMobileSearch();
-    setAuthModal("login");
-  }, [closeMobileSearch]);
+    router.push("/login");
+  }, [router, closeMobileSearch]);
 
   const openRegister = useCallback(() => {
     setMobileMenuOpen(false);
     closeMobileSearch();
-    setAuthModal("register");
-  }, [closeMobileSearch]);
+    router.push("/register");
+  }, [router, closeMobileSearch]);
 
-  const closeAuthModal = useCallback(() => {
-    setAuthModal(null);
-  }, []);
-
-  const switchToLogin = useCallback(() => {
-    setAuthModal("login");
-  }, []);
-
-  const switchToRegister = useCallback(() => {
-    setAuthModal("register");
-  }, []);
-
-  // HYDRATION FIX
+  // HYDRATION
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const authenticated = Boolean(mounted && isInitialized && isAuthenticated);
+  const authenticated = Boolean(
+    mounted && isInitialized && isAuthenticated
+  );
 
   // COUNTS
   const cartCount = cartItems.reduce(
-    (total, item) => total + (Number(item.quantity) || 0),
-    0,
+    (total, item) =>
+      total + (Number(item.quantity) || 0),
+    0
   );
 
   const wishlistCount = wishlistProducts.length;
@@ -102,26 +86,12 @@ export default function Navbar() {
     }
 
     reduxDispatch(fetchUnreadCount());
-  }, [mounted, isInitialized, isAuthenticated, reduxDispatch]);
-
-  // BOTTOM NAVIGATION AUTH EVENT
-  useEffect(() => {
-    const handleOpenAuthModal = (event) => {
-      if (event.detail?.modal === "login") {
-        openLogin();
-      }
-
-      if (event.detail?.modal === "register") {
-        openRegister();
-      }
-    };
-
-    window.addEventListener("open-auth-modal", handleOpenAuthModal);
-
-    return () => {
-      window.removeEventListener("open-auth-modal", handleOpenAuthModal);
-    };
-  }, [openLogin, openRegister]);
+  }, [
+    mounted,
+    isInitialized,
+    isAuthenticated,
+    reduxDispatch,
+  ]);
 
   // CLOSE MENUS ON ROUTE CHANGE
   useEffect(() => {
@@ -150,17 +120,13 @@ export default function Navbar() {
       setMobileMenuOpen(false);
       closeMobileSearch();
 
-      setAuthModal("login");
-
-      if (pathname !== "/") {
-        router.replace("/");
-      }
+      router.replace("/");
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
 
-  // FRAMER MOTION VARIANTS
+  // FRAMER MOTION
   const overlayVariants = {
     hidden: {
       opacity: 0,
@@ -206,24 +172,33 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
         <div className="mx-auto w-full px-3 sm:px-5 lg:px-8">
           <div className="flex h-[60px] items-center justify-between gap-2 sm:h-[68px] sm:gap-3 lg:gap-5">
+
             {/* LEFT: MOBILE MENU + LOGO */}
             <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
               <button
                 type="button"
-                onClick={() => setMobileMenuOpen((prev) => !prev)}
-                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+                onClick={() =>
+                  setMobileMenuOpen((prev) => !prev)
+                }
+                aria-label={
+                  mobileMenuOpen ? "Close menu" : "Open menu"
+                }
                 aria-expanded={mobileMenuOpen}
                 className="
-                  flex h-9 w-9 shrink-0 items-center justify-center
-                  rounded-lg border border-slate-200
-                  text-slate-700
-                  transition-all duration-200
-                  hover:bg-blue-50 hover:text-blue-600
-                  active:scale-95
+                  flex h-9 w-9 shrink-0 items-center
+                  justify-center rounded-lg
+                  border border-slate-200
+                  text-slate-700 transition-all
+                  duration-200 hover:bg-blue-50
+                  hover:text-blue-600 active:scale-95
                   xl:hidden
                 "
               >
-                {mobileMenuOpen ? <X size={19} /> : <Menu size={19} />}
+                {mobileMenuOpen ? (
+                  <X size={19} />
+                ) : (
+                  <Menu size={19} />
+                )}
               </button>
 
               <Logo />
@@ -236,18 +211,17 @@ export default function Navbar() {
 
             {/* HEADER ACTIONS */}
             <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-              {/* MOBILE SEARCH BUTTON */}
               <button
                 type="button"
                 onClick={openMobileSearch}
                 aria-label="Open search"
                 aria-expanded={mobileSearchOpen}
                 className="
-                  flex h-9 w-9 items-center justify-center
-                  rounded-lg text-slate-700
-                  transition-all duration-200
-                  hover:bg-blue-50 hover:text-blue-600
-                  active:scale-95
+                  flex h-9 w-9 items-center
+                  justify-center rounded-lg
+                  text-slate-700 transition-all
+                  duration-200 hover:bg-blue-50
+                  hover:text-blue-600 active:scale-95
                   xl:hidden
                 "
               >
@@ -296,8 +270,7 @@ export default function Navbar() {
             exit="exit"
             className="
               fixed inset-0 z-[100]
-              flex flex-col bg-white
-              xl:hidden
+              flex flex-col bg-white xl:hidden
             "
             role="dialog"
             aria-modal="true"
@@ -307,8 +280,8 @@ export default function Navbar() {
             <motion.div
               variants={childVariants}
               className="
-                flex h-[60px] shrink-0 items-center gap-3
-                border-b border-slate-100 px-3
+                flex h-[60px] shrink-0 items-center
+                gap-3 border-b border-slate-100 px-3
               "
             >
               <button
@@ -316,10 +289,10 @@ export default function Navbar() {
                 onClick={closeMobileSearch}
                 aria-label="Close search"
                 className="
-                  flex h-9 w-9 shrink-0 items-center justify-center
-                  rounded-full text-slate-700
-                  transition-all duration-200
-                  hover:bg-slate-100
+                  flex h-9 w-9 shrink-0 items-center
+                  justify-center rounded-full
+                  text-slate-700 transition-all
+                  duration-200 hover:bg-slate-100
                   active:scale-95
                 "
               >
@@ -341,22 +314,24 @@ export default function Navbar() {
                 onClick={closeMobileSearch}
                 aria-label="Close search"
                 className="
-                  flex h-8 w-8 items-center justify-center
-                  rounded-full text-slate-400
-                  transition-all duration-200
-                  hover:bg-slate-100
+                  flex h-8 w-8 items-center
+                  justify-center rounded-full
+                  text-slate-400 transition-all
+                  duration-200 hover:bg-slate-100
                 "
               >
                 <X size={18} />
               </button>
             </motion.div>
 
-            {/* SEARCH INPUT AND SUGGESTIONS */}
+            {/* SEARCH INPUT */}
             <motion.div
               variants={childVariants}
               className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
             >
-              <SearchBar onSearchSubmit={closeMobileSearch} />
+              <SearchBar
+                onSearchSubmit={closeMobileSearch}
+              />
             </motion.div>
 
             {/* BOTTOM INFORMATION */}
@@ -371,20 +346,6 @@ export default function Navbar() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* GLOBAL LOGIN MODAL */}
-      <LoginModal
-        isOpen={authModal === "login"}
-        onClose={closeAuthModal}
-        onSwitchToRegister={switchToRegister}
-      />
-
-      {/* GLOBAL REGISTER MODAL */}
-      <RegisterModal
-        isOpen={authModal === "register"}
-        onClose={closeAuthModal}
-        onSwitchToLogin={switchToLogin}
-      />
     </>
   );
 }

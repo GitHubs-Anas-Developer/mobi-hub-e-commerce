@@ -12,7 +12,6 @@ import {
   Loader2,
   ShieldCheck,
   CheckCircle2,
-  ShoppingBag,
   Truck,
   Headphones,
 } from "lucide-react";
@@ -21,16 +20,15 @@ import axiosInstance from "@/lib/axios";
 
 export default function ForgotPasswordPage() {
   const [currentYear, setCurrentYear] = useState("");
-
-  useEffect(() => {
-    setCurrentYear(String(new Date().getFullYear()));
-  }, []);
-
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -74,75 +72,74 @@ export default function ForgotPasswordPage() {
 
         {/* LEFT BRAND SECTION */}
         <motion.section
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
-          className="relative hidden overflow-hidden bg-[#082b70] px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20"
+          transition={{ duration: 0.4, ease: "easeOut" }}
+          className="relative hidden overflow-hidden bg-[#082b70] px-8 py-8 text-white lg:flex lg:flex-col lg:justify-between xl:px-14"
         >
-          <div className="absolute -right-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
+          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
 
-          <Link href="/" className="relative z-10 flex items-center gap-3">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-blue-700">
-              <Smartphone size={27} />
+          <Link href="/" className="relative z-10 flex items-center gap-2.5">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
+              <Smartphone size={23} />
             </span>
 
-            <span className="text-2xl font-extrabold tracking-tight">
+            <span className="text-xl font-extrabold tracking-tight">
               Mobi <span className="text-blue-300">Hub</span>
             </span>
           </Link>
 
-          <div className="relative z-10 max-w-lg">
-            <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm text-blue-100">
-              <ShieldCheck size={16} />
+          <div className="relative z-10 max-w-md">
+            <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
+              <ShieldCheck size={15} />
               Account Security
             </span>
 
-            <h1 className="text-4xl font-bold leading-tight xl:text-5xl">
+            <h1 className="text-3xl font-bold leading-tight xl:text-4xl">
               Your account.
-              <span className="mt-2 block text-blue-300">
+              <span className="mt-1 block text-blue-300">
                 Your security.
               </span>
             </h1>
 
-            <p className="mt-6 max-w-md text-base leading-7 text-blue-100/80">
-              Forgot your password? Don't worry.
-              We'll help you securely regain access
-              to your Mobi Hub account.
+            <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
+              Forgot your password? Don't worry. We'll help you securely
+              regain access to your Mobi Hub account.
             </p>
 
-            <div className="mt-10 space-y-5">
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <Truck size={21} />
+            <div className="mt-7 space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+                  <Truck size={18} />
                 </span>
                 <div>
-                  <p className="font-semibold">Reliable Delivery</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">Reliable Delivery</p>
+                  <p className="text-xs text-blue-100/70">
                     Track your orders with ease.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <ShieldCheck size={21} />
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+                  <ShieldCheck size={18} />
                 </span>
                 <div>
-                  <p className="font-semibold">Secure Shopping</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">Secure Shopping</p>
+                  <p className="text-xs text-blue-100/70">
                     Your account security matters.
                   </p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/10">
-                  <Headphones size={21} />
+              <div className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/10">
+                  <Headphones size={18} />
                 </span>
                 <div>
-                  <p className="font-semibold">Customer Support</p>
-                  <p className="text-sm text-blue-100/70">
+                  <p className="text-sm font-semibold">Customer Support</p>
+                  <p className="text-xs text-blue-100/70">
                     Help when you need it.
                   </p>
                 </div>
@@ -157,41 +154,41 @@ export default function ForgotPasswordPage() {
 
         {/* RIGHT FORGOT PASSWORD SECTION */}
         <motion.section
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1, ease: "easeOut" }}
-          className="flex items-center justify-center px-4 py-10 sm:px-8 lg:px-12"
+          transition={{ duration: 0.35, delay: 0.05, ease: "easeOut" }}
+          className="flex items-center justify-center px-4 py-7 sm:px-6 lg:px-8"
         >
-          <div className="w-full max-w-md">
+          <div className="w-full max-w-[400px]">
 
             {/* MOBILE BRAND */}
             <Link
               href="/"
-              className="mb-10 flex items-center justify-center gap-2 lg:hidden"
+              className="mb-7 flex items-center justify-center gap-2 lg:hidden"
             >
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Smartphone size={22} />
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <Smartphone size={20} />
               </span>
 
-              <span className="text-xl font-extrabold text-slate-900">
+              <span className="text-lg font-extrabold text-slate-900">
                 Mobi <span className="text-blue-600">Hub</span>
               </span>
             </Link>
 
             {!submitted ? (
               <>
-                <div className="mb-8">
-                  <p className="mb-3 text-sm font-semibold text-blue-600">
+                <div className="mb-6">
+                  <p className="mb-2 text-xs font-semibold tracking-wide text-blue-600">
                     ACCOUNT RECOVERY
                   </p>
 
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                     Forgot your password?
                   </h2>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-500">
-                    Enter the email address associated with your
-                    account. We'll send you a link to reset your password.
+                  <p className="mt-2 text-sm leading-5 text-slate-500">
+                    Enter the email address associated with your account.
+                    We'll send you a link to reset your password.
                   </p>
                 </div>
 
@@ -199,26 +196,26 @@ export default function ForgotPasswordPage() {
                 {formError && (
                   <div
                     role="alert"
-                    className="mb-5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700"
+                    className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
                   >
                     {formError}
                   </div>
                 )}
 
                 {/* FORM */}
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label
                       htmlFor="email"
-                      className="mb-2 block text-sm font-semibold text-slate-700"
+                      className="mb-1.5 block text-sm font-semibold text-slate-700"
                     >
                       Email Address
                     </label>
 
                     <div className="relative">
                       <Mail
-                        size={19}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                        size={17}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                       />
 
                       <input
@@ -232,7 +229,7 @@ export default function ForgotPasswordPage() {
                         placeholder="you@example.com"
                         autoComplete="email"
                         required
-                        className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                       />
                     </div>
                   </div>
@@ -240,17 +237,17 @@ export default function ForgotPasswordPage() {
                   <button
                     type="submit"
                     disabled={isLoading}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-600 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {isLoading ? (
                       <>
-                        <Loader2 size={19} className="animate-spin" />
+                        <Loader2 size={17} className="animate-spin" />
                         Sending Reset Link...
                       </>
                     ) : (
                       <>
                         Send Reset Link
-                        <ArrowRight size={18} />
+                        <ArrowRight size={17} />
                       </>
                     )}
                   </button>
@@ -259,30 +256,30 @@ export default function ForgotPasswordPage() {
             ) : (
               /* SUCCESS SECTION */
               <div className="text-center">
-                <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-green-50 text-green-600">
-                  <CheckCircle2 size={34} />
+                <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-green-50 text-green-600">
+                  <CheckCircle2 size={29} />
                 </div>
 
-                <p className="mb-3 text-sm font-semibold text-green-600">
+                <p className="mb-2 text-xs font-semibold tracking-wide text-green-600">
                   REQUEST SUBMITTED
                 </p>
 
-                <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                <h2 className="text-2xl font-bold tracking-tight text-slate-900">
                   Check your email
                 </h2>
 
-                <p className="mt-4 text-sm leading-6 text-slate-500">
+                <p className="mt-3 text-sm leading-5 text-slate-500">
                   {successMessage}
                 </p>
 
-                <div className="mt-6 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left">
-                  <Mail size={21} className="shrink-0 text-blue-600" />
+                <div className="mt-5 flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left">
+                  <Mail size={19} className="shrink-0 text-blue-600" />
                   <p className="break-all text-sm font-semibold text-slate-700">
                     {email.trim()}
                   </p>
                 </div>
 
-                <p className="mt-5 text-xs leading-5 text-slate-400">
+                <p className="mt-4 text-xs leading-5 text-slate-400">
                   If you don't see the email, check your spam or junk folder.
                 </p>
 
@@ -292,7 +289,7 @@ export default function ForgotPasswordPage() {
                     setSubmitted(false);
                     setSuccessMessage("");
                   }}
-                  className="mt-7 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                  className="mt-5 text-sm font-semibold text-blue-600 transition hover:text-blue-700"
                 >
                   Try another email
                 </button>
@@ -300,23 +297,23 @@ export default function ForgotPasswordPage() {
             )}
 
             {/* FOOTER */}
-            <div className="mt-10 border-t border-slate-200 pt-6">
+            <div className="mt-7 border-t border-slate-200 pt-5">
               <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
-                <ShieldCheck size={16} className="text-green-600" />
+                <ShieldCheck size={15} className="text-green-600" />
                 Secure account authentication
               </div>
 
               <Link
                 href="/login"
-                className="mt-6 flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
+                className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
               >
-                <ArrowLeft size={17} />
+                <ArrowLeft size={16} />
                 Back to Login
               </Link>
 
               <Link
                 href="/"
-                className="mt-4 block text-center text-sm font-medium text-slate-500 transition hover:text-blue-600"
+                className="mt-3 block text-center text-sm font-medium text-slate-500 transition hover:text-blue-600"
               >
                 Back to shopping
               </Link>
