@@ -257,12 +257,12 @@ export default function SubcategoryPageClient({ params }) {
             /* Category Grid */
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
               {subcategories.map((subcategory, index) => (
-                <CategoryCard
-                  key={subcategory._id}
-                  category={subcategory}
-                  index={index}
-                  href={`/categories/${subcategory._id}/products`}
-                />
+             <CategoryCard
+  key={subcategory._id}
+  category={subcategory}
+  index={index}
+  href={`/categories/${subcategory._id}/products`}
+/>
               ))}
             </div>
           ) : (

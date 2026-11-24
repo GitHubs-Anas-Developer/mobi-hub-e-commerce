@@ -85,7 +85,7 @@ const BrandSection = () => {
           {activeBrands.map((brand) => (
             <Link
               key={brand._id}
-              href={`/brands/${brand.slug}`}
+              href={`/products?brand=${encodeURIComponent(brand.slug)}`}           
               aria-label={`Explore ${brand.name} products`}
               className="
                 group mx-2 flex h-[68px] w-[112px]

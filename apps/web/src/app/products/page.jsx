@@ -33,7 +33,7 @@ import ProductsHeader from "@/components/products/ProductsHeader";
 import ProductCategoryCards from "@/components/products/ProductCategoryCards";
 import SubCategoryTabs from "@/components/products/SubCategoryTabs";
 import ProductFilters from "@/components/products/ProductFilters";
-import ProductToolbar from "@/components/products/ProductToolbar";
+import ProductToolbar from "@/components/products/toolbar/ProductToolbar";
 import ProductGrid from "@/components/products/ProductGrid";
 import ProductPagination from "@/components/products/ProductPagination";
 import ShopBanner from "@/components/products/ProductsBanner";
@@ -85,7 +85,7 @@ const getWishlistProductId = (item) => {
 // PRODUCTS PAGE
 // ========================================
 
-export default function ProductsPage() {
+export default function ProductsPage({ categoryId = "" }) {
   const dispatch = useDispatch();
   const router = useRouter();
   const pathname = usePathname();
@@ -155,30 +155,38 @@ export default function ProductsPage() {
   // SEARCH URL + HEADER SEARCH EVENT
   // ========================================
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
 
-    setSearch(params.get("search") || "");
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
 
-    const handleSearchUpdate = (event) => {
-      const newSearch = event.detail?.search || "";
+  setSearch(params.get("search") || "");
 
-      setSearch(newSearch);
-      setPage(1);
-    };
+  const selectedCategory =
+    params.get("category") || categoryId || "";
 
-    window.addEventListener(
-      "mobi-hub-search",
-      handleSearchUpdate
-    );
+  const selectedBrand = params.get("brand") || "";
 
-    return () => {
-      window.removeEventListener(
-        "mobi-hub-search",
-        handleSearchUpdate
-      );
-    };
-  }, []);
+  setAppliedFilters((prev) => ({
+    ...prev,
+    category: selectedCategory,
+    brand: selectedBrand,
+  }));
+
+  setPage(1);
+
+  const handleSearchUpdate = (event) => {
+    const newSearch = event.detail?.search || "";
+    setSearch(newSearch);
+    setPage(1);
+  };
+
+  window.addEventListener("mobi-hub-search", handleSearchUpdate);
+
+  return () => {
+    window.removeEventListener("mobi-hub-search", handleSearchUpdate);
+  };
+}, [categoryId]);
+
 
   // ========================================
   // FETCH CART AND WISHLIST
@@ -620,13 +628,17 @@ export default function ProductsPage() {
   // CLEAR ALL FILTERS
   // ========================================
 
-  const handleClearFilters = () => {
-    setAppliedFilters({ ...INITIAL_FILTERS });
-    setSearch("");
-    setSort("newest");
-    setPage(1);
-    setShowFilters(false);
-  };
+const handleClearFilters = () => {
+  setAppliedFilters({
+    ...INITIAL_FILTERS,
+    category: categoryId || "",
+  });
+
+  setSearch("");
+  setSort("newest");
+  setPage(1);
+  setShowFilters(false);
+};
 
   // ========================================
   // PAGINATION

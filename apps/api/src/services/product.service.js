@@ -63,7 +63,7 @@ const generateSlug = (name) => {
 };
 
 // 1. Create Product
-;export const createProduct = async (productData) => {
+export const createProduct = async (productData) => {
   const { category, variants, name } = productData;
 
   await validateCategory(category);
@@ -82,7 +82,7 @@ const generateSlug = (name) => {
   }
 
   return await Product.create(productData);
-}
+};
 
 // 2. Get All Active Products (Public)
 export const getAllProducts = async (filters = {}) => {
@@ -103,13 +103,36 @@ export const getAllProducts = async (filters = {}) => {
       throw createError("Invalid category ID");
     }
 
-    query.category = filters.category;
+    const parentCategory = await Category.findById(filters.category).select(
+      "_id",
+    );
+
+    if (!parentCategory) {
+      throw createError("Category not found", 404);
+    }
+
+    // Find all direct child categories
+    const childCategories = await Category.find({
+      parentCategory: parentCategory._id,
+      isActive: true,
+    }).select("_id");
+
+    const categoryIds = [
+      parentCategory._id,
+      ...childCategories.map((category) => category._id),
+    ];
+
+    query.category = { $in: categoryIds };
   }
 
-  if (filters.brand) {
-    query.brand = filters.brand;
-  }
+  if (filters.brand?.trim()) {
+    const brand = filters.brand.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+    query.brand = {
+      $regex: `^${brand}$`,
+      $options: "i",
+    };
+  }
   if (filters.search?.trim()) {
     query.$text = { $search: filters.search.trim() };
   }
@@ -129,8 +152,14 @@ export const getAllProducts = async (filters = {}) => {
   const sortOptions = {
     newest: { createdAt: -1 },
     oldest: { createdAt: 1 },
+
+    "price-low-high": { basePrice: 1 },
+    "price-high-low": { basePrice: -1 },
+
+    // Backward compatibility
     priceLowToHigh: { basePrice: 1 },
     priceHighToLow: { basePrice: -1 },
+
     nameAZ: { name: 1 },
     nameZA: { name: -1 },
   };
