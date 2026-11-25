@@ -40,6 +40,8 @@ import ShopBanner from "@/components/products/ProductsBanner";
 
 import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+import Breadcrumb from "@/components/common/Breadcrumb";
+import ProductsPageSkeleton from "@/components/loading/skeletons/ProductsPageSkeleton";
 
 // ========================================
 // CONSTANTS
@@ -697,19 +699,33 @@ const handleClearFilters = () => {
       <main className="min-h-screen w-full">
         <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
 
-          {/* PRODUCTS HEADER */}
+          
+          <Breadcrumb
+  items={[
+    { label: "Products" },
+  ]}
+  className="mb-4"
+/>
 
+          {/* PRODUCTS HEADER */}
           <ProductsHeader
             total={pagination.total}
           />
+
 
           {/* PRODUCTS BANNER */}
 
           <ShopBanner />
 
-          {/* CATEGORY NAVIGATION */}
+          {/* INITIAL PAGE SKELETON */}
 
-          <ProductCategoryCards
+          {loading && products.length === 0 && !error ? (
+            <ProductsPageSkeleton />
+          ) : (
+            <>
+              {/* CATEGORY NAVIGATION */}
+
+              <ProductCategoryCards
             categories={categories}
             selectedCategory={category}
             onCategorySelect={handleCategoryChange}
@@ -881,7 +897,9 @@ const handleClearFilters = () => {
                 </>
               )}
             </section>
-          </div>
+              </div>
+            </>
+          )}
 
           {/* RECENTLY VIEWED - OUTSIDE PRODUCTS GRID */}
 

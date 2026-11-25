@@ -14,7 +14,6 @@ import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  ArrowLeft,
   ChevronRight,
   Package,
 } from "lucide-react";
@@ -46,9 +45,14 @@ import ProductActions from "./ProductActions";
 import ProductServiceHighlights from "./ProductServiceHighlights";
 import ProductDescription from "./ProductDescription";
 import ProductSpecifications from "./ProductSpecifications";
+
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 import recentlyViewedService from "@/services/recentlyViewed.service";
 import RelatedProducts from "@/components/related-products/RelatedProducts";
+
+import BackButton from "@/components/common/BackButton";
+import Breadcrumb from "@/components/common/Breadcrumb";
+
 /* =====================================
    ANIMATION VARIANTS
 ===================================== */
@@ -260,27 +264,27 @@ export default function ProductDetailClient({ slug }) {
   }, [fetchProduct]);
 
   /* =====================================
-   TRACK RECENTLY VIEWED PRODUCT
-===================================== */
+     TRACK RECENTLY VIEWED PRODUCT
+  ===================================== */
 
-useEffect(() => {
-  if (!product?._id || !isAuthenticated) return;
+  useEffect(() => {
+    if (!product?._id || !isAuthenticated) return;
 
-  const trackProduct = async () => {
-    try {
-      await recentlyViewedService.addRecentlyViewed(
-        product._id
-      );
-    } catch (error) {
-      console.error(
-        "Recently viewed tracking failed:",
-        error
-      );
-    }
-  };
+    const trackProduct = async () => {
+      try {
+        await recentlyViewedService.addRecentlyViewed(
+          product._id
+        );
+      } catch (error) {
+        console.error(
+          "Recently viewed tracking failed:",
+          error
+        );
+      }
+    };
 
-  trackProduct();
-}, [product?._id, isAuthenticated]);
+    trackProduct();
+  }, [product?._id, isAuthenticated]);
 
   /* =====================================
      ACTIVE VARIANTS
@@ -610,55 +614,22 @@ useEffect(() => {
         <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
 
           {/* BREADCRUMB */}
+<motion.nav
+  variants={fadeUp}
+  className="mb-6 flex w-full flex-col items-start gap-2.5"
+>
+  <BackButton
+    label="Back to Products"
+    fallbackUrl="/products"
+  />
 
-          <motion.nav
-            variants={fadeUp}
-            aria-label="Breadcrumb"
-            className="mb-7 flex flex-wrap items-center gap-2 text-sm text-slate-500"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                const previousUrl = document.referrer;
-                const cameFromThisSite =
-                  previousUrl &&
-                  new URL(previousUrl).origin === window.location.origin;
-
-                if (cameFromThisSite) {
-                  router.back();
-                } else {
-                  router.push("/products");
-                }
-              }}
-              aria-label="Go back"
-              className="mr-2 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 transition hover:border-[#0755e9] hover:bg-blue-50 hover:text-[#0755e9] active:scale-95"
-            >
-              <ArrowLeft size={19} strokeWidth={2} />
-            </button>
-
-            <Link
-              href="/"
-              className="transition hover:text-[#0755e9]"
-            >
-              Home
-            </Link>
-
-            <ChevronRight size={15} />
-
-            <Link
-              href="/products"
-              className="transition hover:text-[#0755e9]"
-            >
-              Products
-            </Link>
-
-            <ChevronRight size={15} />
-
-            <span className="font-medium text-[#101828]">
-              {product.name}
-            </span>
-          </motion.nav>
-
+  <Breadcrumb
+    items={[
+      { label: "Products", href: "/products" },
+      { label: product.name },
+    ]}
+  />
+</motion.nav>
           {/* PRODUCT MAIN SECTION */}
 
           <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:items-stretch">
@@ -669,14 +640,14 @@ useEffect(() => {
               variants={fadeLeft}
               className="min-w-0"
             >
-             <ProductGallery
-  productImages={productImages}
-  selectedImage={selectedImage}
-  setSelectedImage={setSelectedImage}
-  onWishlist={handleWishlist}
-  isInWishlist={isInWishlist}
-  wishlistIsMutating={wishlistIsMutating}
-/>
+              <ProductGallery
+                productImages={productImages}
+                selectedImage={selectedImage}
+                setSelectedImage={setSelectedImage}
+                onWishlist={handleWishlist}
+                isInWishlist={isInWishlist}
+                wishlistIsMutating={wishlistIsMutating}
+              />
             </motion.div>
 
             {/* PRODUCT INFORMATION */}
@@ -707,7 +678,9 @@ useEffect(() => {
                   >
                     <p
                       className={`text-sm font-semibold ${
-                        canPurchase ? "text-green-600" : "text-red-600"
+                        canPurchase
+                          ? "text-green-600"
+                          : "text-red-600"
                       }`}
                     >
                       {canPurchase
@@ -720,7 +693,10 @@ useEffect(() => {
 
               {/* VARIANT SELECTOR */}
 
-              <motion.div variants={fadeUp} className="mt-2">
+              <motion.div
+                variants={fadeUp}
+                className="mt-2"
+              >
                 <ProductVariantSelector
                   variants={activeVariants}
                   selectedVariantId={selectedVariantId}
@@ -730,7 +706,10 @@ useEffect(() => {
 
               {/* QUANTITY SELECTOR */}
 
-              <motion.div variants={fadeUp} className="mt-6">
+              <motion.div
+                variants={fadeUp}
+                className="mt-6"
+              >
                 <ProductQuantitySelector
                   quantity={quantity}
                   setQuantity={setQuantity}
@@ -741,7 +720,10 @@ useEffect(() => {
 
               {/* SERVICE HIGHLIGHTS */}
 
-              <motion.div variants={fadeUp} className="mt-7">
+              <motion.div
+                variants={fadeUp}
+                className="mt-7"
+              >
                 <ProductServiceHighlights />
               </motion.div>
 
@@ -749,6 +731,7 @@ useEffect(() => {
           </div>
 
           {/* FIXED RESPONSIVE PRODUCT ACTIONS */}
+
           <ProductActions
             onAddToCart={handleAddToCart}
             onBuyNow={handleBuyNow}
@@ -809,34 +792,34 @@ useEffect(() => {
             />
           </motion.section>
 
-      {/* RECENTLY VIEWED PRODUCTS */}
+          {/* RELATED PRODUCTS */}
 
-     {/* RELATED PRODUCTS */}
+          <motion.section
+            variants={sectionReveal}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{
+              once: true,
+              amount: 0.1,
+            }}
+            className="mt-12"
+          >
+            <RelatedProducts
+              productId={product._id}
+              title="Related Products"
+              subtitle="Explore similar products you may like."
+              limit={10}
+            />
+          </motion.section>
 
-<motion.section
-  variants={sectionReveal}
-  initial="hidden"
-  whileInView="visible"
-  viewport={{
-    once: true,
-    amount: 0.1,
-  }}
-  className="mt-12"
->
-  <RelatedProducts
-    productId={product._id}
-    title="Related Products"
-    subtitle="Explore similar products you may like."
-    limit={10}
-  />
-</motion.section>
+          {/* RECENTLY VIEWED PRODUCTS */}
 
-{/* RECENTLY VIEWED PRODUCTS */}
-<RecentlyViewed
-  title="Recently Viewed Products"
-  limit={5}
-  excludeProductId={product._id}
-/>
+          <RecentlyViewed
+            title="Recently Viewed Products"
+            limit={5}
+            excludeProductId={product._id}
+          />
+
         </div>
       </motion.main>
     </AnimatePresence>

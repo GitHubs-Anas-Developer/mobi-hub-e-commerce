@@ -3,20 +3,21 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+
 import {
   ArrowLeft,
-  ChevronRight,
-  Home,
   Package,
   RefreshCw,
 } from "lucide-react";
 
 import categoryService from "@/services/categoryService";
 
+import Breadcrumb from "@/components/common/Breadcrumb";
 import CategoryCard from "@/components/categories/CategoryCard";
 import CategorySkeleton from "@/components/categories/CategorySkeleton";
-import RecentlyViewed from "../recently-viewed/RecentlyViewed";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 
+// Extract category response data
 function getCategoryResult(response) {
   return (
     response?.data?.data ??
@@ -25,6 +26,7 @@ function getCategoryResult(response) {
   );
 }
 
+// Extract subcategory array
 function getSubcategoryData(response) {
   const result = getCategoryResult(response);
 
@@ -43,6 +45,7 @@ export default function SubcategoryPageClient({ params }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Fetch category and subcategories
   const fetchSubcategories = useCallback(async () => {
     try {
       setLoading(true);
@@ -70,50 +73,12 @@ export default function SubcategoryPageClient({ params }) {
     }
   }, [categoryId]);
 
+  // Initial fetch
   useEffect(() => {
-    let isMounted = true;
-
-    const loadSubcategories = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const [categoryResponse, subcategoryResponse] =
-          await Promise.all([
-            categoryService.getCategoryById(categoryId),
-            categoryService.getCategories({
-              parentCategory: categoryId,
-            }),
-          ]);
-
-        if (!isMounted) return;
-
-        setCategory(getCategoryResult(categoryResponse));
-        setSubcategories(getSubcategoryData(subcategoryResponse));
-      } catch (err) {
-        if (!isMounted) return;
-
-        console.error("Subcategory fetch error:", err);
-
-        setError(
-          err?.response?.data?.message ||
-            "Unable to load subcategories. Please try again."
-        );
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
     if (categoryId) {
-      loadSubcategories();
+      fetchSubcategories();
     }
-
-    return () => {
-      isMounted = false;
-    };
-  }, [categoryId]);
+  }, [categoryId, fetchSubcategories]);
 
   const categoryName = category?.name || "Explore Categories";
 
@@ -121,37 +86,17 @@ export default function SubcategoryPageClient({ params }) {
     <main className="min-h-screen bg-white">
       <div className="mx-auto w-full px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
 
-        {/* Breadcrumb */}
-        <nav
-          aria-label="Breadcrumb"
-          className="mb-7 flex flex-wrap items-center gap-2 text-xs font-medium sm:text-sm"
-        >
-          <Link
-            href="/"
-            aria-label="Home"
-            className="text-slate-400 transition-colors hover:text-[#0755E9]"
-          >
-            <Home size={16} />
-          </Link>
+        {/* BREADCRUMB */}
+        <Breadcrumb
+          items={[
+            { label: "Categories", href: "/categories" },
+            { label: categoryName },
+          ]}
+          className="mb-7"
+        />
 
-          <ChevronRight size={14} className="text-slate-300" />
-
-          <Link
-            href="/categories"
-            className="text-slate-500 transition-colors hover:text-[#0755E9]"
-          >
-            Categories
-          </Link>
-
-          <ChevronRight size={14} className="text-slate-300" />
-
-          <span className="max-w-[180px] truncate font-semibold text-[#0755E9]">
-            {categoryName}
-          </span>
-        </nav>
-
-        {/* Category Header */}
-        <section className="relative overflow-hidden rounded-3xl border border-[#E7EEFA]  px-5 py-7 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+        {/* CATEGORY HEADER */}
+        <section className="relative overflow-hidden rounded-3xl border border-[#E7EEFA] px-5 py-7 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
           <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-blue-100/70 blur-3xl" />
 
           <div className="relative z-10 max-w-2xl">
@@ -183,7 +128,7 @@ export default function SubcategoryPageClient({ params }) {
           </div>
         </section>
 
-        {/* Subcategories */}
+        {/* SUBCATEGORIES */}
         <section
           className="mt-10 sm:mt-14"
           aria-labelledby="subcategory-heading"
@@ -213,7 +158,7 @@ export default function SubcategoryPageClient({ params }) {
             )}
           </div>
 
-          {/* Loading */}
+          {/* LOADING STATE */}
           {loading ? (
             <div
               className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5"
@@ -225,7 +170,7 @@ export default function SubcategoryPageClient({ params }) {
               ))}
             </div>
           ) : error ? (
-            /* Error */
+            /* ERROR STATE */
             <div
               className="rounded-2xl border border-red-100 bg-red-50/70 px-5 py-12 text-center"
               role="alert"
@@ -247,26 +192,26 @@ export default function SubcategoryPageClient({ params }) {
                 type="button"
                 onClick={fetchSubcategories}
                 disabled={loading}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2"
+                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw size={15} />
                 Try Again
               </button>
             </div>
           ) : subcategories.length > 0 ? (
-            /* Category Grid */
+            /* CATEGORY GRID */
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
               {subcategories.map((subcategory, index) => (
-             <CategoryCard
-  key={subcategory._id}
-  category={subcategory}
-  index={index}
-  href={`/categories/${subcategory._id}/products`}
-/>
+                <CategoryCard
+                  key={subcategory._id}
+                  category={subcategory}
+                  index={index}
+                  href={`/categories/${subcategory._id}/products`}
+                />
               ))}
             </div>
           ) : (
-            /* Empty State */
+            /* EMPTY STATE */
             <div className="rounded-2xl border border-dashed border-slate-200 bg-[#FAFBFD] px-5 py-16 text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
                 <Package
@@ -289,13 +234,13 @@ export default function SubcategoryPageClient({ params }) {
                 className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
               >
                 Browse Categories
-                <ChevronRight size={16} />
+                <ArrowLeft size={16} />
               </Link>
             </div>
           )}
         </section>
 
-        {/* Recently Viewed */}
+        {/* RECENTLY VIEWED PRODUCTS */}
         <section
           className="mt-14 border-t border-slate-100 pt-10 sm:mt-20 sm:pt-14"
           aria-label="Recently viewed products"

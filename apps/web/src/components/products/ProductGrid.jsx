@@ -2,10 +2,8 @@
 "use client";
 
 import { useMemo } from "react";
-
 import ProductCard from "./ProductCard";
-
-import { Package, SearchX } from "lucide-react";
+import { SearchX } from "lucide-react";
 
 import {
   motion,
@@ -17,13 +15,9 @@ import {
 // ========================================
 
 const getWishlistProductId = (item) => {
-  if (typeof item === "string") {
-    return item;
-  }
+  if (typeof item === "string") return item;
 
-  if (!item || typeof item !== "object") {
-    return "";
-  }
+  if (!item || typeof item !== "object") return "";
 
   const productRef = item.product ?? item.productId;
 
@@ -32,18 +26,14 @@ const getWishlistProductId = (item) => {
   }
 
   if (productRef && typeof productRef === "object") {
-    return (
-      productRef._id ??
-      productRef.id ??
-      ""
-    );
+    return productRef._id ?? productRef.id ?? "";
   }
 
   return item._id ?? item.id ?? "";
 };
 
 // ========================================
-// LOADING SKELETON
+// PRODUCT SKELETON
 // ========================================
 
 function ProductSkeleton({ viewMode = "grid" }) {
@@ -211,10 +201,10 @@ export default function ProductGrid({
   };
 
   // ========================================
-  // LOADING STATE
+  // INITIAL LOADING ONLY
   // ========================================
 
-  if (loading) {
+  if (loading && safeProducts.length === 0) {
     return (
       <div
         className={gridClassName}
@@ -235,7 +225,7 @@ export default function ProductGrid({
   // EMPTY STATE
   // ========================================
 
-  if (safeProducts.length === 0) {
+  if (!loading && safeProducts.length === 0) {
     return <EmptyProducts />;
   }
 
@@ -251,13 +241,12 @@ export default function ProductGrid({
       initial="hidden"
       animate="visible"
       layout
+      aria-busy={loading}
     >
-      {safeProducts.map((product, index) => {
+      {safeProducts.map((product) => {
         const productId = product?._id ?? product?.id;
 
-        if (!productId) {
-          return null;
-        }
+        if (!productId) return null;
 
         const normalizedId = String(productId);
 

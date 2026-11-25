@@ -30,6 +30,7 @@ import {
   Clock3,
   XCircle,
 } from "lucide-react";
+import OrdersSkeleton from "@/components/loading/skeletons/OrdersSkeleton";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -324,36 +325,10 @@ function OrdersContent() {
         </motion.div>
 
         {/* Loading State */}
-        {loading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center shadow-sm"
-          >
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{
-                  repeat: Infinity,
-                  duration: 1,
-                  ease: "linear",
-                }}
-              >
-                <RefreshCw size={25} className="text-[#0755E9]" />
-              </motion.div>
-            </div>
-
-            <h2 className="mt-5 font-semibold text-[#101828]">
-              Loading your orders
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Please wait while we fetch your order history.
-            </p>
-          </motion.div>
-
-        ) : error ? (
+      {/* Loading State */}
+{loading ? (
+  <OrdersSkeleton />
+) : error ? (
 
           /* Error State */
           <motion.div

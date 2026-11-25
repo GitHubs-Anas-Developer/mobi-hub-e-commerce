@@ -2,7 +2,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Package, AlertCircle } from "lucide-react";
+import {
+  RefreshCw,
+  Package,
+  AlertCircle,
+  LoaderCircle,
+} from "lucide-react";
 
 import categoryService from "@/services/categoryService";
 import CategoryCard from "./CategoryCard";
@@ -10,18 +15,10 @@ import CategorySkeleton from "./CategorySkeleton";
 
 function getCategoryData(response) {
   if (Array.isArray(response)) return response;
-
   if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.categories)) return response.categories;
+  if (Array.isArray(response?.results)) return response.results;
 
-  if (Array.isArray(response?.categories)) {
-    return response.categories;
-  }
-
-  if (Array.isArray(response?.results)) {
-    return response.results;
-  }
-
-  // Supports API response: { data: { categories: [] } }
   if (Array.isArray(response?.data?.categories)) {
     return response.data.categories;
   }
@@ -29,19 +26,6 @@ function getCategoryData(response) {
   return [];
 }
 
-function CategoryGridSkeleton() {
-  return (
-    <div
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5"
-      aria-label="Loading categories"
-      aria-busy="true"
-    >
-      {Array.from({ length: 10 }).map((_, index) => (
-        <CategorySkeleton key={index} />
-      ))}
-    </div>
-  );
-}
 
 export default function CategoryGrid() {
   const [categories, setCategories] = useState([]);
@@ -57,9 +41,7 @@ export default function CategoryGrid() {
         parentCategory: "null",
       });
 
-      const data = getCategoryData(response);
-
-      setCategories(data);
+      setCategories(getCategoryData(response));
     } catch (err) {
       console.error("Category fetch error:", err);
 
@@ -74,49 +56,16 @@ export default function CategoryGrid() {
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
+    fetchCategories();
+  }, [fetchCategories]);
 
-    const loadCategories = async () => {
-      try {
-        setLoading(true);
-        setError("");
-
-        const response = await categoryService.getCategories({
-          parentCategory: "null",
-        });
-
-        if (!isMounted) return;
-
-        setCategories(getCategoryData(response));
-      } catch (err) {
-        if (!isMounted) return;
-
-        console.error("Category fetch error:", err);
-
-        setError(
-          err?.response?.data?.message ||
-            err?.message ||
-            "Unable to load categories. Please try again."
-        );
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    loadCategories();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (loading) {
-    return <CategoryGridSkeleton />;
+  // Initial loading only
+  if (loading && categories.length === 0 && !error) {
+    return <CategorySkeleton/>
   }
 
-  if (error) {
+  // Error when no existing categories are available
+  if (error && categories.length === 0) {
     return (
       <div
         className="flex flex-col items-center rounded-2xl border border-red-100 bg-red-50 px-5 py-12 text-center"
@@ -142,14 +91,18 @@ export default function CategoryGrid() {
           disabled={loading}
           className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          <RefreshCw size={15} aria-hidden="true" />
-          Try Again
+          {loading ? (
+            <LoaderCircle size={16} className="animate-spin" />
+          ) : (
+            <RefreshCw size={15} aria-hidden="true" />
+          )}
+          {loading ? "Retrying..." : "Try Again"}
         </button>
       </div>
     );
   }
 
-  if (!categories.length) {
+  if (!categories.length && !loading) {
     return (
       <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-5 py-16 text-center">
         <Package
@@ -171,16 +124,43 @@ export default function CategoryGrid() {
 
   return (
     <div
-      className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5"
-      aria-label="Product categories"
+      className="relative"
+      aria-busy={loading}
     >
-      {categories.map((category, index) => (
-        <CategoryCard
-          key={category._id || category.slug || index}
-          category={category}
-          index={index}
-        />
-      ))}
+      {error && (
+        <div
+          className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+          role="status"
+        >
+          <p className="text-xs font-medium text-amber-800">
+            Unable to refresh categories. Showing previously loaded categories.
+          </p>
+
+          <button
+            type="button"
+            onClick={fetchCategories}
+            disabled={loading}
+            aria-label="Retry loading categories"
+            className="shrink-0 rounded-lg p-2 text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {loading ? (
+              <LoaderCircle size={16} className="animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 xl:grid-cols-5">
+        {categories.map((category, index) => (
+          <CategoryCard
+            key={category._id || category.slug || index}
+            category={category}
+            index={index}
+          />
+        ))}
+      </div>
     </div>
   );
 }

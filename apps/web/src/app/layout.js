@@ -32,7 +32,6 @@ export default function RootLayout({ children }) {
         <StoreProvider>
           <AppShell>{children}</AppShell>
 
-          {/* Global Toast Notifications */}
           <Toaster
             position="top-right"
             theme="light"

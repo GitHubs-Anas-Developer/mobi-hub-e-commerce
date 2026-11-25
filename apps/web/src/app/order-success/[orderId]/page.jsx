@@ -29,6 +29,7 @@ import {
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import orderService from "@/services/orderService";
+import OrderDetailsSkeleton from "@/components/loading/skeletons/OrderDetailsSkeleton";
 
 /* ---------------------------------
    Helpers
@@ -222,25 +223,10 @@ function OrderSuccessContent() {
 
   /* Loading State */
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[65vh] flex-col items-center justify-center text-center">
-        <div className="relative flex h-16 w-16 items-center justify-center">
-          <div className="absolute inset-0 animate-spin rounded-full border-4 border-[#DBEAFE] border-t-[#0755E9]" />
-
-          <ShoppingBag className="text-[#0755E9]" size={25} />
-        </div>
-
-        <h2 className="mt-6 text-lg font-bold text-[#101828]">
-          Loading your order
-        </h2>
-
-        <p className="mt-2 text-sm text-[#64748B]">
-          Please wait while we fetch your order details.
-        </p>
-      </div>
-    );
-  }
+ /* Loading State */
+if (loading) {
+  return <OrderDetailsSkeleton />;
+}
 
   /* Error State */
 

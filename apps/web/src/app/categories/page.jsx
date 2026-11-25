@@ -2,6 +2,7 @@
 import AllCategoriesHeader from "@/components/categories/CategoriesBanner";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+import Breadcrumb from "@/components/common/Breadcrumb";
 
 export const metadata = {
   title: "All Categories | Mobi Hub",
@@ -13,6 +14,14 @@ export default function CategoriesPage() {
   return (
     <main className="min-h-screen">
       <div className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
+
+        {/* BREADCRUMB */}
+        <Breadcrumb
+          items={[
+            { label: "Categories" },
+          ]}
+          className="mb-4"
+        />
 
         {/* CATEGORIES HEADER */}
         <AllCategoriesHeader />

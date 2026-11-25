@@ -34,6 +34,7 @@ import { fetchCart } from "@/store/thunks/cartThunks";
 import DeliveryAddress from "./DeliveryAddress";
 import PaymentMethod from "./PaymentMethod";
 import OrderSummary from "./OrderSummary";
+import CheckoutSkeleton from "../loading/skeletons/CheckoutSkeleton";
 
 const RAZORPAY_SCRIPT_URL =
   "https://checkout.razorpay.com/v1/checkout.js";
@@ -988,20 +989,10 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
             LOADING
         ================================= */}
 
-        {checkoutLoading ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="rounded-2xl border border-[#E2E8F0] bg-white p-12 text-center shadow-sm"
-          >
-            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-[#DBEAFE] border-t-[#0755E9]" />
-
-            <p className="mt-5 text-sm font-medium text-[#64748B]">
-              {isDirectCheckout
-                ? "Loading selected product..."
-                : "Loading your cart..."}
-            </p>
-          </motion.div>
+       {checkoutLoading ? (
+  <CheckoutSkeleton
+    isDirectCheckout={isDirectCheckout}
+  />
         ) : checkoutLoadError ? (
 
           /* =================================

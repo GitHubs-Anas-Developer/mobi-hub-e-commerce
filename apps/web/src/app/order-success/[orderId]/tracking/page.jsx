@@ -24,6 +24,7 @@ import { motion } from "framer-motion";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import orderService from "@/services/orderService";
+import TrackingSkeleton from "@/components/loading/skeletons/TrackingSkeleton";
 
 const TRACKING_STEPS = [
   "NEW",
@@ -202,7 +203,7 @@ function TrackingContent() {
     );
   }, [shipment?.trackingHistory]);
 
-  if (loading) return <LoadingState />;
+  if (loading) return <TrackingSkeleton />;
   if (error || !tracking || !shipment) {
     return <ErrorState message={error || "Tracking information not found."} onRetry={fetchTracking} />;
   }

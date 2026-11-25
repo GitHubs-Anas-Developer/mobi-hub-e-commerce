@@ -11,7 +11,6 @@ import {
 } from "motion/react";
 
 import {
-  Loader2,
   ShieldCheck,
   Package,
   ShoppingCart,
@@ -29,6 +28,9 @@ import WishlistProductCard from "@/components/wishlist/WishlistProductCard";
 import WishlistPromoBanner from "@/components/wishlist/WishlistPromoBanner";
 
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+
+// Loading component
+import WishlistSkeleton from "@/components/loading/skeletons/WishlistSkeleton";
 
 import {
   fetchWishlist,
@@ -74,38 +76,6 @@ const containerVariants = {
     },
   },
 };
-
-// ========================================
-// LOADING COMPONENT
-// ========================================
-
-function WishlistLoading({ shouldReduceMotion }) {
-  return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4">
-      <motion.div
-        animate={
-          shouldReduceMotion
-            ? undefined
-            : { rotate: 360 }
-        }
-        transition={{
-          duration: 1,
-          repeat: Infinity,
-          ease: "linear",
-        }}
-      >
-        <Loader2
-          size={36}
-          className="text-[#0755e9]"
-        />
-      </motion.div>
-
-      <p className="text-sm font-medium text-slate-500">
-        Loading your wishlist...
-      </p>
-    </div>
-  );
-}
 
 // ========================================
 // ERROR COMPONENT
@@ -331,9 +301,11 @@ function WishlistPageContent() {
 
   if (isLoading && products.length === 0) {
     return (
-      <WishlistLoading
-        shouldReduceMotion={shouldReduceMotion}
-      />
+      <main className="min-h-screen">
+        <div className="mx-auto w-full px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
+          <WishlistSkeleton />
+        </div>
+      </main>
     );
   }
 
@@ -343,10 +315,12 @@ function WishlistPageContent() {
 
   if (fetchError && products.length === 0) {
     return (
-      <WishlistError
-        message={fetchError}
-        onRetry={handleRetry}
-      />
+      <main className="min-h-screen">
+        <WishlistError
+          message={fetchError}
+          onRetry={handleRetry}
+        />
+      </main>
     );
   }
 
