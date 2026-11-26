@@ -53,9 +53,9 @@ const orderConfirmationTemplate = (order) => {
                   border-radius:12px;overflow:hidden;">
 
         <div style="background:#0755e9;padding:25px;text-align:center;">
-          <h1 style="color:white;margin:0;">Mobi Hub</h1>
+          <h1 style="color:white;margin:0;">ELEZIO</h1>
           <p style="color:#eaf1ff;margin-bottom:0;">
-            Your Mobile Accessories Store
+            Online Gadget &amp; Electronics Store
           </p>
         </div>
 
@@ -66,7 +66,7 @@ const orderConfirmationTemplate = (order) => {
           <p>Hello ${escapeHtml(address.fullName)},</p>
 
           <p>
-            Thank you for shopping with Mobi Hub.
+            Thank you for shopping with ELEZIO.
             Your order has been successfully placed.
           </p>
 
@@ -134,14 +134,14 @@ const orderConfirmationTemplate = (order) => {
           </p>
 
           <p>
-            Thank you for choosing Mobi Hub!<br/>
-            <strong>Mobi Hub Team</strong>
+            Thank you for choosing ELEZIO!<br/>
+            <strong>ELEZIO Team</strong>
           </p>
         </div>
 
         <div style="background:#f8fafc;padding:20px;
                     text-align:center;color:#64748b;font-size:12px;">
-          © ${new Date().getFullYear()} Mobi Hub.
+          © ${new Date().getFullYear()} ELEZIO.
           All rights reserved.
         </div>
 

@@ -137,7 +137,7 @@ export default function HeroBanner() {
 
               const imageAlt =
                 banner.title ||
-                "Mobi Hub mobile accessories offers";
+                "ELEZIO gadgets and electronics offers";
 
               return (
                 <SwiperSlide key={banner._id || index}>

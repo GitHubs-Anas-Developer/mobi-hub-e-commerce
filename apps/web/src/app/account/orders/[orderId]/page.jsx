@@ -299,7 +299,7 @@ function OrderDetailsContent() {
             </div>
             {shipmentId && !isCancelled && (
               <Link
-                href={`/order-success/${order._id}/tracking`}
+                href={`/account/orders/${order._id}/tracking`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
               >
                 <Truck size={16} />
@@ -560,7 +560,7 @@ function OrderDetailsContent() {
               subtitle="We are here to help with your order"
             />
             <p className="text-sm leading-6 text-slate-500">
-              If you have a question about this order, contact the Mobi Hub support team.
+              If you have a question about this order, contact the ELEZIO support team.
             </p>
             <Link
               href="/contact"

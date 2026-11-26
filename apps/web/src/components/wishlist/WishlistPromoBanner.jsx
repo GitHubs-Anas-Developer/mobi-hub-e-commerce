@@ -40,7 +40,7 @@ export default function WishlistPromoBanner() {
           </h2>
 
           <p className="mt-2 max-w-lg text-sm leading-6 text-blue-100">
-            Explore the latest mobile accessories and smart gadgets at Mobi Hub.
+            Explore the latest electronics and smart gadgets at ELEZIO.
           </p>
 
           <Link

@@ -89,7 +89,7 @@ export default function LowStockProducts({
                     </p>
 
                     <p className="mt-1 text-xs text-slate-500">
-                      {product.brand || "MOBI HUB"}
+                      {product.brand || "ELEZIO"}
                     </p>
                   </div>
                 </div>

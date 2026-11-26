@@ -143,7 +143,7 @@ export default function AllCategoriesHeader() {
   return (
     <section
       className="w-full"
-      aria-label="Mobi Hub category promotions"
+      aria-label="ELEZIO category promotions"
     >
       <div className="relative w-full overflow-hidden rounded-2xl border border-blue-100 bg-[#F5F9FF] sm:rounded-[28px]">
 
@@ -199,7 +199,7 @@ export default function AllCategoriesHeader() {
                 href={banner.buttonLink || "/categories"}
                 aria-label={
                   banner.title ||
-                  "Explore Mobi Hub categories"
+                  "Explore ELEZIO categories"
                 }
                 className="block w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#0755E9]"
               >
@@ -218,7 +218,7 @@ export default function AllCategoriesHeader() {
                     src={banner.fallbackImage}
                     alt={
                       banner.title ||
-                      "Explore mobile accessories at Mobi Hub"
+                      "Explore electronics and gadgets at ELEZIO"
                     }
                     loading={
                       index === 0 ? "eager" : "lazy"

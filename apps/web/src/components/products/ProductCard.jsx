@@ -216,7 +216,7 @@ export default function ProductCard({
         <div className="mb-2 flex min-w-0 items-center justify-between gap-1.5">
 
           <span className="min-w-0 truncate text-[9px] font-bold uppercase tracking-wider text-slate-400 sm:text-[10px]">
-            {product.brand || "MOBI HUB"}
+            {product.brand || "ELEZIO"}
           </span>
 
           {hasRating ? (

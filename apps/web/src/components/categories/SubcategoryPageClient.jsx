@@ -109,7 +109,7 @@ export default function SubcategoryPageClient({ params }) {
             </Link>
 
             <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.2em] text-[#0755E9] sm:text-xs">
-              Discover Mobi Hub
+              Discover ELEZIO
             </p>
 
             <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-[#101828] sm:text-3xl lg:text-4xl">

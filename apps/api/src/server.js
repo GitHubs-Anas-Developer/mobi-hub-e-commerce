@@ -9,12 +9,12 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    console.log("MOBI HUB BACKEND STARTING...");
+    console.log("ELEZIO BACKEND STARTING...");
 
     await connectDB();
 
     app.listen(PORT, () => {
-      console.log(`MOBI HUB API running on port ${PORT}`);
+      console.log(`ELEZIO API running on port ${PORT}`);
     });
 
     // SMTP verification (non-blocking)

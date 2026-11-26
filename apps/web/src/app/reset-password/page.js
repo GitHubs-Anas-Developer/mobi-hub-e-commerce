@@ -4,7 +4,6 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Smartphone,
   LockKeyhole,
   Eye,
   EyeOff,
@@ -16,6 +15,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 import authService from "@/services/authService";
 import { motion } from "motion/react";
 
@@ -139,11 +139,11 @@ function ResetPasswordForm() {
 
           <Link href="/" className="relative z-10 flex items-center gap-2.5">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <Smartphone size={23} />
+              <BrandMark className="h-5 w-5" />
             </span>
 
             <span className="text-xl font-extrabold tracking-tight">
-              Mobi <span className="text-blue-300">Hub</span>
+              ELE<span className="text-blue-300">ZIO</span>
             </span>
           </Link>
 
@@ -160,7 +160,7 @@ function ResetPasswordForm() {
 
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
               Create a strong new password to protect your personal information,
-              orders and account details with Mobi Hub.
+              orders and account details with ELEZIO.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -206,7 +206,7 @@ function ResetPasswordForm() {
           </div>
 
           <p className="relative z-10 text-xs text-blue-100/60">
-            © {currentYear} Mobi Hub. All rights reserved.
+            © {currentYear} ELEZIO. All rights reserved.
           </p>
         </motion.section>
 
@@ -224,11 +224,11 @@ function ResetPasswordForm() {
               className="mb-7 flex items-center justify-center gap-2 lg:hidden"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Smartphone size={20} />
+                <BrandMark className="h-5 w-5" />
               </span>
 
               <span className="text-lg font-extrabold text-slate-900">
-                Mobi <span className="text-blue-600">Hub</span>
+                ELE<span className="text-blue-600">ZIO</span>
               </span>
             </Link>
 
@@ -245,7 +245,7 @@ function ResetPasswordForm() {
               <p className="mt-2 text-sm leading-5 text-slate-500">
                 {isSubmitted
                   ? "Your account password has been successfully updated."
-                  : "Create a strong password to secure your Mobi Hub account."}
+                  : "Create a strong password to secure your ELEZIO account."}
               </p>
             </div>
 

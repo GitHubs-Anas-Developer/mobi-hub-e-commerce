@@ -12,11 +12,11 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Smartphone,
   ArrowRight,
   Loader2,
   CheckCircle2,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 
 import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
@@ -239,11 +239,11 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }) {
           {/* BRAND */}
           <div className="mb-4 flex items-center justify-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <Smartphone size={21} />
+              <BrandMark className="h-5 w-5" />
             </span>
 
             <span className="text-lg font-extrabold text-slate-900">
-              Mobi <span className="text-blue-600">Hub</span>
+              ELE<span className="text-blue-600">ZIO</span>
             </span>
           </div>
 

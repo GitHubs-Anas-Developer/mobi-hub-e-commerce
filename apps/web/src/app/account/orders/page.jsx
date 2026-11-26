@@ -169,6 +169,12 @@ function OrdersContent() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Order cancellation
+  const [cancelOrderTarget, setCancelOrderTarget] = useState(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState("");
+  const [cancelError, setCancelError] = useState("");
+  const [cancelSuccess, setCancelSuccess] = useState("");
+
   // Fetch Orders
   const loadOrders = useCallback(async () => {
     try {
@@ -198,6 +204,56 @@ function OrdersContent() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Only Pending and Confirmed orders can be cancelled by the customer.
+  const canCancelOrder = (status) =>
+    ["Pending", "Confirmed"].includes(status);
+
+  const handleConfirmCancellation = async () => {
+    if (!cancelOrderTarget) return;
+
+    const targetOrderId = cancelOrderTarget._id || cancelOrderTarget.id;
+    if (!targetOrderId) {
+      setCancelError("Invalid order. Please refresh and try again.");
+      return;
+    }
+
+    try {
+      setCancellingOrderId(targetOrderId);
+      setCancelError("");
+      setCancelSuccess("");
+
+      // The backend cancellation service currently accepts orderId and userId.
+      await orderService.cancelOrder(targetOrderId);
+
+      setOrders((previousOrders) =>
+        previousOrders.map((order) => {
+          const currentId = order._id || order.id;
+
+          return currentId === targetOrderId
+            ? {
+                ...order,
+                orderStatus: "Cancelled",
+                cancelledAt: new Date().toISOString(),
+              }
+            : order;
+        }),
+      );
+
+      setCancelSuccess(
+        `Order ${cancelOrderTarget.orderNumber || targetOrderId} cancelled successfully.`,
+      );
+      setCancelOrderTarget(null);
+    } catch (err) {
+      setCancelError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to cancel this order. Please try again.",
+      );
+    } finally {
+      setCancellingOrderId("");
+    }
+  };
 
   // Filter Counts
   const filterCounts = useMemo(() => {
@@ -326,7 +382,7 @@ function OrdersContent() {
               <div className="mb-3 flex items-center gap-2">
                 <span className="h-1.5 w-6 rounded-full bg-[#0755E9]" />
                 <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#0755E9]">
-                  Mobi Hub
+                  ELEZIO
                 </span>
               </div>
 
@@ -352,6 +408,25 @@ function OrdersContent() {
             )}
           </div>
         </motion.div>
+
+        {cancelSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+          >
+            <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
+            <span>{cancelSuccess}</span>
+            <button
+              type="button"
+              onClick={() => setCancelSuccess("")}
+              className="ml-auto text-emerald-700 hover:text-emerald-900"
+              aria-label="Dismiss cancellation message"
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
 
         {/* Loading State */}
       {/* Loading State */}
@@ -777,31 +852,43 @@ function OrdersContent() {
 
                           {/* Card action */}
                           <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
-                           
-<div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
-  <div className="flex flex-col gap-2 sm:flex-row">
-    <Link
-      href={`/account/orders/${orderId}`}
-      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] sm:w-auto sm:min-w-44"
-    >
-      View Order Details
-      <ChevronRight size={15} />
-    </Link>
+                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                              <Link
+                                href={`/account/orders/${orderId}`}
+                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] sm:w-auto sm:min-w-44"
+                              >
+                                View Order Details
+                                <ChevronRight size={15} />
+                              </Link>
 
-    {order.shipment?.shipmentId && (
-      <Link
-        href={`/account/orders/${orderId}/tracking`}
-        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#0755E9] bg-white px-3 py-2 text-xs font-semibold text-[#0755E9] transition hover:bg-blue-50 sm:w-auto sm:min-w-36"
-      >
-        <Truck size={15} />
-        Track Order
-      </Link>
-    )}
-  </div>
-</div>
+                              {order.shipment?.shipmentId && (
+                                <Link
+                                  href={`/account/orders/${orderId}/tracking`}
+                                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#0755E9] bg-white px-3 py-2.5 text-xs font-semibold text-[#0755E9] transition hover:bg-blue-50 sm:w-auto sm:min-w-36"
+                                >
+                                  <Truck size={15} />
+                                  Track Order
+                                </Link>
+                              )}
 
+                              {canCancelOrder(order.orderStatus) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCancelError("");
+                                    setCancelOrderTarget(order);
+                                  }}
+                                  disabled={cancellingOrderId === orderId}
+                                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2.5 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto sm:w-auto"
+                                >
+                                  <XCircle size={15} />
+                                  Cancel Order
+                                </button>
+                              )}
+                            </div>
                           </div>
-                        </motion.article>
+
+                          </motion.article>
                       );
                     })}
                   </div>
@@ -867,6 +954,101 @@ function OrdersContent() {
           </>
         )}
       </div>
+
+      {/* Cancel Order Confirmation Modal */}
+      <AnimatePresence>
+        {cancelOrderTarget && (
+          <motion.div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={(event) => {
+              if (event.target === event.currentTarget && !cancellingOrderId) {
+                setCancelOrderTarget(null);
+                setCancelError("");
+              }
+            }}
+          >
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="cancel-order-title"
+              initial={{ opacity: 0, y: 20, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.98 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
+            >
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <XCircle size={25} />
+              </div>
+
+              <h2
+                id="cancel-order-title"
+                className="mt-4 text-center text-lg font-bold text-[#101828]"
+              >
+                Cancel this order?
+              </h2>
+
+              <p className="mt-2 text-center text-sm leading-6 text-slate-500">
+                Are you sure you want to cancel order{" "}
+                <span className="font-semibold text-slate-800">
+                  {cancelOrderTarget.orderNumber ||
+                    cancelOrderTarget._id ||
+                    cancelOrderTarget.id}
+                </span>
+                ? This action cannot be undone.
+              </p>
+
+              <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-800">
+                Cancellation is available only for Pending and Confirmed
+                orders. Once cancelled, the order cannot be restored from this
+                page.
+              </div>
+
+              {cancelError && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+                  {cancelError}
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCancelOrderTarget(null);
+                    setCancelError("");
+                  }}
+                  disabled={Boolean(cancellingOrderId)}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Keep Order
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmCancellation}
+                  disabled={Boolean(cancellingOrderId)}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {cancellingOrderId ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      Cancelling...
+                    </>
+                  ) : (
+                    <>
+                      <XCircle size={16} />
+                      Yes, Cancel Order
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

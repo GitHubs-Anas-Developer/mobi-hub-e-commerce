@@ -17,6 +17,8 @@ import {
   Images,
   Video,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
+import { BRAND_NAME } from "@/config/brand";
 
 // ========================================
 // NAVIGATION ITEMS
@@ -104,13 +106,13 @@ export default function AdminSidebar() {
         href="/admin"
         className="flex h-[72px] shrink-0 items-center gap-3 border-b border-slate-200 px-6"
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
-          <Store size={22} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0755E9] text-white shadow-sm">
+          <BrandMark className="h-5 w-5" />
         </div>
 
         <div>
           <h2 className="text-lg font-bold tracking-tight text-slate-900">
-            MOBI HUB
+            {BRAND_NAME}
           </h2>
 
           <p className="text-[11px] font-medium tracking-wider text-slate-500 uppercase">
@@ -163,7 +165,7 @@ export default function AdminSidebar() {
       <div className="shrink-0 border-t border-slate-200 p-4">
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="text-xs font-semibold text-slate-700">
-            MOBI HUB Admin
+            {BRAND_NAME} Admin
           </p>
 
           <p className="mt-1 text-[11px] text-slate-500">

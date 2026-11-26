@@ -144,7 +144,7 @@ app.use("/api/v1/search", searchRoutes);
 app.get("/", (req, res) => {
   return res.status(200).json({
     success: true,
-    message: "Welcome to MOBI HUB API",
+    message: "Welcome to ELEZIO API",
   });
 });
 

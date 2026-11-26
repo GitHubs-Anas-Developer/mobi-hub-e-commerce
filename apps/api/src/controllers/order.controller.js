@@ -30,7 +30,7 @@ export const placeOrder = async (req, res, next) => {
           items: order.items,
           totalAmount: order.totalAmount,
         }),
-        text: `Your Mobi Hub order ${order.orderNumber} has been confirmed.`,
+        text: `Your ELEZIO order ${order.orderNumber} has been confirmed.`,
       });
     } catch (emailError) {
       console.error("Order confirmation email failed:", emailError.message);

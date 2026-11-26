@@ -102,9 +102,9 @@ const sendOrderConfirmationEmail = async (order, userId) => {
       html: orderConfirmationTemplate(order),
       text: [
         `Hello ${order.shippingAddress.fullName},`,
-        `Your Mobi Hub order ${order.orderNumber} has been confirmed.`,
+        `Your ELEZIO order ${order.orderNumber} has been confirmed.`,
         `Total: INR ${order.totalAmount}`,
-        "Thank you for shopping with Mobi Hub.",
+        "Thank you for shopping with ELEZIO.",
       ].join("\n"),
     });
 
@@ -141,7 +141,7 @@ const sendAdminNewOrderEmail = async (order, userId) => {
       subject: `New Order Received - ${order.orderNumber}`,
       html: adminNewOrderTemplate(order, customer),
       text: [
-        "New order received - Mobi Hub",
+        "New order received - ELEZIO",
         `Order Number: ${order.orderNumber}`,
         `Customer: ${order.shippingAddress.fullName}`,
         `Customer Email: ${customer.email}`,
@@ -182,13 +182,13 @@ const sendOrderStatusEmail = async (order) => {
 
     const result = await sendEmail({
       to: user.email,
-      subject: `Mobi Hub - Order ${order.orderNumber} ${order.orderStatus}`,
+      subject: `ELEZIO - Order ${order.orderNumber} ${order.orderStatus}`,
       html,
       text: [
         `Hello ${order.shippingAddress?.fullName || user.name || "Customer"},`,
         `Your order ${order.orderNumber} is now ${order.orderStatus}.`,
         `Total: INR ${order.totalAmount}`,
-        "Thank you for shopping with Mobi Hub.",
+        "Thank you for shopping with ELEZIO.",
       ].join("\n"),
     });
 

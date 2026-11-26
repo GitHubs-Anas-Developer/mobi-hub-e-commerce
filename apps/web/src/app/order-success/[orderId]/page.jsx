@@ -380,7 +380,7 @@ if (loading) {
             <p className="mt-3 max-w-xl text-sm leading-7 text-[#64748B]">
               {isCancelled
                 ? "This order has been cancelled."
-                : "Thank you for shopping with MOBI HUB. Your order details are shown below."}
+                : "Thank you for shopping with ELEZIO. Your order details are shown below."}
             </p>
 
             {!isCancelled && (

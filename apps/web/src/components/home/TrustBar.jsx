@@ -42,7 +42,7 @@ export default function TrustBar() {
 
   return (
     <section
-      aria-label="Mobi Hub shopping benefits"
+      aria-label="ELEZIO shopping benefits"
       className="w-full"
     >
       <div className="grid w-full grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4 lg:gap-4">

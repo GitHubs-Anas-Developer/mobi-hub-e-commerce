@@ -644,7 +644,7 @@ export default function CreateProductPage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Add a new product to MOBI HUB.
+              Add a new product to ELEZIO.
             </p>
           </div>
         </div>

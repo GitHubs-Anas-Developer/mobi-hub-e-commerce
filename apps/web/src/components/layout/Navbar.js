@@ -301,7 +301,7 @@ export default function Navbar() {
 
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold leading-5 text-slate-900">
-                  Search Mobi Hub
+                  Search ELEZIO
                 </p>
 
                 <p className="text-[11px] leading-4 text-slate-400">
@@ -340,7 +340,7 @@ export default function Navbar() {
               className="shrink-0 border-t border-slate-100 px-4 py-3"
             >
               <p className="text-center text-[11px] text-slate-400">
-                Discover products, brands and accessories at Mobi Hub
+                Discover products, brands and gadgets at ELEZIO
               </p>
             </motion.div>
           </motion.div>

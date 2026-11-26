@@ -182,10 +182,10 @@ useEffect(() => {
     setPage(1);
   };
 
-  window.addEventListener("mobi-hub-search", handleSearchUpdate);
+  window.addEventListener("elezio-search", handleSearchUpdate);
 
   return () => {
-    window.removeEventListener("mobi-hub-search", handleSearchUpdate);
+    window.removeEventListener("elezio-search", handleSearchUpdate);
   };
 }, [categoryId]);
 

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import { logoutUser } from "@/store/thunks/authThunks";
+import { BRAND_ADMIN_EMAIL, BRAND_NAME } from "@/config/brand";
 
 // ========================================
 // PAGE TITLES
@@ -84,7 +85,7 @@ export default function AdminHeader({ onMenuClick }) {
   // ========================================
 
   const adminName = user?.name || "Administrator";
-  const adminEmail = user?.email || "admin@mobi-hub.com";
+  const adminEmail = user?.email || BRAND_ADMIN_EMAIL;
 
   // ========================================
   // UI
@@ -113,7 +114,7 @@ export default function AdminHeader({ onMenuClick }) {
           </h1>
 
           <p className="hidden text-xs text-slate-500 sm:block">
-            MOBI HUB Admin Panel
+            {BRAND_NAME} Admin Panel
           </p>
         </div>
       </div>

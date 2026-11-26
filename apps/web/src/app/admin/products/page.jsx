@@ -162,7 +162,7 @@ export default function AdminProductsPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Manage your MOBI HUB product catalogue.
+            Manage your ELEZIO product catalogue.
           </p>
         </div>
 

@@ -52,7 +52,7 @@ export default function CreateCouponPage() {
           </h1>
 
           <p className="mt-1 text-sm text-slate-500">
-            Create a new discount coupon for MOBI HUB customers.
+            Create a new discount coupon for ELEZIO customers.
           </p>
         </div>
 

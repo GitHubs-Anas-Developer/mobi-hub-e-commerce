@@ -54,7 +54,7 @@ export default function ProductInfo({
       <div className="flex flex-wrap items-center justify-between gap-3">
 
         <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#0755e9]">
-          {product?.brand || "MOBI HUB"}
+          {product?.brand || "ELEZIO"}
         </span>
 
         {selectedVariant && (
@@ -220,7 +220,7 @@ export default function ProductInfo({
             </p>
 
             <p className="mt-0.5 text-[11px] text-slate-500">
-              Products from Mobi Hub
+              Products from ELEZIO
             </p>
           </div>
 

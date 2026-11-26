@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import {
-  Smartphone,
   User,
   Mail,
   LockKeyhole,
@@ -19,6 +18,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser } from "@/store/thunks/authThunks";
@@ -159,18 +159,18 @@ export default function RegisterPage() {
             className="relative z-10 flex items-center gap-2.5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <Smartphone size={23} />
+              <BrandMark className="h-5 w-5" />
             </span>
 
             <span className="text-xl font-bold tracking-tight">
-              Mobi <span className="text-blue-300">Hub</span>
+              ELE<span className="text-blue-300">ZIO</span>
             </span>
           </Link>
 
           <div className="relative z-10 max-w-md">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
               <ShoppingBag size={14} />
-              Join the Mobi Hub community
+              Join the ELEZIO community
             </span>
 
             <h1 className="text-3xl font-bold leading-tight xl:text-4xl">
@@ -181,7 +181,7 @@ export default function RegisterPage() {
             </h1>
 
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
-              Explore quality mobile accessories, discover your favourite
+              Explore quality gadgets and electronics, discover your favourite
               brands and enjoy a simple shopping experience.
             </p>
 
@@ -234,7 +234,7 @@ export default function RegisterPage() {
           </div>
 
           <p className="relative z-10 text-[11px] text-blue-100/60">
-            © {currentYear} Mobi Hub. All rights reserved.
+            © {currentYear} ELEZIO. All rights reserved.
           </p>
         </motion.section>
 
@@ -256,11 +256,11 @@ export default function RegisterPage() {
               className="mb-6 flex items-center justify-center gap-2 lg:hidden"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Smartphone size={20} />
+                <BrandMark className="h-5 w-5" />
               </span>
 
               <span className="text-lg font-bold text-slate-900">
-                Mobi <span className="text-blue-600">Hub</span>
+                ELE<span className="text-blue-600">ZIO</span>
               </span>
             </Link>
 
@@ -299,7 +299,7 @@ export default function RegisterPage() {
 
                   <p className="mt-3 text-xs leading-5 text-slate-500">
                     Open the email and click the verification link to
-                    activate your Mobi Hub account. You cannot log in
+                    activate your ELEZIO account. You cannot log in
                     until your email is verified.
                   </p>
                 </div>
@@ -376,12 +376,12 @@ export default function RegisterPage() {
                   </p>
 
                   <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[27px]">
-                    Join Mobi Hub
+                    Join ELEZIO
                   </h2>
 
                   <p className="mt-1.5 text-sm leading-5 text-slate-500">
-                    Create your account and start exploring our mobile
-                    accessories.
+                    Create your account and start exploring our gadgets and
+                    electronics.
                   </p>
                 </div>
 
@@ -640,7 +640,7 @@ export default function RegisterPage() {
                   </div>
 
                   <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
-                    By creating an account, you agree to Mobi Hub's{" "}
+                    By creating an account, you agree to ELEZIO's{" "}
                     <Link
                       href="/terms"
                       className="text-blue-600 hover:underline"

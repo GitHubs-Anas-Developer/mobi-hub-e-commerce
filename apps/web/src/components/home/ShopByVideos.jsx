@@ -61,7 +61,7 @@ const getVideoDescription = (item) => {
     item?.description ||
     product?.shortDescription ||
     product?.description ||
-    "Discover the latest technology at Mobi Hub."
+    "Discover the latest technology at ELEZIO."
   );
 };
 
@@ -75,7 +75,7 @@ const getVideoCategory = (item) => {
       ? product.category
       : null);
 
-  return category || "Mobi Hub Exclusives";
+  return category || "ELEZIO Exclusives";
 };
 
 const getVideoPrice = (item) => {
@@ -311,7 +311,7 @@ function SectionHeader() {
         <span className="h-6 w-1 rounded-full bg-[#0755E9]" />
 
         <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
-          Mobi Hub Product Stories
+          ELEZIO Product Stories
         </span>
       </div>
 
@@ -321,7 +321,7 @@ function SectionHeader() {
       </h2>
 
       <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500 sm:text-sm">
-        Explore our latest mobile accessories through real product videos and discover the details that matter.
+        Explore our latest gadgets and electronics through real product videos and discover the details that matter.
       </p>
     </div>
   );
@@ -697,7 +697,7 @@ export default function ShopByVideos() {
               }}
               a11y={{
                 enabled: true,
-                containerMessage: "Mobi Hub video collection",
+                containerMessage: "ELEZIO video collection",
               }}
               className="!overflow-visible !pb-4"
             >
@@ -739,7 +739,7 @@ export default function ShopByVideos() {
               </p>
 
               <p className="mt-1 text-[10px] text-slate-400 sm:text-xs">
-                Discover the complete collection at Mobi Hub.
+                Discover the complete collection at ELEZIO.
               </p>
             </div>
 

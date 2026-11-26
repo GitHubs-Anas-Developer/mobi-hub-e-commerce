@@ -259,7 +259,7 @@ export default function CreateProductVideoPage() {
         </h1>
 
         <p className="mt-1 text-sm text-slate-500">
-          Upload a product reel to your Mobi Hub video shopping feed.
+          Upload a product reel to your ELEZIO video shopping feed.
         </p>
       </div>
 

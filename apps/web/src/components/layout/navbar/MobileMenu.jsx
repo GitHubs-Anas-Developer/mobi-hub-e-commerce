@@ -15,8 +15,9 @@ import {
   LogOut,
   X,
   ChevronRight,
-  Smartphone,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
+import { BRAND_NAME } from "@/config/brand";
 
 export default function MobileMenu({
   isOpen,
@@ -130,16 +131,16 @@ export default function MobileMenu({
           className="flex items-center gap-3"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0755e9] text-white">
-            <Smartphone size={22} />
+            <BrandMark className="h-5 w-5" />
           </span>
 
           <span>
             <span className="block text-lg font-extrabold tracking-tight text-slate-900">
-              Mobi <span className="text-[#0755e9]">Hub</span>
+              ELE<span className="text-[#0755e9]">ZIO</span>
             </span>
 
             <span className="block text-[10px] font-medium tracking-wide text-slate-400">
-              MOBILE ACCESSORIES STORE
+              TECH &amp; ELECTRONICS STORE
             </span>
           </span>
         </Link>
@@ -258,7 +259,7 @@ export default function MobileMenu({
         {/* Footer */}
         <div className="shrink-0 border-t border-slate-100 bg-white px-5 py-5 text-center">
           <p className="text-sm font-bold text-slate-700">
-            Mobi Hub
+            {BRAND_NAME}
           </p>
 
           <p className="mt-1 text-xs text-slate-400">

@@ -148,7 +148,7 @@ export default function AnnouncementBar() {
 
   return (
     <div
-      aria-label="Mobi Hub store announcements"
+      aria-label="ELEZIO store announcements"
       className="w-full overflow-hidden bg-[#0755e9] text-white"
     >
       <Swiper
@@ -164,7 +164,7 @@ export default function AnnouncementBar() {
         allowTouchMove
         a11y={{
           enabled: true,
-          containerMessage: "Mobi Hub store announcements",
+          containerMessage: "ELEZIO store announcements",
           slideRole: "group",
         }}
         className="w-full"

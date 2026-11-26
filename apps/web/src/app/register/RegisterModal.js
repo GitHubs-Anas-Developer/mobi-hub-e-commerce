@@ -11,12 +11,12 @@ import {
   LockKeyhole,
   Eye,
   EyeOff,
-  Smartphone,
   ArrowRight,
   ShieldCheck,
   Loader2,
   CheckCircle2,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser } from "@/store/thunks/authThunks";
@@ -233,11 +233,11 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
           {/* BRAND */}
           <div className="mb-4 flex items-center justify-center gap-2">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <Smartphone size={21} />
+              <BrandMark className="h-5 w-5" />
             </span>
 
             <span className="text-lg font-extrabold text-slate-900">
-              Mobi <span className="text-blue-600">Hub</span>
+              ELE<span className="text-blue-600">ZIO</span>
             </span>
           </div>
 
@@ -254,8 +254,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 
             <p className="mt-1 text-sm text-slate-500">
               {registrationComplete
-                ? "One more step to activate your Mobi Hub account."
-                : "Join Mobi Hub and discover amazing tech accessories."}
+                ? "One more step to activate your ELEZIO account."
+                : "Join ELEZIO and discover amazing tech & electronics."}
             </p>
           </div>
 
@@ -291,7 +291,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   Please open the email and click the verification link to
-                  activate your Mobi Hub account. You cannot log in until your
+                  activate your ELEZIO account. You cannot log in until your
                   email is verified.
                 </p>
               </div>

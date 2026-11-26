@@ -142,7 +142,7 @@ export default function ShopBanner() {
                       href={banner.buttonLink || "/products"}
                       aria-label={
                         banner.title ||
-                        "Explore Mobi Hub products"
+                        "Explore ELEZIO products"
                       }
                       className="block w-full"
                     >
@@ -161,7 +161,7 @@ export default function ShopBanner() {
                           src={fallbackImage}
                           alt={
                             banner.title ||
-                            "Mobi Hub products promotion"
+                            "ELEZIO products promotion"
                           }
                           loading={
                             index === 0 ? "eager" : "lazy"

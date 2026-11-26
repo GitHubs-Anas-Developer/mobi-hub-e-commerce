@@ -29,7 +29,7 @@ const createAdmin = async () => {
       console.log("Admin password reset successfully");
     } else {
       await User.create({
-        name: "MOBI HUB Admin",
+        name: "ELEZIO Admin",
         email,
         password,
         phone: "9876543211",

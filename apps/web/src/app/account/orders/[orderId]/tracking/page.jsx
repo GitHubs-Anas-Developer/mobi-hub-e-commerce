@@ -315,7 +315,7 @@ function TrackingContent() {
               <span className="h-1.5 w-6 rounded-full bg-[#0755E9]" />
 
               <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
-                MOBI HUB
+                ELEZIO
               </span>
             </div>
 
@@ -546,7 +546,7 @@ function TrackingContent() {
               <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:p-7">
                 <div>
                   <span className="text-xs font-bold uppercase tracking-widest text-[#0755E9]">
-                    MOBI HUB DELIVERY
+                    ELEZIO DELIVERY
                   </span>
 
                   <h2 className="mt-2 text-xl font-extrabold text-slate-900">

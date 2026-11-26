@@ -125,7 +125,7 @@ export default function AccountDropdown({
 
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-blue-100">
-                  Welcome to Mobi Hub
+                  Welcome to ELEZIO
                 </p>
 
                 <p className="mt-1 truncate text-sm font-bold text-white">
@@ -205,7 +205,7 @@ export default function AccountDropdown({
           {/* Footer */}
           <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-center text-[10px] font-medium text-slate-400">
-              Mobi Hub · Your Trusted Tech Store
+              ELEZIO · Your Trusted Tech Store
             </p>
           </div>
         </div>

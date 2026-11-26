@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Smartphone,
   MailCheck,
   ShieldCheck,
   Loader2,
@@ -12,6 +11,7 @@ import {
   XCircle,
   ArrowRight,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 import authService from "@/services/authService";
 
 export default function VerifyEmailPage() {
@@ -76,14 +76,14 @@ export default function VerifyEmailPage() {
             className="mb-7 flex items-center justify-center gap-2.5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <Smartphone size={22} />
+              <BrandMark className="h-5 w-5" />
             </span>
             <span className="text-left">
               <span className="block text-lg font-extrabold tracking-tight text-slate-900">
-                Mobi <span className="text-blue-600">Hub</span>
+                ELE<span className="text-blue-600">ZIO</span>
               </span>
               <span className="block text-[9px] font-semibold tracking-[1.2px] text-slate-400">
-                MOBILE ACCESSORIES STORE
+                TECH &amp; ELECTRONICS STORE
               </span>
             </span>
           </motion.div>

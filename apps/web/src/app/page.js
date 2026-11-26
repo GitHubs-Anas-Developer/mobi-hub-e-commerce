@@ -151,7 +151,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 10. WHY CHOOSE MOBIHUB */}
+      {/* 10. WHY CHOOSE ELEZIO */}
       <section className="mh-section">
         <div className="mh-container">
           <WhyChooseUs />

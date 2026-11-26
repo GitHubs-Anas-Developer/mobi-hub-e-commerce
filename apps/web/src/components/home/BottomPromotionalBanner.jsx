@@ -93,7 +93,7 @@ export default function BottomPromotionalBanner() {
           speed={shouldReduceMotion ? 0 : 600}
           a11y={{
             enabled: true,
-            containerMessage: "Mobi Hub promotional offers",
+            containerMessage: "ELEZIO promotional offers",
           }}
           className="bottom-promotional-banner-swiper w-full"
         >
@@ -111,7 +111,7 @@ export default function BottomPromotionalBanner() {
                   href={banner.buttonLink || "/products"}
                   className="block w-full"
                   aria-label={
-                    banner.title || "Explore Mobi Hub offers"
+                    banner.title || "Explore ELEZIO offers"
                   }
                 >
                   <picture>
@@ -126,7 +126,7 @@ export default function BottomPromotionalBanner() {
                       src={desktopImage}
                       alt={
                         banner.title ||
-                        "Mobi Hub promotional offer"
+                        "ELEZIO promotional offer"
                       }
                       loading="lazy"
                       decoding="async"

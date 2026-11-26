@@ -5,7 +5,6 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
-  Smartphone,
   Mail,
   LockKeyhole,
   Eye,
@@ -18,6 +17,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
+import BrandMark from "@/components/common/BrandMark";
 
 import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
@@ -173,11 +173,11 @@ function LoginPageContent() {
             className="relative z-10 flex items-center gap-2.5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <Smartphone size={23} />
+              <BrandMark className="h-5 w-5" />
             </span>
 
             <span className="text-xl font-bold tracking-tight">
-              Mobi <span className="text-blue-300">Hub</span>
+              ELE<span className="text-blue-300">ZIO</span>
             </span>
           </Link>
 
@@ -190,14 +190,14 @@ function LoginPageContent() {
             <h1 className="text-3xl font-bold leading-tight xl:text-4xl">
               Everything you need.
               <span className="mt-1 block text-blue-300">
-                All in one hub.
+                All in one place.
               </span>
             </h1>
 
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
-              Discover quality mobile accessories, explore
-              your favourite brands and enjoy a simple
-              shopping experience with Mobi Hub.
+              Discover quality gadgets and electronics, explore
+              your favourite brands and enjoy a seamless
+              shopping experience with ELEZIO.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -246,7 +246,7 @@ function LoginPageContent() {
           </div>
 
           <p className="relative z-10 text-[11px] text-blue-100/60">
-            © {new Date().getFullYear()} Mobi Hub. All rights reserved.
+            © {new Date().getFullYear()} ELEZIO. All rights reserved.
           </p>
         </motion.section>
 
@@ -268,11 +268,11 @@ function LoginPageContent() {
               className="mb-6 flex items-center justify-center gap-2 lg:hidden"
             >
               <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Smartphone size={20} />
+                <BrandMark className="h-5 w-5" />
               </span>
 
               <span className="text-lg font-bold text-slate-900">
-                Mobi <span className="text-blue-600">Hub</span>
+                ELE<span className="text-blue-600">ZIO</span>
               </span>
             </Link>
 
@@ -288,7 +288,7 @@ function LoginPageContent() {
 
               <p className="mt-1.5 text-sm leading-5 text-slate-500">
                 Enter your account details to continue shopping
-                with Mobi Hub.
+                with ELEZIO.
               </p>
             </div>
 
@@ -559,7 +559,7 @@ function LoginPageContent() {
             {/* REGISTER LINK */}
             <div className="mt-5 text-center">
               <p className="text-xs text-slate-500">
-                New to Mobi Hub?{" "}
+                New to ELEZIO?{" "}
                 <Link
                   href="/register"
                   className="font-bold text-blue-600 hover:text-blue-700"
@@ -580,7 +580,7 @@ function LoginPageContent() {
               </div>
 
               <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
-                By signing in, you agree to Mobi Hub's{" "}
+                By signing in, you agree to ELEZIO's{" "}
                 <Link
                   href="/terms"
                   className="text-blue-600 hover:underline"

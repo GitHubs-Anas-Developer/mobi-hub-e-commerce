@@ -64,11 +64,11 @@ export default function WhyChooseUs() {
           {/* Section Header */}
           <div className="mb-5 text-center sm:mb-7">
             <span className="mb-2 inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[#0755e9] sm:text-[10px]">
-              The Mobi Hub Difference
+              The ELEZIO Difference
             </span>
 
             <h2 className="text-lg font-extrabold tracking-tight text-slate-900 sm:text-xl lg:text-2xl">
-              Why Choose Mobi Hub?
+              Why Choose ELEZIO?
             </h2>
 
             <p className="mx-auto mt-1.5 max-w-lg text-[11px] leading-relaxed text-slate-500 sm:text-xs">

@@ -16,18 +16,18 @@ const passwordResetTemplate = ({ name, resetUrl }) => {
   const safeUrl = escapeHtml(resetUrl);
 
   return {
-    subject: "Reset Your Mobi Hub Password",
+    subject: "Reset Your ELEZIO Password",
 
     html: `
       <!DOCTYPE html>
       <html>
         <body style="margin:0;padding:30px;background:#f1f5f9;font-family:Arial,sans-serif;">
           <div style="max-width:520px;margin:auto;background:#ffffff;padding:32px;border-radius:12px;">
-            <h1 style="color:#0755e9;text-align:center;">Mobi Hub</h1>
+            <h1 style="color:#0755e9;text-align:center;">ELEZIO</h1>
 
             <h2>Hello ${safeName},</h2>
 
-            <p>We received a request to reset your Mobi Hub account password.</p>
+            <p>We received a request to reset your ELEZIO account password.</p>
 
             <p>Click below to create a new password:</p>
 
@@ -45,7 +45,7 @@ const passwordResetTemplate = ({ name, resetUrl }) => {
             <hr style="border:0;border-top:1px solid #e2e8f0;margin:25px 0;" />
 
             <p style="color:#64748b;font-size:12px;text-align:center;">
-              © ${new Date().getFullYear()} Mobi Hub. All rights reserved.
+              © ${new Date().getFullYear()} ELEZIO. All rights reserved.
             </p>
           </div>
         </body>
@@ -54,7 +54,7 @@ const passwordResetTemplate = ({ name, resetUrl }) => {
 
     text: `Hello ${name || "Customer"},
 
-We received a request to reset your Mobi Hub password.
+We received a request to reset your ELEZIO password.
 
 Reset your password using this link:
 ${resetUrl}

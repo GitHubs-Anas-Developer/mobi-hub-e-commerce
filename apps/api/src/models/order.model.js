@@ -356,7 +356,7 @@ const orderSchema = new mongoose.Schema(
       default: "Pending",
     },
 
-    // Internal Mobi Hub order status timeline
+    // Internal ELEZIO order status timeline
     orderStatusHistory: {
       type: [orderStatusHistorySchema],
       default: [],

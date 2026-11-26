@@ -129,7 +129,7 @@ export default function DeliveryAddress({
               </h3>
 
               <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                Add your delivery address to continue with your Mobi Hub order.
+                Add your delivery address to continue with your ELEZIO order.
               </p>
 
               <button

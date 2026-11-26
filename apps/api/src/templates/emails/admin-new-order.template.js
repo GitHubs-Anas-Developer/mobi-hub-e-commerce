@@ -35,7 +35,7 @@ const adminNewOrderTemplate = (order, customer) => {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#101828;max-width:650px;margin:auto">
-      <h2 style="color:#0755e9">New Order Received - Mobi Hub</h2>
+      <h2 style="color:#0755e9">New Order Received - ELEZIO</h2>
 
       <p>A new order has been successfully placed.</p>
 
@@ -74,7 +74,7 @@ const adminNewOrderTemplate = (order, customer) => {
       </p>
 
       <hr/>
-      <p style="color:#64748b">Mobi Hub Admin Notification</p>
+      <p style="color:#64748b">ELEZIO Admin Notification</p>
     </div>
   `;
 };

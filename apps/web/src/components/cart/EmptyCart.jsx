@@ -64,7 +64,7 @@ export default function EmptyCart({
       </Link>
 
       <p className="mt-4 text-xs text-slate-400">
-        Find something you will love at Mobi Hub.
+        Find something you will love at ELEZIO.
       </p>
     </motion.section>
   );

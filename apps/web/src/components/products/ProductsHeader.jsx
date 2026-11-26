@@ -5,7 +5,7 @@ import { ChevronRight, Package } from "lucide-react";
 export default function ProductsHeader({
   total = 0,
   title = "Shop All Products",
-  description = "Discover the latest mobile accessories at Mobi Hub.",
+  description = "Discover the latest gadgets and electronics at ELEZIO.",
 }) {
   return (
     <header className="mb-5 w-full">

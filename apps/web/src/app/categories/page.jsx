@@ -5,9 +5,9 @@ import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 import Breadcrumb from "@/components/common/Breadcrumb";
 
 export const metadata = {
-  title: "All Categories | Mobi Hub",
+  title: "All Categories",
   description:
-    "Explore mobile accessories and smart gadgets at Mobi Hub.",
+    "Explore electronics, gadgets, and smart accessories at ELEZIO.",
 };
 
 export default function CategoriesPage() {

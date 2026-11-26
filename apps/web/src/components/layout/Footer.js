@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { motion, useScroll, useSpring } from "framer-motion";
+import { BRAND_NAME, BRAND_SUPPORT_EMAIL } from "@/config/brand";
 
 const footerLinks = {
   Shop: [
@@ -41,7 +42,7 @@ const socialLinks = [
 const contactDetails = [
   {
     icon: Mail,
-    text: "support@mobihub.com",
+    text: BRAND_SUPPORT_EMAIL,
   },
   {
     icon: Phone,
@@ -125,12 +126,11 @@ export default function Footer() {
               href="/"
               className="inline-flex items-center text-xl font-extrabold tracking-tight text-[#101828] sm:text-[22px]"
             >
-              MOBI
-              <span className="text-[#0755E9]"> HUB</span>
+              ELE<span className="text-[#0755E9]">ZIO</span>
             </Link>
 
             <p className="mt-3 max-w-sm text-[12px] leading-[1.8] text-[#64748B] sm:text-[13px]">
-              Discover quality tech accessories designed to make your everyday
+              Discover quality gadgets and electronics designed to make your everyday
               digital life smarter, easier, and better.
             </p>
 
@@ -231,7 +231,7 @@ export default function Footer() {
             <p className="text-[11px] leading-5 text-[#64748B] sm:text-xs">
               © {currentYear}{" "}
               <span className="font-semibold text-[#101828]">
-                MOBI HUB.
+                {BRAND_NAME}.
               </span>{" "}
               All rights reserved.
             </p>

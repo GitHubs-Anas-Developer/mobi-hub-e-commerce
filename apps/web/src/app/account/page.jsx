@@ -103,7 +103,7 @@ function AccountContent() {
             />
 
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#0755E9]">
-              Mobi Hub
+              ELEZIO
             </span>
           </div>
 
@@ -165,7 +165,7 @@ function AccountContent() {
               </motion.div>
 
               <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                Welcome to Mobi Hub!
+                Welcome to ELEZIO!
               </h2>
 
               <p className="mt-3 max-w-md text-sm leading-7 text-blue-100/80">
@@ -349,8 +349,8 @@ function AccountContent() {
               </h3>
 
               <p className="mt-1 max-w-lg text-sm leading-6 text-slate-500">
-                Discover the latest mobiles, accessories and tech essentials at
-                Mobi Hub.
+                Discover the latest gadgets, electronics and tech essentials at
+                ELEZIO.
               </p>
             </div>
           </div>

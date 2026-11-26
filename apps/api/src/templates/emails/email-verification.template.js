@@ -1,6 +1,6 @@
 const emailVerificationTemplate = ({ name, verificationUrl }) => {
   return {
-    subject: "Verify Your Mobi Hub Account",
+    subject: "Verify Your ELEZIO Account",
 
     html: `
       <!DOCTYPE html>
@@ -15,14 +15,14 @@ const emailVerificationTemplate = ({ name, verificationUrl }) => {
           <div style="max-width:600px; margin:30px auto; background:#ffffff; border-radius:12px; overflow:hidden;">
 
             <div style="background:#0755e9; padding:25px; text-align:center;">
-              <h1 style="color:#ffffff; margin:0;">Mobi Hub</h1>
+              <h1 style="color:#ffffff; margin:0;">ELEZIO</h1>
             </div>
 
             <div style="padding:35px 25px; color:#101828;">
               <h2>Hello ${name || "Customer"},</h2>
 
               <p style="font-size:15px; line-height:1.7; color:#475467;">
-                Thank you for creating your Mobi Hub account.
+                Thank you for creating your ELEZIO account.
                 Please verify your email address to activate your account.
               </p>
 
@@ -46,7 +46,7 @@ const emailVerificationTemplate = ({ name, verificationUrl }) => {
 
             <div style="padding:20px; text-align:center; background:#f8fafc;">
               <p style="font-size:12px; color:#98a2b3; margin:0;">
-                © ${new Date().getFullYear()} Mobi Hub. All rights reserved.
+                © ${new Date().getFullYear()} ELEZIO. All rights reserved.
               </p>
             </div>
 
@@ -58,7 +58,7 @@ const emailVerificationTemplate = ({ name, verificationUrl }) => {
     text: `
 Hello ${name || "Customer"},
 
-Thank you for creating your Mobi Hub account.
+Thank you for creating your ELEZIO account.
 
 Verify your email address using this link:
 ${verificationUrl}
@@ -67,7 +67,7 @@ This link expires in 24 hours.
 
 If you did not create this account, ignore this email.
 
-Mobi Hub
+ELEZIO
     `,
   };
 };

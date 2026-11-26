@@ -710,9 +710,9 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       amount: paymentData.amount,
       currency: paymentData.currency,
 
-      name: "MOBI HUB",
+      name: "ELEZIO",
 
-      description: "MOBI HUB Order Payment",
+      description: "ELEZIO Order Payment",
 
       order_id: paymentData.razorpayOrderId,
 
@@ -971,7 +971,7 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
               </h1>
 
               <p className="mt-2 text-sm text-[#64748B]">
-                Complete your order securely with MOBI HUB.
+                Complete your order securely with ELEZIO.
               </p>
             </div>
 
@@ -1327,7 +1327,7 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
 
                   <p className="text-center text-[11px] leading-5 text-[#64748B]">
                     Your order and payment will be validated
-                    securely by MOBI HUB.
+                    securely by ELEZIO.
                   </p>
                 </div>
               </div>

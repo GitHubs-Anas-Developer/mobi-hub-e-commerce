@@ -268,7 +268,7 @@ export default function WishlistProductCard({
         {/* BRAND */}
 
         <p className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-[0.13em] text-[#0755e9] sm:text-xs">
-          {product.brand || "MOBI HUB"}
+          {product.brand || "ELEZIO"}
         </p>
 
         {/* PRODUCT NAME */}

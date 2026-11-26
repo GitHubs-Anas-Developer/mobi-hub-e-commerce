@@ -42,7 +42,7 @@ export default function NavLinks() {
       ))}
 
       <span className="ml-auto text-xs font-medium text-slate-500">
-        Your trusted tech accessories store
+        Your trusted gadget &amp; electronics store
       </span>
     </nav>
   );

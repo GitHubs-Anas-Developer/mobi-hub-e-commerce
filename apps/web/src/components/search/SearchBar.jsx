@@ -147,7 +147,7 @@ export default function SearchBar({ onSearchSubmit }) {
 
     // Notify ProductsPage immediately
     window.dispatchEvent(
-      new CustomEvent("mobi-hub-search", {
+      new CustomEvent("elezio-search", {
         detail: { search: searchTerm },
       })
     );

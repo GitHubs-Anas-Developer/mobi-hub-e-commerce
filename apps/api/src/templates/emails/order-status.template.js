@@ -27,7 +27,7 @@ const statusMessages = {
   Delivered: {
     title: "Your order has been delivered!",
     message:
-      "Your order has been successfully delivered. Thank you for shopping with Mobi Hub!",
+      "Your order has been successfully delivered. Thank you for shopping with ELEZIO!",
   },
 };
 
@@ -40,7 +40,7 @@ const orderStatusTemplate = (order) => {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#101828;max-width:600px;margin:auto;padding:20px">
-      <h2 style="color:#0755e9">Mobi Hub</h2>
+      <h2 style="color:#0755e9">ELEZIO</h2>
 
       <h3>${escapeHtml(status.title)}</h3>
 
@@ -54,7 +54,7 @@ const orderStatusTemplate = (order) => {
         <p><strong>Total Amount:</strong> ₹${Number(order.totalAmount).toFixed(2)}</p>
       </div>
 
-      <p>Thank you for choosing Mobi Hub!</p>
+      <p>Thank you for choosing ELEZIO!</p>
     </div>
   `;
 };

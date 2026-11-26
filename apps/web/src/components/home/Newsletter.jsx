@@ -112,7 +112,7 @@ export default function Newsletter() {
 
             <p className="mt-4 max-w-md text-sm leading-6 text-blue-100/75">
               Be the first to discover new arrivals, exclusive deals,
-              product highlights and the latest updates from Mobi Hub.
+              product highlights and the latest updates from ELEZIO.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
@@ -219,7 +219,7 @@ export default function Newsletter() {
 
               <p className="text-[10px] leading-5 text-slate-400">
                 By subscribing, you agree to receive email updates from
-                Mobi Hub. You can unsubscribe at any time.
+                ELEZIO. You can unsubscribe at any time.
               </p>
             </div>
           </div>

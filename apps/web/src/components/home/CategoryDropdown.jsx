@@ -172,7 +172,7 @@ export default function CategoryDropdown() {
           <div className="mt-4 flex items-center justify-between rounded-xl bg-blue-50 px-4 py-3">
             <div>
               <p className="text-xs font-bold text-slate-800">
-                Explore Mobi Hub
+                Explore ELEZIO
               </p>
 
               <p className="mt-1 text-[11px] text-slate-500">
