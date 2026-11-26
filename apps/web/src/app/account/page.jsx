@@ -79,7 +79,7 @@ function AccountContent() {
   });
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
       {/* Blue Scroll Progress */}
       <motion.div
         className="fixed left-0 top-0 z-[100] h-1 w-full origin-left bg-gradient-to-r from-[#0755E9] via-[#2583FF] to-cyan-400"

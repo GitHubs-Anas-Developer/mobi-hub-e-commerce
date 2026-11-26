@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from "react";
@@ -6,23 +7,67 @@ import { useAuth } from "@/hooks/useAuth";
 
 export default function AdminRoute({ children }) {
   const router = useRouter();
+
   const { user, isAuthenticated, isInitialized } = useAuth();
 
   useEffect(() => {
-    if (isInitialized && !isAuthenticated) {
+    if (!isInitialized) return;
+
+    if (!isAuthenticated) {
       router.replace("/login");
       return;
     }
 
-    if (isInitialized && isAuthenticated && user?.role !== "admin") {
+    if (user?.role !== "admin") {
       router.replace("/");
     }
-  }, [isInitialized, isAuthenticated, user, router]);
+  }, [isInitialized, isAuthenticated, user?.role, router]);
 
-  if (!isInitialized || !isAuthenticated || user?.role !== "admin") {
+  // Authentication initialization
+  if (!isInitialized) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-gray-600">Checking admin access...</p>
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-9 w-9">
+            <div className="absolute inset-0 rounded-full border-[3px] border-blue-100" />
+
+            <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#0755E9]" />
+          </div>
+
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Please wait...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-blue-100 border-t-[#0755E9]" />
+
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Redirecting to login...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Redirect non-admin users
+  if (user?.role !== "admin") {
+    return (
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-blue-100 border-t-[#0755E9]" />
+
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Verifying admin access...
+          </p>
+        </div>
       </div>
     );
   }

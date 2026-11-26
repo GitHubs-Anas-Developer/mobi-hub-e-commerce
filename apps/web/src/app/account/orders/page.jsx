@@ -6,8 +6,6 @@ import Link from "next/link";
 import {
   AnimatePresence,
   motion,
-  useScroll,
-  useSpring,
 } from "framer-motion";
 
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
@@ -37,6 +35,7 @@ const ORDERS_PER_PAGE = 5;
 const ORDER_FILTERS = [
   "All",
   "Pending",
+  "Confirmed",
   "Processing",
   "Shipped",
   "Delivered",
@@ -62,6 +61,50 @@ const formatDate = (date) => {
     month: "short",
     year: "numeric",
   });
+};
+
+const getOrderItemName = (item) =>
+  item?.product?.name ||
+  item?.product?.title ||
+  item?.productName ||
+  item?.name ||
+  item?.title ||
+  "Product";
+
+const getOrderItemImage = (item) => {
+  const thumbnail = item?.thumbnail;
+
+  if (typeof thumbnail === "string") return thumbnail;
+  if (thumbnail && typeof thumbnail === "object" && thumbnail.url) {
+    return thumbnail.url;
+  }
+
+  const productImage =
+    item?.product?.images?.[0]?.url ||
+    item?.product?.images?.[0] ||
+    item?.product?.image ||
+    item?.productImage ||
+    item?.image ||
+    "";
+
+  return typeof productImage === "string" ? productImage : productImage?.url || "";
+};
+
+const getOrderItemQuantity = (item) =>
+  Number(item?.quantity ?? item?.qty ?? 1) || 1;
+
+// Prefer the saved line subtotal; otherwise calculate it from the unit price.
+const getOrderItemPrice = (item) => {
+  const quantity = getOrderItemQuantity(item);
+  const unitPrice =
+    item?.sellingPrice ??
+    item?.price ??
+    item?.salePrice ??
+    item?.product?.sellingPrice ??
+    item?.product?.price ??
+    0;
+
+  return Number(item?.subtotal ?? Number(unitPrice) * quantity) || 0;
 };
 
 const getStatusStyle = (status) => {
@@ -126,15 +169,6 @@ function OrdersContent() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Smooth scroll progress
-  const { scrollYProgress } = useScroll();
-
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
-
   // Fetch Orders
   const loadOrders = useCallback(async () => {
     try {
@@ -170,6 +204,7 @@ function OrdersContent() {
     const counts = {
       All: orders.length,
       Pending: 0,
+      Confirmed: 0,
       Processing: 0,
       Shipped: 0,
       Delivered: 0,
@@ -267,13 +302,7 @@ function OrdersContent() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 sm:px-6 lg:px-8">
-
-      {/* Blue Scroll Progress */}
-      <motion.div
-        className="fixed left-0 top-0 z-[100] h-1 w-full origin-left bg-gradient-to-r from-[#0755E9] via-[#2583FF] to-cyan-400"
-        style={{ scaleX: smoothProgress }}
-      />
+    <main className="min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
 
       <div className="mx-auto w-full">
 
@@ -354,7 +383,7 @@ function OrdersContent() {
               whileHover={{ y: -3 }}
               whileTap={{ scale: 0.97 }}
               onClick={loadOrders}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-[#0645C4]"
+              className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-[#0755E9] px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#0645C4]"
             >
               <RefreshCw size={16} />
               Try Again
@@ -402,7 +431,7 @@ function OrdersContent() {
             >
               <Link
                 href="/products"
-                className="inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0645C4]"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0755E9] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4]"
               >
                 <ShoppingBag size={17} />
                 Start Shopping
@@ -424,7 +453,7 @@ function OrdersContent() {
                   transition: { staggerChildren: 0.12 },
                 },
               }}
-              className="mb-7 grid grid-cols-2 gap-3 sm:grid-cols-4"
+              className="mb-5 grid grid-cols-2 gap-2.5 sm:mb-7 sm:grid-cols-4 sm:gap-3"
             >
               {summaryCards.map((item) => {
                 const Icon = item.icon;
@@ -438,7 +467,7 @@ function OrdersContent() {
                       boxShadow: "0px 12px 30px rgba(7,85,233,0.09)",
                     }}
                     whileTap={{ scale: 0.98 }}
-                    className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5"
+                    className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-5"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-medium text-slate-500 sm:text-sm">
@@ -469,7 +498,7 @@ function OrdersContent() {
               whileInView="visible"
               viewport={{ once: true, amount: 0.2 }}
               variants={revealFromBottom}
-              className="mb-6 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5"
+              className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:mb-6 sm:p-5"
             >
               <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                 <div>
@@ -487,7 +516,7 @@ function OrdersContent() {
                 </span>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {ORDER_FILTERS.map((filter) => {
                   const isActive = activeFilter === filter;
 
@@ -497,7 +526,7 @@ function OrdersContent() {
                       type="button"
                       onClick={() => handleFilterChange(filter)}
                       whileTap={{ scale: 0.94 }}
-                      className={`relative shrink-0 overflow-hidden rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                      className={`relative shrink-0 overflow-hidden rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
                         isActive
                           ? "text-white"
                           : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#0755E9]"
@@ -566,7 +595,7 @@ function OrdersContent() {
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={() => handleFilterChange("All")}
-                    className="mt-5 rounded-xl bg-[#0755E9] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#0645C4]"
+                    className="mt-5 rounded-lg bg-[#0755E9] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0645C4]"
                   >
                     View All Orders
                   </motion.button>
@@ -653,101 +682,107 @@ function OrdersContent() {
                           }}
                           className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
                         >
-                          {/* Order Header */}
-                          <div className="flex flex-col justify-between gap-4 p-5 sm:flex-row sm:items-center sm:px-6">
-                            <div className="flex items-start gap-3">
-                              <motion.div
-                                whileHover={{ rotate: -8, scale: 1.1 }}
-                                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9] transition-colors group-hover:bg-[#0755E9] group-hover:text-white"
-                              >
-                                <Package size={22} />
-                              </motion.div>
-
+                          {/* Order Card */}
+                          <div className="p-4 sm:p-5">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                                  Order Number
+                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                                  Order number
                                 </p>
-
-                                <h3 className="mt-1 break-all text-sm font-bold text-[#101828]">
+                                <h3 className="mt-1 break-all text-sm font-bold text-[#101828] sm:text-base">
                                   {orderNumber}
                                 </h3>
-
-                                <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+                                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
                                   <CalendarDays size={13} />
                                   Placed on {formatDate(order.createdAt)}
                                 </p>
                               </div>
+
+                              <div className="flex flex-wrap gap-2 sm:justify-end">
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.orderStatus)}`}>
+                                  <OrderStatusIcon size={13} />
+                                  {order.orderStatus || "Pending"}
+                                </span>
+                                <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.paymentStatus)}`}>
+                                  Payment: {order.paymentStatus || "Pending"}
+                                </span>
+                              </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-2 sm:justify-end">
-                              <span
-                                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.orderStatus)}`}
-                              >
-                                <OrderStatusIcon size={13} />
-                                {order.orderStatus || "Pending"}
-                              </span>
+                            <div className="my-4 border-t border-slate-100" />
 
-                              <span
-                                className={`rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.paymentStatus)}`}
-                              >
-                                Payment: {order.paymentStatus || "Pending"}
-                              </span>
+                            {/* Product preview */}
+                            {Array.isArray(order.items) && order.items.length > 0 ? (
+                              <div className="space-y-3">
+                                {order.items.slice(0, 2).map((item, index) => {
+                                  const image = getOrderItemImage(item);
+                                  const quantity = getOrderItemQuantity(item);
+                                  return (
+                                    <div key={item?._id || item?.product?._id || index} className="flex min-w-0 items-center gap-3">
+                                      <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+                                        {image ? (
+                                          <img src={image} alt={getOrderItemName(item)} className="h-full w-full object-contain p-1" loading="lazy" />
+                                        ) : (
+                                          <Package size={27} className="text-slate-300" />
+                                        )}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="line-clamp-2 text-sm font-semibold text-[#101828]">
+                                          {getOrderItemName(item)}
+                                        </p>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                          Qty: {quantity}
+                                          {item?.variant ? ` · ${item.variant}` : ""}
+                                        </p>
+                                        <p className="mt-1 text-sm font-bold text-[#101828]">
+                                          {formatPrice(getOrderItemPrice(item))}
+                                        </p>
+                                      </div>
+                                      {index === 0 && order.items.length > 1 && (
+                                        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                                          +{order.items.length - 1} more
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
+                                <Package size={24} className="text-slate-400" />
+                                <span className="text-sm text-slate-500">{order.items?.length || 0} items in this order</span>
+                              </div>
+                            )}
+
+                            <div className="my-4 border-t border-slate-100" />
+
+                            {/* Order totals */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="min-w-0">
+                                <p className="text-xs text-slate-400">Payment method</p>
+                                <p className="mt-1 truncate text-sm font-semibold text-slate-700">
+                                  {order.paymentMethod === "Online"
+                                    ? "Online Payment"
+                                    : order.paymentMethod || "N/A"}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-slate-400">Total amount</p>
+                                <p className="mt-1 text-base font-bold text-[#101828]">
+                                  {formatPrice(totalAmount)}
+                                </p>
+                              </div>
                             </div>
                           </div>
 
-                          <div className="border-t border-slate-100" />
-
-                          {/* Order Details */}
-                          <div className="grid grid-cols-2 gap-5 px-5 py-5 sm:grid-cols-3 sm:px-6">
-                            <div>
-                              <p className="text-xs text-slate-400">
-                                Total Amount
-                              </p>
-
-                              <p className="mt-1.5 text-base font-bold text-[#101828]">
-                                {formatPrice(totalAmount)}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="flex items-center gap-1.5 text-xs text-slate-400">
-                                <CreditCard size={13} />
-                                Payment Method
-                              </p>
-
-                              <p className="mt-1.5 text-sm font-semibold text-slate-700">
-                                {order.paymentMethod === "Online"
-                                  ? "Online Payment"
-                                  : order.paymentMethod || "N/A"}
-                              </p>
-                            </div>
-
-                            <div className="col-span-2 sm:col-span-1">
-                              <p className="flex items-center gap-1.5 text-xs text-slate-400">
-                                <Boxes size={13} />
-                                Items
-                              </p>
-
-                              <p className="mt-1.5 text-sm font-semibold text-slate-700">
-                                {order.items?.length || 0} items
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Order Footer */}
-                          <div className="flex justify-end border-t border-slate-100 bg-slate-50/70 px-5 py-4 sm:px-6">
+                          {/* Card action */}
+                          <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
                             <Link
-                              href={`/order-success/${orderId}`}
-                              className="group/link inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#0645C4]"
+                              href={`/account/orders/${orderId}`}
+                              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] focus:outline-none focus:ring-2 focus:ring-[#0755E9] focus:ring-offset-2 sm:w-auto sm:min-w-44"
                             >
                               View Order Details
-
-                              <motion.span
-                                whileHover={{ x: 4 }}
-                                transition={{ duration: 0.2 }}
-                              >
-                                <ChevronRight size={16} />
-                              </motion.span>
+                              <ChevronRight size={15} />
                             </Link>
                           </div>
                         </motion.article>
@@ -784,7 +819,7 @@ function OrdersContent() {
                           onClick={() =>
                             handlePagination(currentPage - 1)
                           }
-                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
                         >
                           <ArrowLeft size={15} />
                           Previous
@@ -802,7 +837,7 @@ function OrdersContent() {
                           onClick={() =>
                             handlePagination(currentPage + 1)
                           }
-                          className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
                         >
                           Next
                           <ArrowRight size={15} />

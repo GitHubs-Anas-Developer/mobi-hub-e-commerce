@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  ArrowLeft,
   ChevronRight,
   Package,
 } from "lucide-react";
@@ -50,7 +51,6 @@ import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
 import recentlyViewedService from "@/services/recentlyViewed.service";
 import RelatedProducts from "@/components/related-products/RelatedProducts";
 
-import BackButton from "@/components/common/BackButton";
 import Breadcrumb from "@/components/common/Breadcrumb";
 
 /* =====================================
@@ -613,16 +613,23 @@ export default function ProductDetailClient({ slug }) {
       >
         <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
 
+          {/* BACK TO MY ACCOUNT */}
+          <motion.div variants={fadeUp}>
+            <Link
+              href="/account"
+              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
+            >
+              <ArrowLeft size={17} />
+              Back to My Account
+            </Link>
+          </motion.div>
+
           {/* BREADCRUMB */}
 <motion.nav
   variants={fadeUp}
   className="mb-6 flex w-full flex-col items-start gap-2.5"
 >
-  <BackButton
-    label="Back to Products"
-    fallbackUrl="/products"
-  />
-
+  
   <Breadcrumb
     items={[
       { label: "Products", href: "/products" },

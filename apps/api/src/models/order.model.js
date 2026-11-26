@@ -17,8 +17,14 @@ const orderItemSchema = new mongoose.Schema(
       required: true,
     },
     thumbnail: {
-      type: String,
-      default: "",
+      url: {
+        type: String,
+        default: "",
+      },
+      publicId: {
+        type: String,
+        default: "",
+      },
     },
     variantId: {
       type: mongoose.Schema.Types.ObjectId,

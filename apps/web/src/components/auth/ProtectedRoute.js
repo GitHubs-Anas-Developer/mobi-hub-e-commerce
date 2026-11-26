@@ -12,41 +12,52 @@ export default function ProtectedRoute({ children }) {
 
   const [mounted, setMounted] = useState(false);
 
-  // Run only after hydration.
+  // Ensure client-side hydration is complete
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  // Redirect unauthenticated users
   useEffect(() => {
     if (mounted && isInitialized && !isAuthenticated) {
       router.replace("/login");
     }
   }, [mounted, isInitialized, isAuthenticated, router]);
 
-  // Same HTML during server rendering and initial client rendering.
+  // Authentication initialization loading
   if (!mounted || !isInitialized) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-4 border-blue-100 border-t-blue-600" />
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="relative h-9 w-9">
+            <div className="absolute inset-0 rounded-full border-[3px] border-blue-100" />
 
-          <p className="mt-4 text-sm font-medium text-gray-600">
-            Checking authentication...
+            <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-transparent border-t-[#0755E9]" />
+          </div>
+
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Please wait...
           </p>
         </div>
       </div>
     );
   }
 
+  // Redirect loading
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
-        <p className="text-sm text-gray-600">
-          Redirecting to login...
-        </p>
+      <div className="flex h-screen w-full items-center justify-center overflow-hidden bg-white">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-blue-100 border-t-[#0755E9]" />
+
+          <p className="mt-4 text-sm font-medium text-slate-600">
+            Redirecting to login...
+          </p>
+        </div>
       </div>
     );
   }
 
+  // Render protected content
   return children;
 }

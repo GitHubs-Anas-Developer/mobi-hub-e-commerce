@@ -255,14 +255,14 @@ function NotificationsPageContent() {
   ];
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="min-h-screen overflow-hidden bg-white">
       {/* Blue Scroll Progress */}
       <motion.div
         className="fixed left-0 top-0 z-[100] h-1 w-full origin-left bg-gradient-to-r from-[#0755E9] via-[#2583FF] to-cyan-400"
         style={{ scaleX: smoothProgress }}
       />
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto m-full px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           variants={staggerContainer}

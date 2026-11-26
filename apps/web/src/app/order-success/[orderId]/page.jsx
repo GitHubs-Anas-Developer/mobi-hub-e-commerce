@@ -72,6 +72,36 @@ const getStatusStyle = (status) => {
   return "bg-amber-50 text-amber-700 border-amber-200";
 };
 
+const getThumbnailUrl = (thumbnail) => {
+  if (!thumbnail) return "";
+
+  // Current schema: { url, publicId }
+  if (typeof thumbnail === "object") {
+    return thumbnail.url || "";
+  }
+
+  // Backward compatibility for older orders saved with a URL string.
+  if (typeof thumbnail === "string") {
+    const value = thumbnail.trim();
+
+    if (value.startsWith("https://") || value.startsWith("http://")) {
+      return value;
+    }
+
+    // Support legacy records where an object was accidentally stringified.
+    try {
+      const parsed = JSON.parse(value);
+      return typeof parsed === "object" && parsed !== null
+        ? parsed.url || ""
+        : "";
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+};
+
 /* ---------------------------------
    Animation Variants
 ---------------------------------- */
@@ -438,11 +468,12 @@ if (loading) {
                   {/* Product Image */}
 
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
-                    {item.thumbnail ? (
+                    {getThumbnailUrl(item.thumbnail) ? (
                       <img
-                        src={item.thumbnail}
+                        src={getThumbnailUrl(item.thumbnail)}
                         alt={item.productName || "Product"}
                         className="h-full w-full object-contain p-2"
+                        loading="lazy"
                       />
                     ) : (
                       <Package size={30} className="text-[#94A3B8]" />
@@ -719,7 +750,7 @@ if (loading) {
 export default function OrderSuccessPage() {
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-[#F8FAFC] py-6 sm:py-10">
+      <main className="min-h-screen bg-white py-6 sm:py-10">
         <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-10 xl:px-14">
           <OrderSuccessContent />
         </div>
