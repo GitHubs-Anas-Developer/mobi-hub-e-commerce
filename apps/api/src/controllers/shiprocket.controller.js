@@ -56,10 +56,12 @@ export const createMockShipmentController = async (req, res, next) => {
     next(error);
   }
 };
-
 export const updateMockShipmentTrackingController = async (req, res, next) => {
   try {
-    const order = await updateMockShipmentTracking(
+    console.log("TRACKING BODY:", req.body);
+    console.log("ORDER ID:", req.params.orderId);
+
+    const result = await updateMockShipmentTracking(
       req.params.orderId,
       req.body,
     );
@@ -67,7 +69,7 @@ export const updateMockShipmentTrackingController = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: "Mock tracking updated successfully",
-      data: order,
+      data: result,
     });
   } catch (error) {
     next(error);

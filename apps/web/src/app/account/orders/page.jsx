@@ -777,13 +777,29 @@ function OrdersContent() {
 
                           {/* Card action */}
                           <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
-                            <Link
-                              href={`/account/orders/${orderId}`}
-                              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] focus:outline-none focus:ring-2 focus:ring-[#0755E9] focus:ring-offset-2 sm:w-auto sm:min-w-44"
-                            >
-                              View Order Details
-                              <ChevronRight size={15} />
-                            </Link>
+                           
+<div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
+  <div className="flex flex-col gap-2 sm:flex-row">
+    <Link
+      href={`/account/orders/${orderId}`}
+      className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] sm:w-auto sm:min-w-44"
+    >
+      View Order Details
+      <ChevronRight size={15} />
+    </Link>
+
+    {order.shipment?.shipmentId && (
+      <Link
+        href={`/account/orders/${orderId}/tracking`}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#0755E9] bg-white px-3 py-2 text-xs font-semibold text-[#0755E9] transition hover:bg-blue-50 sm:w-auto sm:min-w-36"
+      >
+        <Truck size={15} />
+        Track Order
+      </Link>
+    )}
+  </div>
+</div>
+
                           </div>
                         </motion.article>
                       );

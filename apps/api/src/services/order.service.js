@@ -1006,6 +1006,7 @@ export const createMockShipment = async (orderId, adminId = null) => {
       403,
     );
   }
+
   const order = await Order.findById(orderId);
 
   if (!order) {
@@ -1031,9 +1032,15 @@ export const createMockShipment = async (orderId, adminId = null) => {
     order_id: order.orderNumber,
   });
 
+  if (!mockResponse?.mock || !mockResponse.shipment_id) {
+    throw createError("Mock shipment was not created", 500);
+  }
+
   order.shipment.provider = "SHIPROCKET";
+  order.shipment.mode = "MOCK";
   order.shipment.shipmentId = String(mockResponse.shipment_id);
   order.shipment.currentStatus = "NEW";
+
   order.shipment.trackingHistory.push({
     status: "NEW",
     description: "Mock shipment created for testing",
@@ -1057,30 +1064,43 @@ const MOCK_TRACKING_STEPS = [
 
 export const updateMockShipmentTracking = async (
   orderId,
-  { status, description, location = "" },
+  { status, description, location = "" } = {},
 ) => {
+  // Test mode validation
   if (!shiprocketConfig.testMode) {
     throw createError("Mock tracking is available only in test mode", 403);
   }
 
+  // Validate request body
+  if (!status) {
+    throw createError("Tracking status is required", 400);
+  }
+
+  if (!description?.trim()) {
+    throw createError("Tracking description is required", 400);
+  }
+
+  // Find order
   const order = await Order.findById(orderId);
 
   if (!order) {
     throw createError("Order not found", 404);
   }
 
+  // Validate shipment
   if (!order.shipment?.shipmentId) {
     throw createError("Shipment not found for this order", 404);
   }
 
+  // Validate cancelled order
   if (order.orderStatus === "Cancelled") {
     throw createError("Cannot update tracking for a cancelled order", 400);
   }
 
-  const normalizedStatus = String(status || "")
-    .trim()
-    .toUpperCase();
+  // Normalize status
+  const normalizedStatus = String(status).trim().toUpperCase();
 
+  // Validate tracking sequence
   const currentIndex = MOCK_TRACKING_STEPS.indexOf(
     order.shipment.currentStatus,
   );
@@ -1089,6 +1109,10 @@ export const updateMockShipmentTracking = async (
 
   if (nextIndex === -1) {
     throw createError("Invalid tracking status", 400);
+  }
+
+  if (currentIndex === -1) {
+    throw createError("Current shipment status is invalid", 400);
   }
 
   if (nextIndex !== currentIndex + 1) {
@@ -1100,28 +1124,198 @@ export const updateMockShipmentTracking = async (
     );
   }
 
-  if (!description?.trim()) {
-    throw createError("Tracking description is required", 400);
-  }
-
+  // Update shipment status
   order.shipment.currentStatus = normalizedStatus;
 
+  // Add tracking history
   order.shipment.trackingHistory.push({
     status: normalizedStatus,
     description: description.trim(),
-    location: location.trim(),
+    location: String(location || "").trim(),
     source: "SYSTEM",
     timestamp: new Date(),
   });
 
+  // Delivered timestamp
   if (normalizedStatus === "DELIVERED") {
     order.shipment.deliveredAt = new Date();
   }
+
+  // Save order
+  await order.save();
+
+  return order;
+};
+
+const ADMIN_TRACKING_STEPS = [
+  "NEW",
+  "PICKUP SCHEDULED",
+  "PICKED UP",
+  "IN TRANSIT",
+  "OUT FOR DELIVERY",
+  "DELIVERED",
+];
+
+// ==========================================
+// Update Shipment Tracking (Admin)
+// ==========================================
+
+export const updateShipmentTracking = async (
+  orderId,
+  data = {},
+  adminId = null,
+) => {
+  const order = await Order.findById(orderId);
+
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  if (order.orderStatus === "Cancelled") {
+    throw createError("Cannot update shipment for a cancelled order", 400);
+  }
+
+  // Ensure shipment object exists
+  if (!order.shipment) {
+    order.shipment = {};
+  }
+
+  const shipment = order.shipment;
+
+  const {
+    provider,
+    shipmentId,
+    awbCode,
+    courierName,
+    trackingUrl,
+    estimatedDeliveryDate,
+    status,
+    description,
+    location,
+  } = data;
+
+  // ==========================================
+  // Update Courier Details
+  // ==========================================
+
+  if (provider !== undefined) {
+    shipment.provider = provider;
+  }
+
+  if (shipmentId !== undefined) {
+    shipment.shipmentId = shipmentId.trim();
+  }
+
+  if (awbCode !== undefined) {
+    shipment.awbCode = awbCode.trim();
+  }
+
+  if (courierName !== undefined) {
+    shipment.courierName = courierName.trim();
+  }
+
+  if (trackingUrl !== undefined) {
+    shipment.trackingUrl = trackingUrl;
+  }
+
+  if (estimatedDeliveryDate !== undefined) {
+    const date = new Date(estimatedDeliveryDate);
+
+    if (Number.isNaN(date.getTime())) {
+      throw createError("Invalid estimated delivery date", 400);
+    }
+
+    shipment.estimatedDeliveryDate = date;
+  }
+
+  // ==========================================
+  // Update Tracking Status
+  // ==========================================
+
+  if (status !== undefined) {
+    const normalizedStatus = String(status).trim().toUpperCase();
+
+    const currentStatus = String(
+      shipment.currentStatus || "PENDING",
+    ).toUpperCase();
+
+    const currentIndex =
+      currentStatus === "PENDING"
+        ? -1
+        : ADMIN_TRACKING_STEPS.indexOf(currentStatus);
+
+    const nextIndex = ADMIN_TRACKING_STEPS.indexOf(normalizedStatus);
+
+    if (nextIndex === -1) {
+      throw createError("Invalid shipment status", 400);
+    }
+
+    if (currentIndex === -1 && currentStatus !== "PENDING") {
+      throw createError("Current shipment status is invalid", 400);
+    }
+
+    if (nextIndex !== currentIndex + 1) {
+      throw createError(
+        `Next tracking status must be ${
+          ADMIN_TRACKING_STEPS[currentIndex + 1] || "none"
+        }`,
+        400,
+      );
+    }
+
+    if (!description?.trim()) {
+      throw createError("Tracking description is required", 400);
+    }
+
+    const now = new Date();
+
+    shipment.currentStatus = normalizedStatus;
+
+    shipment.trackingHistory.push({
+      status: normalizedStatus,
+      description: description.trim(),
+      location: String(location || "").trim(),
+      source: "ADMIN",
+      timestamp: now,
+    });
+
+    if (normalizedStatus === "PICKUP SCHEDULED") {
+      shipment.pickupScheduledAt = now;
+    }
+
+    if (normalizedStatus === "PICKED UP") {
+      shipment.shippedAt = now;
+    }
+
+    if (normalizedStatus === "DELIVERED") {
+      shipment.deliveredAt = now;
+    }
+
+    if (location?.trim()) {
+      shipment.lastLocation = location.trim();
+    }
+  }
+
+  // ==========================================
+  // Validate Shipment Identifier
+  // ==========================================
+
+  if (!shipment.shipmentId && !shipment.awbCode) {
+    throw createError("Shipment ID or AWB number is required", 400);
+  }
+
+  // ==========================================
+  // Save Shipment
+  // ==========================================
 
   await order.save();
 
   return order;
 };
+
+// ==========================================
+// Get User Order Tracking
+// ==========================================
 
 export const getUserOrderTracking = async (orderId, userId) => {
   const order = await Order.findOne({
@@ -1135,23 +1329,31 @@ export const getUserOrderTracking = async (orderId, userId) => {
     throw createError("Order not found", 404);
   }
 
-  if (!order.shipment?.shipmentId) {
-    throw createError("Shipment not created for this order", 404);
+  const shipment = order.shipment;
+
+  if (!shipment?.shipmentId && !shipment?.awbCode) {
+    throw createError("Shipment tracking is not available yet", 404);
   }
 
   return {
     orderNumber: order.orderNumber,
     orderStatus: order.orderStatus,
     createdAt: order.createdAt,
+
     shipment: {
-      provider: order.shipment.provider,
-      shipmentId: order.shipment.shipmentId,
-      awbCode: order.shipment.awbCode,
-      courierName: order.shipment.courierName,
-      trackingUrl: order.shipment.trackingUrl,
-      currentStatus: order.shipment.currentStatus,
-      estimatedDeliveryDate: order.shipment.estimatedDeliveryDate,
-      trackingHistory: order.shipment.trackingHistory,
+      provider: shipment.provider,
+      mode: shipment.mode,
+      shipmentId: shipment.shipmentId,
+      awbCode: shipment.awbCode,
+      courierName: shipment.courierName,
+      trackingUrl: shipment.trackingUrl,
+      currentStatus: shipment.currentStatus,
+      estimatedDeliveryDate: shipment.estimatedDeliveryDate,
+      pickupScheduledAt: shipment.pickupScheduledAt,
+      shippedAt: shipment.shippedAt,
+      deliveredAt: shipment.deliveredAt,
+      lastLocation: shipment.lastLocation,
+      trackingHistory: shipment.trackingHistory || [],
     },
   };
 };

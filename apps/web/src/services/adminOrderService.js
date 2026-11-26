@@ -36,6 +36,15 @@ const adminOrderService = {
 
     return response.data;
   },
+
+  updateShipmentTracking: async (orderId, trackingData) => {
+    const response = await axiosInstance.patch(
+      `/orders/admin/${orderId}/shipment`,
+      trackingData,
+    );
+
+    return response.data;
+  },
 };
 
 export default adminOrderService;

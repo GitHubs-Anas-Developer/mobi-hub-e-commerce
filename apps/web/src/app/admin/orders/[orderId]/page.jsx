@@ -2,7 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
+  Save,
 } from "lucide-react";
 
 import adminOrderService from "@/services/adminOrderService";
@@ -97,7 +98,6 @@ function SectionCard({ title, icon: Icon, children }) {
 }
 
 export default function AdminOrderDetailsPage() {
-  const router = useRouter();
   const params = useParams();
   const orderId = params.orderId;
 
@@ -107,6 +107,19 @@ export default function AdminOrderDetailsPage() {
   const [selectedStatus, setSelectedStatus] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [shipmentSaving, setShipmentSaving] = useState(false);
+  const [shipmentForm, setShipmentForm] = useState({
+    provider: "OTHER",
+    shipmentId: "",
+    awbCode: "",
+    courierName: "",
+    courierCompanyId: "",
+    trackingUrl: "",
+    estimatedDeliveryDate: "",
+    status: "",
+    description: "",
+    location: "",
+  });
 
   const fetchOrder = useCallback(async () => {
     try {
@@ -124,6 +137,27 @@ export default function AdminOrderDetailsPage() {
       setSelectedStatus(
         ORDER_STATUS_FLOW[data.orderStatus]?.[0] || "",
       );
+
+      const shipment = data.shipment || {};
+      const estimatedDate = shipment.estimatedDeliveryDate
+        ? new Date(shipment.estimatedDeliveryDate)
+        : null;
+
+      setShipmentForm({
+        provider: shipment.provider || "OTHER",
+        shipmentId: shipment.shipmentId || "",
+        awbCode: shipment.awbCode || "",
+        courierName: shipment.courierName || "",
+        courierCompanyId: shipment.courierCompanyId ?? "",
+        trackingUrl: shipment.trackingUrl || "",
+        estimatedDeliveryDate:
+          estimatedDate && !Number.isNaN(estimatedDate.getTime())
+            ? estimatedDate.toISOString().slice(0, 10)
+            : "",
+        status: "",
+        description: "",
+        location: shipment.lastLocation || "",
+      });
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -167,9 +201,93 @@ export default function AdminOrderDetailsPage() {
     }
   };
 
+  const handleShipmentChange = (event) => {
+    const { name, value } = event.target;
+
+    setShipmentForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleShipmentUpdate = async (event) => {
+    event.preventDefault();
+
+    if (!order) return;
+
+    if (shipmentForm.status && !shipmentForm.description.trim()) {
+      setError("Tracking description is required.");
+      setSuccess("");
+      return;
+    }
+
+    const trackingData = {
+      provider: shipmentForm.provider,
+    };
+
+    const optionalFields = [
+      "shipmentId",
+      "awbCode",
+      "courierName",
+      "trackingUrl",
+      "courierCompanyId",
+      "location",
+    ];
+
+    optionalFields.forEach((field) => {
+      const value = shipmentForm[field];
+      if (value !== "" && value !== null && value !== undefined) {
+        trackingData[field] = value;
+      }
+    });
+
+    if (shipmentForm.estimatedDeliveryDate) {
+      const deliveryDate = new Date(
+        `${shipmentForm.estimatedDeliveryDate}T00:00:00`,
+      );
+
+      if (Number.isNaN(deliveryDate.getTime())) {
+        setError("Please enter a valid estimated delivery date.");
+        setSuccess("");
+        return;
+      }
+
+      trackingData.estimatedDeliveryDate = deliveryDate.toISOString();
+    }
+
+    if (shipmentForm.status) {
+      trackingData.status = shipmentForm.status;
+      trackingData.description = shipmentForm.description.trim();
+    }
+
+    try {
+      setShipmentSaving(true);
+      setError("");
+      setSuccess("");
+
+      await adminOrderService.updateShipmentTracking(
+        order._id,
+        trackingData,
+      );
+
+      setSuccess("Shipment tracking updated successfully.");
+      await fetchOrder();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to update shipment tracking.",
+      );
+    } finally {
+      setShipmentSaving(false);
+    }
+  };
+
   const address = order?.shippingAddress || {};
   const customer = order?.user || {};
   const items = order?.items || [];
+  const shipment = order?.shipment || {};
+  const trackingHistory = shipment.trackingHistory || [];
 
   const availableStatuses =
     ORDER_STATUS_FLOW[order?.orderStatus] || [];
@@ -424,6 +542,255 @@ export default function AdminOrderDetailsPage() {
               {Object.keys(address).length === 0 && (
                 <p className="text-sm text-slate-500">
                   Shipping address is not available.
+                </p>
+              )}
+            </SectionCard>
+
+            {/* Shipment Management */}
+            <SectionCard title="Shipment Management" icon={Truck}>
+              <form onSubmit={handleShipmentUpdate} className="space-y-5">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="provider" className="mb-2 block text-sm font-medium text-slate-700">
+                      Courier Provider
+                    </label>
+                    <select
+                      id="provider"
+                      name="provider"
+                      value={shipmentForm.provider}
+                      onChange={handleShipmentChange}
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="SHIPROCKET">Shiprocket</option>
+                      <option value="SELF">Self Shipping</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="courierName" className="mb-2 block text-sm font-medium text-slate-700">
+                      Courier Name
+                    </label>
+                    <input
+                      id="courierName"
+                      name="courierName"
+                      value={shipmentForm.courierName}
+                      onChange={handleShipmentChange}
+                      placeholder="e.g. Delhivery"
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="shipmentId" className="mb-2 block text-sm font-medium text-slate-700">
+                      Shipment ID
+                    </label>
+                    <input
+                      id="shipmentId"
+                      name="shipmentId"
+                      value={shipmentForm.shipmentId}
+                      onChange={handleShipmentChange}
+                      placeholder="Enter shipment ID"
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="awbCode" className="mb-2 block text-sm font-medium text-slate-700">
+                      AWB Number
+                    </label>
+                    <input
+                      id="awbCode"
+                      name="awbCode"
+                      value={shipmentForm.awbCode}
+                      onChange={handleShipmentChange}
+                      placeholder="Enter AWB number"
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="courierCompanyId" className="mb-2 block text-sm font-medium text-slate-700">
+                      Courier Company ID
+                    </label>
+                    <input
+                      id="courierCompanyId"
+                      name="courierCompanyId"
+                      value={shipmentForm.courierCompanyId}
+                      onChange={handleShipmentChange}
+                      placeholder="Optional"
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="estimatedDeliveryDate" className="mb-2 block text-sm font-medium text-slate-700">
+                      Estimated Delivery Date
+                    </label>
+                    <input
+                      id="estimatedDeliveryDate"
+                      type="date"
+                      name="estimatedDeliveryDate"
+                      value={shipmentForm.estimatedDeliveryDate}
+                      onChange={handleShipmentChange}
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="trackingUrl" className="mb-2 block text-sm font-medium text-slate-700">
+                    Tracking URL
+                  </label>
+                  <input
+                    id="trackingUrl"
+                    type="url"
+                    name="trackingUrl"
+                    value={shipmentForm.trackingUrl}
+                    onChange={handleShipmentChange}
+                    placeholder="https://..."
+                    disabled={shipmentSaving}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <h3 className="mb-4 font-semibold text-slate-900">
+                    Update Tracking Status
+                  </h3>
+
+                  <div>
+                    <label htmlFor="trackingStatus" className="mb-2 block text-sm font-medium text-slate-700">
+                      Tracking Status
+                    </label>
+                    <select
+                      id="trackingStatus"
+                      name="status"
+                      value={shipmentForm.status}
+                      onChange={handleShipmentChange}
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Shipment details only</option>
+                      <option value="NEW">New</option>
+                      <option value="PICKUP SCHEDULED">Pickup Scheduled</option>
+                      <option value="PICKED UP">Picked Up</option>
+                      <option value="IN TRANSIT">In Transit</option>
+                      <option value="OUT FOR DELIVERY">Out for Delivery</option>
+                      <option value="DELIVERED">Delivered</option>
+                    </select>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Select the next valid status in the shipment sequence.
+                    </p>
+                  </div>
+
+                  <div className="mt-4">
+                    <label htmlFor="trackingDescription" className="mb-2 block text-sm font-medium text-slate-700">
+                      Status Description
+                      {shipmentForm.status && <span className="text-red-500"> *</span>}
+                    </label>
+                    <textarea
+                      id="trackingDescription"
+                      name="description"
+                      value={shipmentForm.description}
+                      onChange={handleShipmentChange}
+                      placeholder="Enter tracking update description"
+                      rows={3}
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    <label htmlFor="trackingLocation" className="mb-2 block text-sm font-medium text-slate-700">
+                      Current Location
+                    </label>
+                    <input
+                      id="trackingLocation"
+                      name="location"
+                      value={shipmentForm.location}
+                      onChange={handleShipmentChange}
+                      placeholder="e.g. Malappuram, Kerala"
+                      disabled={shipmentSaving}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={shipmentSaving}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {shipmentSaving ? (
+                    <>
+                      <Loader2 size={17} className="animate-spin" />
+                      Updating Shipment...
+                    </>
+                  ) : (
+                    <>
+                      <Save size={17} />
+                      Save Shipment Details
+                    </>
+                  )}
+                </button>
+              </form>
+            </SectionCard>
+
+            {/* Tracking History */}
+            <SectionCard title="Tracking History" icon={Clock}>
+              {trackingHistory.length > 0 ? (
+                <div className="space-y-5">
+                  {trackingHistory.map((event, index) => (
+                    <div
+                      key={event._id || `${event.status}-${index}`}
+                      className="flex gap-3"
+                    >
+                      <div className="flex flex-col items-center">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                          {event.status === "DELIVERED" ? (
+                            <CheckCircle2 size={17} />
+                          ) : (
+                            <Truck size={17} />
+                          )}
+                        </div>
+                        {index !== trackingHistory.length - 1 && (
+                          <div className="mt-1 min-h-8 w-px flex-1 bg-slate-200" />
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1 pb-3">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {formatLabel(event.status)}
+                        </p>
+                        <p className="mt-1 text-sm text-slate-600">
+                          {event.description || "No description"}
+                        </p>
+                        {event.location && (
+                          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                            <MapPin size={13} />
+                            {event.location}
+                          </p>
+                        )}
+                        <p className="mt-1 text-xs text-slate-400">
+                          {formatDate(event.timestamp)}
+                        </p>
+                        <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                          {event.source || "ADMIN"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No tracking history available yet.
                 </p>
               )}
             </SectionCard>

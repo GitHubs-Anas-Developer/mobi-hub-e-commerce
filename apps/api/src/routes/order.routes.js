@@ -14,6 +14,7 @@ import {
   changePaymentStatus,
   fetchAdminOrderById,
   fetchUserOrderTracking,
+  changeShipmentTracking,
 } from "../controllers/order.controller.js";
 
 // ==========================================
@@ -44,6 +45,7 @@ import {
   updateOrderStatusSchema,
   updatePaymentStatusSchema,
   orderQuerySchema,
+  updateShipmentTrackingSchema,
 } from "../validators/order.validator.js";
 
 // ==========================================
@@ -76,6 +78,15 @@ router.patch(
   authorize("admin"),
   validate(orderIdSchema, "params"),
   updateMockShipmentTrackingController,
+);
+
+// Update Shipment Tracking (Manual Admin Update)
+router.patch(
+  "/admin/:orderId/shipment",
+  authorize("admin"),
+  validate(orderIdSchema, "params"),
+  validate(updateShipmentTrackingSchema, "body"),
+  changeShipmentTracking,
 );
 
 // Fetch All Orders

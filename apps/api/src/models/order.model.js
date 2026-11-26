@@ -249,6 +249,11 @@ const shipmentSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    mode: {
+      type: String,
+      enum: ["MOCK", "LIVE"],
+      default: "MOCK",
+    },
     lastLocationCoordinates: {
       type: shipmentLocationSchema,
       default: () => ({}),

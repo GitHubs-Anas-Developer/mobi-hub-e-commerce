@@ -97,3 +97,56 @@ export const orderQuerySchema = z
       path: ["endDate"],
     },
   );
+
+// ==========================================
+// Update Shipment Tracking Schema
+// ==========================================
+
+export const updateShipmentTrackingSchema = z
+  .object({
+    provider: z.enum(["SHIPROCKET", "SELF", "OTHER"]).optional(),
+
+    shipmentId: z.string().trim().min(1).optional(),
+
+    awbCode: z.string().trim().min(1).optional(),
+
+    courierName: z.string().trim().min(1).optional(),
+
+    courierCompanyId: z.union([z.string(), z.number()]).optional(),
+
+    trackingUrl: z.string().url().optional(),
+
+    estimatedDeliveryDate: z.coerce.date().optional(),
+
+    status: z
+      .enum([
+        "NEW",
+        "PICKUP SCHEDULED",
+        "PICKED UP",
+        "IN TRANSIT",
+        "OUT FOR DELIVERY",
+        "DELIVERED",
+      ])
+      .optional(),
+
+    description: z.string().trim().min(1).optional(),
+
+    location: z.string().trim().min(1).optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.status && !data.description) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Description is required when updating tracking status",
+        path: ["description"],
+      });
+    }
+
+    if (Object.keys(data).length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "At least one shipment field is required",
+      });
+    }
+  });

@@ -1,3 +1,4 @@
+
 import {
   createOrder,
   getUserOrders,
@@ -7,11 +8,12 @@ import {
   updateOrderStatus,
   updatePaymentStatus,
   getAdminOrderById,
+  getUserOrderTracking,
+  updateShipmentTracking,
 } from "../services/order.service.js";
 
 import sendEmail from "../services/email.service.js";
 import orderConfirmationTemplate from "../templates/emails/order-confirmation.template.js";
-import { getUserOrderTracking } from "../services/order.service.js";
 
 export const placeOrder = async (req, res, next) => {
   try {
@@ -34,7 +36,7 @@ export const placeOrder = async (req, res, next) => {
       console.error("Order confirmation email failed:", emailError.message);
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Order placed successfully",
       data: order,
@@ -46,9 +48,12 @@ export const placeOrder = async (req, res, next) => {
 
 export const fetchUserOrders = async (req, res, next) => {
   try {
-    const result = await getUserOrders(req.user._id, req.validatedData.query);
+    const result = await getUserOrders(
+      req.user._id,
+      req.validatedData.query,
+    );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: result,
     });
@@ -64,7 +69,7 @@ export const fetchOrderById = async (req, res, next) => {
       req.user._id,
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: order,
     });
@@ -80,7 +85,7 @@ export const cancelUserOrder = async (req, res, next) => {
       req.user._id,
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Order cancelled successfully",
       data: order,
@@ -94,7 +99,7 @@ export const fetchAllOrders = async (req, res, next) => {
   try {
     const result = await getAllOrders(req.validatedData.query);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: result,
     });
@@ -110,10 +115,10 @@ export const changeOrderStatus = async (req, res, next) => {
     const order = await updateOrderStatus(
       req.validatedData.params.orderId,
       req.validatedData.body.orderStatus,
-      req.user._id, // Admin ID
+      req.user._id,
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Order status updated successfully",
       data: order,
@@ -131,7 +136,7 @@ export const changePaymentStatus = async (req, res, next) => {
       req.validatedData.body.paymentStatus,
     );
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: "Payment status updated successfully",
       data: order,
@@ -147,7 +152,7 @@ export const fetchAdminOrderById = async (req, res, next) => {
 
     const order = await getAdminOrderById(orderId);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: { order },
     });
@@ -158,15 +163,40 @@ export const fetchAdminOrderById = async (req, res, next) => {
 
 export const fetchUserOrderTracking = async (req, res, next) => {
   try {
+    console.log("TRACKING ORDER ID:", req.validatedData.params.orderId);
+    console.log("LOGGED IN USER ID:", req.user._id);
+
     const tracking = await getUserOrderTracking(
-      req.params.orderId,
-      req.user?._id,
+      req.validatedData.params.orderId,
+      req.user._id,
     );
 
     return res.status(200).json({
       success: true,
       message: "Order tracking fetched successfully",
       data: tracking,
+    });
+  } catch (error) {
+    console.error("TRACKING ERROR:", error.message);
+    next(error);
+  }
+};
+
+export const changeShipmentTracking = async (req, res, next) => {
+  try {
+    const { orderId } = req.validatedData.params;
+    const trackingData = req.validatedData.body;
+
+    const order = await updateShipmentTracking(
+      orderId,
+      trackingData,
+      req.user._id,
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Shipment tracking updated successfully",
+      data: { order },
     });
   } catch (error) {
     next(error);
