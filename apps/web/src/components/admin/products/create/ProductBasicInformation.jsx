@@ -1,5 +1,6 @@
-
 "use client";
+
+import { Card, Input, Select } from "antd";
 
 export default function ProductBasicInformation({
   formData,
@@ -8,110 +9,101 @@ export default function ProductBasicInformation({
   brandsLoading = false,
   onChange,
 }) {
+  const triggerSynthetic = (name, value) => {
+    onChange({ target: { name, value } });
+  };
+
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6">
-      <h2 className="text-lg font-semibold text-slate-900">
-        Basic Information
-      </h2>
-
-      <p className="mt-1 text-sm text-slate-500">
-        Enter the basic details of your product.
-      </p>
-
-      <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
-        {/* Product Name */}
+    <Card
+      className="!border-[#E2E8F0]"
+      title={
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <h3 className="!m-0 text-base font-bold text-[#101828]">
+            Basic Information
+          </h3>
+          <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+            Enter product title, brand, category, and rich description.
+          </p>
+        </div>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
             Product Name *
           </label>
-
-          <input
-            type="text"
+          <Input
             name="name"
             value={formData.name}
             onChange={onChange}
-            placeholder="Enter product name"
-            required
-            className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            placeholder="e.g. Apple AirPods Pro (2nd Gen)"
           />
         </div>
 
-        {/* Brand */}
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
             Brand *
           </label>
-
-          <select
-            name="brand"
-            value={formData.brand}
-            onChange={onChange}
-            required
+          <Select
+            showSearch
+            optionFilterProp="label"
+            className="w-full"
+            value={formData.brand || undefined}
+            loading={brandsLoading}
             disabled={brandsLoading || brands.length === 0}
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-100"
-          >
-            <option value="">
-              {brandsLoading
+            placeholder={
+              brandsLoading
                 ? "Loading brands..."
                 : brands.length === 0
                   ? "No active brands available"
-                  : "Select a brand"}
-            </option>
-
-            {brands.map((brand) => (
-              <option key={brand._id} value={brand.name}>
-                {brand.name}
-              </option>
-            ))}
-          </select>
-
+                  : "Select a brand"
+            }
+            onChange={(val) => triggerSynthetic("brand", val || "")}
+            options={brands.map((brand) => ({
+              value: brand.name,
+              label: brand.name,
+            }))}
+          />
           {brands.length === 0 && !brandsLoading && (
-            <p className="mt-1.5 text-xs text-amber-600">
+            <p className="mt-1 text-xs text-amber-600">
               Please create and activate a brand before adding a product.
             </p>
           )}
         </div>
 
-        {/* Category */}
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
             Category *
           </label>
-
-          <select
-            name="category"
-            value={formData.category}
-            onChange={onChange}
-            required
-            className="w-full rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-          >
-            <option value="">Select a category</option>
-
-            {categories.map((category) => (
-              <option key={category._id} value={category._id}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+          <Select
+            showSearch
+            optionFilterProp="label"
+            className="w-full"
+            value={formData.category || undefined}
+            placeholder="Select a category"
+            onChange={(val) => triggerSynthetic("category", val || "")}
+            options={categories.map((cat) => ({
+              value: cat._id,
+              label: cat.parentCategory?.name
+                ? `${cat.parentCategory.name} -> ${cat.name}`
+                : cat.name,
+            }))}
+          />
         </div>
 
-        {/* Description */}
         <div className="md:col-span-2">
-          <label className="mb-2 block text-sm font-medium text-slate-700">
+          <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
             Description *
           </label>
-
-          <textarea
+          <Input.TextArea
             name="description"
+            rows={4}
             value={formData.description}
             onChange={onChange}
-            placeholder="Write a detailed product description..."
-            rows={5}
-            required
-            className="w-full resize-y rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+            placeholder="Describe key features, materials, compatibility, and box contents..."
           />
         </div>
       </div>
-    </section>
+    </Card>
   );
 }

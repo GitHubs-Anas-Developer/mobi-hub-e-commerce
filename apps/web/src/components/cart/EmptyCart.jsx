@@ -1,71 +1,51 @@
-
 "use client";
 
 import Link from "next/link";
-import { motion } from "motion/react";
-import {
-  ShoppingCart,
-  ArrowRight,
-  ShoppingBag,
-  Sparkles,
-} from "lucide-react";
+import { ShoppingBag, ArrowRight, LayoutGrid } from "lucide-react";
 
-export default function EmptyCart({
-  shouldReduceMotion = false,
-}) {
+export default function EmptyCart() {
   return (
-    <motion.section
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: shouldReduceMotion ? 0 : 0.35 }}
+    <section
       aria-labelledby="cart-empty-title"
-      className="flex min-h-[380px] flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-12 text-center shadow-sm sm:min-h-[430px] sm:px-8"
+      className="flex min-h-[380px] flex-col items-center justify-center rounded-2xl border border-[#E2E8F0] bg-white px-5 py-14 text-center sm:min-h-[420px] sm:px-8"
     >
-      {/* ICON */}
-      <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-blue-50">
-        <div className="absolute inset-2 rounded-full border border-blue-100" />
-
-        <ShoppingCart
-          size={42}
-          strokeWidth={1.5}
-          className="relative text-[#0755e9]"
-        />
-
-        <span className="absolute -right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-[#0755e9] text-white">
-          <Sparkles size={13} />
-        </span>
+      <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-[#0755E9]/15 bg-[#EFF6FF] text-[#0755E9]">
+        <ShoppingBag size={36} strokeWidth={1.6} aria-hidden="true" />
       </div>
 
-      {/* CONTENT */}
-      <span className="mt-7 text-xs font-bold uppercase tracking-[0.18em] text-[#0755e9]">
-        Your shopping journey starts here
+      <span className="mt-6 inline-flex items-center rounded-full border border-[#0755E9]/15 bg-[#EFF6FF] px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0755E9]">
+        ELENZO Shopping Bag
       </span>
 
       <h2
         id="cart-empty-title"
-        className="mt-2 text-xl font-extrabold tracking-tight text-[#101828] sm:text-2xl"
+        className="mt-3 text-xl font-bold tracking-tight text-[#101828] sm:text-2xl"
       >
-        Your cart is empty
+        Your Cart Is Empty
       </h2>
 
-      <p className="mt-3 max-w-sm text-sm leading-6 text-slate-500">
-        Looks like you haven't added any products yet.
-        Explore our collection and find your favourite gadgets.
+      <p className="mt-2 max-w-md text-xs leading-relaxed text-[#64748B] sm:text-sm">
+        You haven&apos;t added any gadgets or electronics to your cart yet. Browse our latest devices, smart accessories, and flagship gear.
       </p>
 
-      {/* CTA */}
-      <Link
-        href="/products"
-        className="mt-7 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#0755e9] px-6 py-3 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-[#0645c4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755e9] focus-visible:ring-offset-2 active:scale-[0.98]"
-      >
-        <ShoppingBag size={17} />
-        Explore Products
-        <ArrowRight size={17} />
-      </Link>
+      <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+        <Link
+          href="/products"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-6 text-xs font-bold text-white shadow-xs transition hover:bg-[#082B70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 active:scale-[0.98] sm:text-sm"
+        >
+          <ShoppingBag size={16} />
+          <span>Start Shopping</span>
+          <ArrowRight size={16} />
+        </Link>
 
-      <p className="mt-4 text-xs text-slate-400">
-        Find something you will love at ELEZIO.
-      </p>
-    </motion.section>
+        <Link
+          href="/categories"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-5 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] sm:text-sm"
+        >
+          <LayoutGrid size={16} />
+          <span>Browse Categories</span>
+        </Link>
+      </div>
+    </section>
   );
 }

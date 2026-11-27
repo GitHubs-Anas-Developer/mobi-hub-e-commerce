@@ -16,6 +16,121 @@ import adminNewOrderTemplate from "../templates/emails/admin-new-order.template.
 import orderStatusTemplate from "../templates/emails/order-status.template.js";
 import { createShiprocketOrder } from "./shiprocket.service.js";
 import shiprocketConfig from "../config/shiprocket.config.js";
+import Payment from "../models/payment.model.js";
+import PaymentRefund from "../models/payment-refund.model.js";
+import {
+  buildRefundSummary,
+  executeReservedRazorpayRefund,
+  reserveCancellationRefundInSession,
+  sanitizePaymentForCustomer,
+} from "./payment.service.js";
+
+const DISPATCHED_SHIPMENT_STATUSES = new Set([
+  "PICKUP SCHEDULED",
+  "PICKED UP",
+  "IN TRANSIT",
+  "OUT FOR DELIVERY",
+  "DELIVERED",
+]);
+
+export const isOrderCancellable = (order) => {
+  if (!order) {
+    return { cancellable: false, reason: "Order not found" };
+  }
+
+  if (order.orderStatus === "Cancelled") {
+    return { cancellable: false, reason: "Order is already cancelled" };
+  }
+
+  if (!["Pending", "Confirmed"].includes(order.orderStatus)) {
+    return {
+      cancellable: false,
+      reason: `This order cannot be cancelled at ${order.orderStatus} stage`,
+    };
+  }
+
+  const shipmentStatus = String(order.shipment?.currentStatus || "")
+    .trim()
+    .toUpperCase();
+
+  if (
+    order.shipment?.shippedAt ||
+    order.shipment?.pickupScheduledAt ||
+    order.shipment?.deliveredAt ||
+    order.shipment?.awbCode ||
+    DISPATCHED_SHIPMENT_STATUSES.has(shipmentStatus)
+  ) {
+    return {
+      cancellable: false,
+      reason:
+        "Order cannot be cancelled after courier pickup has been scheduled or shipped",
+    };
+  }
+
+  return { cancellable: true, reason: null };
+};
+
+const attachCustomerOrderSummaries = async (orders = []) => {
+  if (!Array.isArray(orders) || orders.length === 0) {
+    return [];
+  }
+
+  const orderIds = orders.map((order) => order._id);
+
+  const [payments, refunds] = await Promise.all([
+    Payment.find({ order: { $in: orderIds } })
+      .sort({ createdAt: -1 })
+      .lean(),
+    PaymentRefund.find({ order: { $in: orderIds } })
+      .sort({ createdAt: -1 })
+      .lean(),
+  ]);
+
+  const paymentsByOrder = new Map();
+  for (const payment of payments) {
+    const key = payment.order.toString();
+    const list = paymentsByOrder.get(key) || [];
+    list.push(payment);
+    paymentsByOrder.set(key, list);
+  }
+
+  const refundsByOrder = new Map();
+  for (const refund of refunds) {
+    const key = refund.order.toString();
+    const list = refundsByOrder.get(key) || [];
+    list.push(refund);
+    refundsByOrder.set(key, list);
+  }
+
+  return orders.map((order) => {
+    const key = order._id.toString();
+    const orderPayments = paymentsByOrder.get(key) || [];
+    const primaryPayment =
+      orderPayments.find((p) =>
+        ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"].includes(
+          p.status,
+        ),
+      ) ||
+      orderPayments[0] ||
+      null;
+    const orderRefunds = refundsByOrder.get(key) || [];
+    const eligibility = isOrderCancellable(order);
+
+    return {
+      ...order,
+      cancellable: eligibility.cancellable,
+      cancelIneligibleReason: eligibility.reason,
+      paymentSummary: primaryPayment
+        ? sanitizePaymentForCustomer(primaryPayment)
+        : null,
+      refundSummary: buildRefundSummary({
+        order,
+        payment: primaryPayment,
+        refunds: orderRefunds,
+      }),
+    };
+  });
+};
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -102,9 +217,9 @@ const sendOrderConfirmationEmail = async (order, userId) => {
       html: orderConfirmationTemplate(order),
       text: [
         `Hello ${order.shippingAddress.fullName},`,
-        `Your ELEZIO order ${order.orderNumber} has been confirmed.`,
+        `Your ELENZO order ${order.orderNumber} has been confirmed.`,
         `Total: INR ${order.totalAmount}`,
-        "Thank you for shopping with ELEZIO.",
+        "Thank you for shopping with ELENZO.",
       ].join("\n"),
     });
 
@@ -141,7 +256,7 @@ const sendAdminNewOrderEmail = async (order, userId) => {
       subject: `New Order Received - ${order.orderNumber}`,
       html: adminNewOrderTemplate(order, customer),
       text: [
-        "New order received - ELEZIO",
+        "New order received - ELENZO",
         `Order Number: ${order.orderNumber}`,
         `Customer: ${order.shippingAddress.fullName}`,
         `Customer Email: ${customer.email}`,
@@ -182,13 +297,13 @@ const sendOrderStatusEmail = async (order) => {
 
     const result = await sendEmail({
       to: user.email,
-      subject: `ELEZIO - Order ${order.orderNumber} ${order.orderStatus}`,
+      subject: `ELENZO - Order ${order.orderNumber} ${order.orderStatus}`,
       html,
       text: [
         `Hello ${order.shippingAddress?.fullName || user.name || "Customer"},`,
         `Your order ${order.orderNumber} is now ${order.orderStatus}.`,
         `Total: INR ${order.totalAmount}`,
-        "Thank you for shopping with ELEZIO.",
+        "Thank you for shopping with ELENZO.",
       ].join("\n"),
     });
 
@@ -608,8 +723,10 @@ export const getUserOrders = async (userId, query = {}) => {
     Order.countDocuments(filter),
   ]);
 
+  const enrichedOrders = await attachCustomerOrderSummaries(orders);
+
   return {
-    orders,
+    orders: enrichedOrders,
     pagination: {
       total,
       page,
@@ -620,16 +737,18 @@ export const getUserOrders = async (userId, query = {}) => {
 };
 
 export const getOrderById = async (orderId, userId) => {
-  const order = await Order.findOne({
-    _id: orderId,
-    user: userId,
-  }).lean();
+  const order = await Order.findById(orderId).select("-__v").lean();
 
   if (!order) {
     throw createError("Order not found", 404);
   }
 
-  return order;
+  if (order.user.toString() !== userId.toString()) {
+    throw createError("You are not authorized to access this order", 403);
+  }
+
+  const [enriched] = await attachCustomerOrderSummaries([order]);
+  return enriched;
 };
 
 export const getAdminOrderById = async (orderId) => {
@@ -641,32 +760,187 @@ export const getAdminOrderById = async (orderId) => {
     throw createError("Order not found", 404);
   }
 
-  return order;
+  const [payments, refundHistory] = await Promise.all([
+    Payment.find({ order: order._id })
+      .select("-signature -__v")
+      .sort({ createdAt: -1 })
+      .lean(),
+    PaymentRefund.find({ order: order._id }).sort({ createdAt: -1 }).lean(),
+  ]);
+
+  const primaryPayment =
+    payments.find((p) =>
+      ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"].includes(
+        p.status,
+      ),
+    ) ||
+    payments[0] ||
+    null;
+
+  const eligibility = isOrderCancellable(order);
+
+  const paymentDetails = primaryPayment
+    ? {
+        _id: primaryPayment._id,
+        provider: primaryPayment.provider,
+        razorpayOrderId: primaryPayment.razorpayOrderId || null,
+        razorpayPaymentId: primaryPayment.razorpayPaymentId || null,
+        amount: primaryPayment.amount,
+        currency: primaryPayment.currency || "INR",
+        status: primaryPayment.status,
+        paymentMethod: primaryPayment.paymentMethod || null,
+        verifiedAt: primaryPayment.verifiedAt || null,
+        failureReason: primaryPayment.failureReason || null,
+        refundedAmount: Number(primaryPayment.refundedAmount || 0),
+        reservedRefundAmount: Number(primaryPayment.reservedRefundAmount || 0),
+        remainingRefundableAmount: Number(
+          Math.max(
+            0,
+            Number(primaryPayment.amount || 0) -
+              Number(primaryPayment.refundedAmount || 0) -
+              Number(primaryPayment.reservedRefundAmount || 0),
+          ).toFixed(2),
+        ),
+        refundReconciliationRequired: Boolean(
+          primaryPayment.refundReconciliationRequired,
+        ),
+        refundReconciliationReason:
+          primaryPayment.refundReconciliationReason || null,
+        refundReconciliationAt: primaryPayment.refundReconciliationAt || null,
+        refundId: primaryPayment.refundId || null,
+        refundedAt: primaryPayment.refundedAt || null,
+      }
+    : null;
+
+  return {
+    ...order,
+    cancellable: eligibility.cancellable,
+    cancelIneligibleReason: eligibility.reason,
+    paymentDetails,
+    refundSummary: buildRefundSummary({
+      order,
+      payment: primaryPayment,
+      refunds: refundHistory,
+    }),
+    refundHistory,
+  };
 };
 
-export const cancelOrder = async (orderId, userId) => {
+export const cancelOrder = async (
+  orderId,
+  userId,
+  { reason = "", comment = "" } = {},
+  { isAdmin = false, actorId = userId } = {},
+) => {
+  const trimmedReason = String(reason || "").trim();
+  const trimmedComment = String(comment || "").trim();
+
+  if (!trimmedReason || trimmedReason.length < 3) {
+    throw createError("Please provide a valid cancellation reason", 400);
+  }
+
+  const existingOrder = await Order.findById(orderId);
+
+  if (!existingOrder) {
+    throw createError("Order not found", 404);
+  }
+
+  if (!isAdmin && existingOrder.user.toString() !== userId.toString()) {
+    throw createError("You are not authorized to cancel this order", 403);
+  }
+
+  if (existingOrder.orderStatus === "Cancelled") {
+    throw createError("Order is already cancelled", 409);
+  }
+
+  const eligibility = isOrderCancellable(existingOrder);
+  if (!eligibility.cancellable) {
+    throw createError(eligibility.reason, 400);
+  }
+
   const session = await mongoose.startSession();
+  let reservedRefund = null;
+  let cancelledOrder = null;
 
   try {
     session.startTransaction();
 
-    // 1. Find user's order
-    const order = await Order.findOne({
-      _id: orderId,
-      user: userId,
-    }).session(session);
+    const cancelledAt = new Date();
+    const actorSource = isAdmin ? "ADMIN" : "USER";
+    const historyNote = trimmedComment
+      ? `Cancelled (${trimmedReason}): ${trimmedComment}`
+      : `Cancelled (${trimmedReason})`;
 
-    if (!order) {
-      throw createError("Order not found", 404);
+    // Atomic conditional cancellation prevents concurrent double cancel / ship races.
+    cancelledOrder = await Order.findOneAndUpdate(
+      {
+        _id: orderId,
+        ...(isAdmin ? {} : { user: existingOrder.user }),
+        orderStatus: { $in: ["Pending", "Confirmed"] },
+        $and: [
+          {
+            $or: [
+              { "shipment.shippedAt": null },
+              { "shipment.shippedAt": { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { "shipment.pickupScheduledAt": null },
+              { "shipment.pickupScheduledAt": { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { "shipment.deliveredAt": null },
+              { "shipment.deliveredAt": { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { "shipment.awbCode": null },
+              { "shipment.awbCode": "" },
+              { "shipment.awbCode": { $exists: false } },
+            ],
+          },
+        ],
+        "shipment.currentStatus": {
+          $nin: Array.from(DISPATCHED_SHIPMENT_STATUSES),
+        },
+      },
+      {
+        $set: {
+          orderStatus: "Cancelled",
+          cancelledAt,
+          cancellationReason: trimmedReason.slice(0, 200),
+          cancellationComment: trimmedComment
+            ? trimmedComment.slice(0, 500)
+            : null,
+          cancelledBy: actorSource,
+          cancelledByUserId: actorId || userId || null,
+        },
+        $push: {
+          orderStatusHistory: {
+            status: "Cancelled",
+            note: historyNote.slice(0, 500),
+            changedBy: actorId || userId || null,
+            source: actorSource,
+            timestamp: cancelledAt,
+          },
+        },
+      },
+      { new: true, session },
+    );
+
+    if (!cancelledOrder) {
+      throw createError(
+        "Order status changed concurrently and can no longer be cancelled",
+        409,
+      );
     }
 
-    // 2. Validate order status
-    if (!["Pending", "Confirmed"].includes(order.orderStatus)) {
-      throw createError("This order cannot be cancelled at this stage", 400);
-    }
-
-    // 3. Restore stock and create inventory history
-    for (const [index, item] of order.items.entries()) {
+    // Restore stock and create idempotent inventory history
+    for (const [index, item] of cancelledOrder.items.entries()) {
       await updateVariantStock({
         productId: item.product,
         variantId: item.variantId,
@@ -674,19 +948,19 @@ export const cancelOrder = async (orderId, userId) => {
         direction: "IN",
         type: "Cancellation",
         referenceType: "Order",
-        referenceId: order._id,
-        performedBy: userId,
-        note: `Stock restored for cancelled order ${order._id}`,
-        idempotencyKey: `order-cancel:${order._id}:${index}`,
+        referenceId: cancelledOrder._id,
+        performedBy: actorId || userId || cancelledOrder.user,
+        note: `Stock restored for cancelled order ${cancelledOrder.orderNumber}`,
+        idempotencyKey: `order-cancel:${cancelledOrder._id}:${index}`,
         session,
       });
     }
 
-    // 4. Restore coupon usage if coupon was applied
-    if (order.coupon?.couponId) {
+    // Restore coupon usage if coupon was applied
+    if (cancelledOrder.coupon?.couponId) {
       const couponUpdate = await Coupon.updateOne(
         {
-          _id: order.coupon.couponId,
+          _id: cancelledOrder.coupon.couponId,
           usedCount: { $gt: 0 },
         },
         {
@@ -701,8 +975,8 @@ export const cancelOrder = async (orderId, userId) => {
 
       const usageUpdate = await CouponUsage.updateOne(
         {
-          coupon: order.coupon.couponId,
-          user: userId,
+          coupon: cancelledOrder.coupon.couponId,
+          user: cancelledOrder.user,
           usedCount: { $gt: 0 },
         },
         {
@@ -716,32 +990,54 @@ export const cancelOrder = async (orderId, userId) => {
       }
     }
 
-    // 5. Update order status
-    order.orderStatus = "Cancelled";
-    order.cancelledAt = new Date();
+    // Handle refund reservation for paid Online orders inside the same transaction.
+    if (cancelledOrder.paymentMethod === "Online") {
+      const paidPayment = await Payment.findOne({
+        order: cancelledOrder._id,
+        status: { $in: ["Paid", "PartiallyRefunded"] },
+      })
+        .sort({ createdAt: -1 })
+        .session(session);
 
-    order.orderStatusHistory.push({
-      status: "Cancelled",
-      note: "Order cancelled by customer",
-      changedBy: userId,
-      source: "USER",
-      timestamp: new Date(),
-    });
+      if (paidPayment) {
+        if (paidPayment.refundReconciliationRequired) {
+          cancelledOrder.refundStatus = "RECONCILIATION_REQUIRED";
+          cancelledOrder.refundAmount = Number(
+            paidPayment.amount - (paidPayment.refundedAmount || 0),
+          );
+          cancelledOrder.refundRequestedAt = cancelledAt;
+          cancelledOrder.refundFailureReason =
+            "Manual payment reconciliation required before initiating refund";
+          await cancelledOrder.save({ session });
+        } else {
+          reservedRefund = await reserveCancellationRefundInSession({
+            order: cancelledOrder,
+            payment: paidPayment,
+            userId: actorId || userId || cancelledOrder.user,
+            initiatedByRole: actorSource,
+            reason: trimmedReason,
+            session,
+          });
+        }
+      } else {
+        cancelledOrder.refundStatus = "NOT_REQUIRED";
+        cancelledOrder.refundAmount = 0;
+        await cancelledOrder.save({ session });
+      }
+    } else if (cancelledOrder.paymentMethod === "COD") {
+      cancelledOrder.refundStatus =
+        cancelledOrder.paymentStatus === "Paid" ? "PENDING" : "NOT_REQUIRED";
+      cancelledOrder.refundAmount =
+        cancelledOrder.paymentStatus === "Paid"
+          ? cancelledOrder.totalAmount
+          : 0;
+      if (cancelledOrder.paymentStatus === "Paid") {
+        cancelledOrder.refundRequestedAt = cancelledAt;
+      }
+      await cancelledOrder.save({ session });
+    }
 
-    await order.save({ session });
-
-    // 6. Commit transaction
     await session.commitTransaction();
-    // Send order cancellation notification
-    await sendOrderNotifications({
-      customerId: userId,
-      order,
-      type: "ORDER_CANCELLED",
-      title: "Order Cancelled",
-      message: `Your order ${order.orderNumber} has been cancelled.`,
-    });
-
-    return order;
   } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
@@ -751,6 +1047,32 @@ export const cancelOrder = async (orderId, userId) => {
   } finally {
     await session.endSession();
   }
+
+  // Trigger Razorpay refund outside the DB transaction so gateway timeouts never undo cancellation/stock.
+  if (reservedRefund?.paymentRefund) {
+    await executeReservedRazorpayRefund({
+      paymentRefund: reservedRefund.paymentRefund,
+      payment: reservedRefund.payment,
+      order: reservedRefund.order,
+      swallowGatewayError: true,
+    });
+  }
+
+  await sendOrderNotifications({
+    customerId: cancelledOrder.user,
+    order: cancelledOrder,
+    type: "ORDER_CANCELLED",
+    title: "Order Cancelled",
+    message:
+      cancelledOrder.paymentMethod === "Online" &&
+      ["Paid", "PartiallyRefunded"].includes(cancelledOrder.paymentStatus)
+        ? `Your order ${cancelledOrder.orderNumber} has been cancelled and your refund has been initiated.`
+        : `Your order ${cancelledOrder.orderNumber} has been cancelled.`,
+  });
+
+  return isAdmin
+    ? getAdminOrderById(cancelledOrder._id)
+    : getOrderById(cancelledOrder._id, cancelledOrder.user);
 };
 
 export const getAllOrders = async (query = {}) => {
@@ -946,7 +1268,11 @@ export const updateOrderStatus = async (
   return order;
 };
 
-export const updatePaymentStatus = async (orderId, paymentStatus) => {
+export const updatePaymentStatus = async (
+  orderId,
+  paymentStatus,
+  adminId = null,
+) => {
   const order = await Order.findById(orderId);
 
   if (!order) {
@@ -990,6 +1316,55 @@ export const updatePaymentStatus = async (orderId, paymentStatus) => {
       `Cannot change payment status from ${order.paymentStatus} to ${paymentStatus}`,
       400,
     );
+  }
+
+  if (paymentStatus === "Refunded") {
+    if (!["Cancelled", "Delivered"].includes(order.orderStatus)) {
+      throw createError(
+        "COD refunds can only be recorded for cancelled or delivered orders",
+        400,
+      );
+    }
+
+    const session = await mongoose.startSession();
+    try {
+      await session.withTransaction(async () => {
+        const orderDoc = await Order.findById(orderId).session(session);
+        const now = new Date();
+
+        const refundDoc = new PaymentRefund({
+          payment: null,
+          order: orderDoc._id,
+          user: orderDoc.user,
+          referenceType: "OrderCancellation",
+          referenceId: orderDoc._id,
+          attempt: 1,
+          provider: "Manual",
+          amount: orderDoc.totalAmount,
+          currency: "INR",
+          status: "Processed",
+          idempotencyKey: `cod-manual-refund-${orderDoc._id}-${Date.now()}`,
+          reason:
+            orderDoc.cancellationReason || "Manual COD refund recorded by admin",
+          initiatedBy: adminId,
+          initiatedByRole: "ADMIN",
+          processedAt: now,
+        });
+
+        await refundDoc.save({ session });
+
+        orderDoc.paymentStatus = "Refunded";
+        orderDoc.refundStatus = "SUCCESS";
+        orderDoc.refundAmount = orderDoc.totalAmount;
+        orderDoc.refundRequestedAt = orderDoc.refundRequestedAt || now;
+        orderDoc.refundCompletedAt = now;
+        await orderDoc.save({ session });
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    return Order.findById(orderId);
   }
 
   order.paymentStatus = paymentStatus;

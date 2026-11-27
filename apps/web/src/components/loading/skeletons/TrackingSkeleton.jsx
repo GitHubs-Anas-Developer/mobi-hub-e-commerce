@@ -1,4 +1,3 @@
-
 "use client";
 
 function Skeleton({ className = "" }) {
@@ -9,32 +8,15 @@ function Skeleton({ className = "" }) {
   );
 }
 
-function DetailTileSkeleton() {
+function TileSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4">
       <div className="flex items-center gap-3">
         <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-4 w-32 max-w-full" />
+          <Skeleton className="h-4 w-36 max-w-full" />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function TrackingEventSkeleton() {
-  return (
-    <div className="flex gap-4 pb-8">
-      <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-
-      <div className="min-w-0 flex-1 space-y-3">
-        <div className="flex flex-wrap justify-between gap-3">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-3 w-28" />
-        </div>
-        <Skeleton className="h-3 w-full max-w-md" />
-        <Skeleton className="h-3 w-32" />
       </div>
     </div>
   );
@@ -43,151 +25,97 @@ function TrackingEventSkeleton() {
 export default function TrackingSkeleton() {
   return (
     <div
-      className="min-h-screen bg-[#f5f7fb]"
+      className="mx-auto w-full max-w-[1320px] space-y-6"
       aria-label="Loading shipment tracking"
       aria-busy="true"
     >
-      <div className="mx-auto w-full max-w-[1800px] px-4 py-6 sm:px-6 lg:px-10 xl:px-14">
+      {/* Breadcrumb & Header */}
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-60 max-w-full" />
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-56" />
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </div>
+          <div className="flex gap-2.5">
+            <Skeleton className="h-10 w-36 rounded-xl" />
+            <Skeleton className="h-10 w-36 rounded-xl" />
+          </div>
+        </div>
+      </div>
 
-        {/* Top navigation */}
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <Skeleton className="h-5 w-36" />
-          <Skeleton className="h-10 w-40 rounded-xl" />
+      {/* Hero Status Banner */}
+      <section className="rounded-2xl bg-[#082B70] p-6 sm:p-8">
+        <div className="flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
+          <div className="space-y-3">
+            <Skeleton className="h-7 w-40 rounded-full bg-white/15" />
+            <Skeleton className="h-8 w-64 max-w-full bg-white/15" />
+            <Skeleton className="h-4 w-80 max-w-full bg-white/15" />
+          </div>
+          <Skeleton className="h-16 w-16 shrink-0 rounded-2xl bg-white/15" />
         </div>
 
-        {/* Delivery banner */}
-        <section className="rounded-[28px] bg-[#101d3a] p-6 sm:p-9 lg:p-12">
-          <div className="grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div className="space-y-5">
-              <Skeleton className="h-7 w-52 rounded-full bg-slate-600" />
-              <Skeleton className="h-10 w-full max-w-xl bg-slate-600" />
-              <Skeleton className="h-4 w-full max-w-lg bg-slate-600" />
-
-              <div className="flex flex-wrap gap-3 pt-2">
-                <div className="rounded-xl border border-white/10 bg-white/[0.08] p-4">
-                  <Skeleton className="h-3 w-24 bg-slate-600" />
-                  <Skeleton className="mt-3 h-4 w-32 bg-slate-600" />
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-white/[0.08] p-4">
-                  <Skeleton className="h-3 w-24 bg-slate-600" />
-                  <Skeleton className="mt-3 h-4 w-32 bg-slate-600" />
-                </div>
-              </div>
+        <div className="mt-6 grid grid-cols-1 gap-4 border-t border-white/15 pt-5 sm:grid-cols-3">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="space-y-2">
+              <Skeleton className="h-3 w-24 bg-white/15" />
+              <Skeleton className="h-4 w-32 bg-white/15" />
             </div>
+          ))}
+        </div>
+      </section>
 
-            <div className="flex items-center gap-5 lg:flex-col">
-              <Skeleton className="h-20 w-20 rounded-[26px] bg-slate-600" />
-              <div className="space-y-3">
-                <Skeleton className="h-3 w-24 bg-slate-600" />
-                <Skeleton className="h-4 w-40 bg-slate-600" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Shipment progress */}
-        <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div className="space-y-3">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-6 w-48" />
-            </div>
-            <Skeleton className="h-4 w-32" />
-          </div>
-
-          {/* Desktop progress */}
-          <div className="mt-9 hidden md:grid md:grid-cols-6 md:gap-3">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="flex flex-col items-center gap-4">
-                <Skeleton className="h-11 w-11 rounded-full" />
-                <Skeleton className="h-3 w-24 max-w-full" />
-              </div>
-            ))}
-          </div>
-
-          {/* Mobile progress */}
-          <div className="mt-6 space-y-3 md:hidden">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div
-                key={item}
-                className="flex items-center gap-3 rounded-xl bg-slate-50 p-3"
-              >
-                <Skeleton className="h-9 w-9 rounded-full" />
-                <Skeleton className="h-4 w-40 max-w-full" />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Tracking activity and shipment details */}
-        <div className="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1.55fr)_minmax(360px,0.85fr)]">
-
-          {/* Tracking activity */}
-          <section className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex items-center justify-between gap-3">
-              <div className="space-y-3">
+      {/* Main 2 Columns */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
+          {/* Timeline Skeleton */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-7">
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <div className="space-y-2">
                 <Skeleton className="h-3 w-28" />
-                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-6 w-44" />
               </div>
-              <Skeleton className="h-7 w-20 rounded-full" />
+              <Skeleton className="h-8 w-24 rounded-full" />
             </div>
-
-            <div className="mt-8">
-              {[1, 2, 3, 4].map((item) => (
-                <TrackingEventSkeleton key={item} />
+            <Skeleton className="mb-6 h-2 w-full rounded-full" />
+            <div className="space-y-4">
+              {[1, 2, 3, 4, 5].map((step) => (
+                <div key={step} className="flex gap-4">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
+                  <Skeleton className="h-20 flex-1 rounded-2xl" />
+                </div>
               ))}
             </div>
           </section>
 
-          {/* Right column */}
-          <div className="space-y-6">
-
-            {/* Package information */}
-            <section className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-              <div className="space-y-3">
-                <Skeleton className="h-3 w-28" />
-                <Skeleton className="h-6 w-48" />
-              </div>
-
-              <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                {[1, 2, 3, 4, 5].map((item) => (
-                  <DetailTileSkeleton key={item} />
-                ))}
-              </div>
-
-              <Skeleton className="mt-5 h-12 w-full rounded-xl" />
-            </section>
-
-            {/* Latest location */}
-            <section className="rounded-[26px] border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
-              <div className="flex items-center gap-3">
-                <Skeleton className="h-11 w-11 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-28" />
-                  <Skeleton className="h-5 w-40 max-w-full" />
-                </div>
-              </div>
-
-              <Skeleton className="mt-5 h-4 w-full" />
-              <Skeleton className="mt-3 h-4 w-3/4" />
-              <Skeleton className="mt-5 h-16 w-full rounded-xl" />
-            </section>
-          </div>
+          {/* Chronological Tracking History Skeleton */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-7">
+            <Skeleton className="mb-5 h-6 w-48" />
+            <div className="space-y-3">
+              {[1, 2, 3].map((row) => (
+                <Skeleton key={row} className="h-20 w-full rounded-2xl" />
+              ))}
+            </div>
+          </section>
         </div>
 
-        {/* Bottom actions */}
-        <section className="mt-6 flex flex-col justify-between gap-4 rounded-[24px] border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:px-7">
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-40" />
-            <Skeleton className="h-3 w-56 max-w-full" />
-          </div>
+        {/* Shipment Details Right Column */}
+        <aside className="space-y-5">
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6">
+            <Skeleton className="mb-4 h-6 w-44" />
+            <div className="space-y-3">
+              <TileSkeleton />
+              <TileSkeleton />
+              <TileSkeleton />
+            </div>
+            <Skeleton className="mt-4 h-11 w-full rounded-xl" />
+          </section>
 
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Skeleton className="h-11 w-full rounded-xl sm:w-32" />
-            <Skeleton className="h-11 w-full rounded-xl sm:w-40" />
-          </div>
-        </section>
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6">
+            <Skeleton className="mb-3 h-6 w-36" />
+            <Skeleton className="h-11 w-full rounded-xl" />
+          </section>
+        </aside>
       </div>
     </div>
   );

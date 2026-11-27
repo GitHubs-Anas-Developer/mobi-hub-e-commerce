@@ -1,80 +1,53 @@
-
 "use client";
 
-import {
-  Truck,
-  ShieldCheck,
-  RotateCcw,
-  Headphones,
-} from "lucide-react";
+import { Truck, ShieldCheck, RotateCcw, Headphones } from "lucide-react";
 
 const highlights = [
   {
     id: "delivery",
     icon: Truck,
-    title: "Reliable Delivery",
-    description: "Fast & secure delivery",
+    title: "Fast & Reliable Dispatch",
+    description: "Safe pan-India order shipping",
   },
   {
     id: "payment",
     icon: ShieldCheck,
-    title: "Secure Payment",
-    description: "Safe checkout experience",
+    title: "Secure Checkout",
+    description: "Protected Razorpay & COD payments",
   },
   {
     id: "returns",
     icon: RotateCcw,
     title: "Easy Returns",
-    description: "Hassle-free returns",
+    description: "Hassle-free support on eligible items",
   },
   {
     id: "support",
     icon: Headphones,
-    title: "Customer Support",
-    description: "We're here to help",
+    title: "Dedicated Support",
+    description: "Responsive ELENZO customer care",
   },
 ];
 
 export default function ProductServiceHighlights() {
   return (
     <section
-      aria-label="Shopping benefits"
-      className="mt-8 border-t border-[#E2E8F0] pt-6"
+      aria-label="Service highlights"
+      className="mt-6 border-t border-[#E2E8F0] pt-5"
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
         {highlights.map(({ id, icon: Icon, title, description }) => (
           <div
             key={id}
-            className="
-              group flex min-w-0 items-start gap-3
-              rounded-xl border border-slate-100
-              bg-slate-50/70 p-3
-              transition-all duration-200
-              hover:-translate-y-0.5
-              hover:border-blue-100
-              hover:bg-blue-50/50
-              hover:shadow-sm
-            "
+            className="flex min-w-0 items-center gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-3 transition-colors hover:border-[#0755E9]/35 hover:bg-[#EFF6FF]/50"
           >
-            <div
-              className="
-                flex h-10 w-10 shrink-0 items-center
-                justify-center rounded-xl
-                bg-blue-100 text-[#0755e9]
-                transition-colors duration-200
-                group-hover:bg-[#0755e9]
-                group-hover:text-white
-              "
-            >
-              <Icon size={20} strokeWidth={1.8} />
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+              <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
             </div>
 
             <div className="min-w-0">
-              <h3 className="text-xs font-bold leading-5 text-[#101828] sm:text-sm">
-                {title}
-              </h3>
-
-              <p className="mt-1 text-[11px] leading-4 text-slate-500 sm:text-xs">
+              <h3 className="text-xs font-bold text-[#101828]">{title}</h3>
+              <p className="mt-0.5 truncate text-[11px] text-[#64748B]">
                 {description}
               </p>
             </div>

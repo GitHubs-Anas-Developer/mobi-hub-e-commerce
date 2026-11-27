@@ -27,12 +27,14 @@ const statusMessages = {
   Delivered: {
     title: "Your order has been delivered!",
     message:
-      "Your order has been successfully delivered. Thank you for shopping with ELEZIO!",
+      "Your order has been successfully delivered. Thank you for shopping with ELENZO!",
   },
 };
 
 const orderStatusTemplate = (order) => {
   const status = statusMessages[order.orderStatus];
+  const brandSiteUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const brandLogoUrl = `${brandSiteUrl}/brand/elenzo-logo.png`;
 
   if (!status) {
     throw new Error("Unsupported order status email");
@@ -40,7 +42,9 @@ const orderStatusTemplate = (order) => {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#101828;max-width:600px;margin:auto;padding:20px">
-      <h2 style="color:#0755e9">ELEZIO</h2>
+      <div style="margin-bottom:16px;">
+        <img src="${brandLogoUrl}" alt="ELENZO" width="160" style="display:block;max-width:160px;width:100%;height:auto;border:0;" />
+      </div>
 
       <h3>${escapeHtml(status.title)}</h3>
 
@@ -54,7 +58,7 @@ const orderStatusTemplate = (order) => {
         <p><strong>Total Amount:</strong> ₹${Number(order.totalAmount).toFixed(2)}</p>
       </div>
 
-      <p>Thank you for choosing ELEZIO!</p>
+      <p>Thank you for choosing ELENZO!</p>
     </div>
   `;
 };

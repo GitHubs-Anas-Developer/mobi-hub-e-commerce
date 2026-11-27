@@ -52,6 +52,42 @@ export const orderIdSchema = z.object({
   orderId: objectIdSchema,
 });
 
+export const cancelOrderSchema = z
+  .object({
+    reason: z
+      .string({
+        required_error: "Cancellation reason is required",
+      })
+      .trim()
+      .min(3, "Cancellation reason must be at least 3 characters")
+      .max(200, "Cancellation reason cannot exceed 200 characters"),
+
+    comment: z
+      .string()
+      .trim()
+      .max(500, "Cancellation comment cannot exceed 500 characters")
+      .optional()
+      .default(""),
+  })
+  .strict();
+
+export const adminCancelOrderSchema = z
+  .object({
+    reason: z
+      .string()
+      .trim()
+      .min(3, "Cancellation reason must be at least 3 characters")
+      .max(200, "Cancellation reason cannot exceed 200 characters"),
+
+    comment: z
+      .string()
+      .trim()
+      .max(500, "Cancellation comment cannot exceed 500 characters")
+      .optional()
+      .default(""),
+  })
+  .strict();
+
 export const updateOrderStatusSchema = z.object({
   orderStatus: z.enum(["Confirmed", "Processing", "Shipped", "Delivered"]),
 });
@@ -77,7 +113,9 @@ export const orderQuerySchema = z
       ])
       .optional(),
 
-    paymentStatus: z.enum(["Pending", "Paid", "Failed", "Refunded"]).optional(),
+    paymentStatus: z
+      .enum(["Pending", "Paid", "Failed", "PartiallyRefunded", "Refunded"])
+      .optional(),
 
     search: z.string().trim().max(100).optional(),
 

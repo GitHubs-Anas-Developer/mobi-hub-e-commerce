@@ -1,19 +1,14 @@
-
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
+import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-
+import { toast } from "sonner";
 import {
   ArrowLeft,
-  ShoppingBag,
-  CalendarDays,
-  PackageCheck,
+  ArrowRight,
   Truck,
   MapPin,
   House,
@@ -24,872 +19,781 @@ import {
   ShieldCheck,
   MapPinned,
   Package,
-  CircleHelp,
-  Box,
+  AlertCircle,
+  Copy,
+  Check,
+  Mail,
+  ShoppingBag,
 } from "lucide-react";
 
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import Breadcrumb from "@/components/common/Breadcrumb";
+import TrackingSkeleton from "@/components/loading/skeletons/TrackingSkeleton";
+import OrderStatusTimeline from "@/components/orders/OrderStatusTimeline";
+import { BRAND_ASSETS, BRAND_NAME, BRAND_SUPPORT_EMAIL } from "@/config/brand";
+import orderService from "@/services/orderService";
 import {
   clearTracking,
   selectOrderTracking,
-  selectTrackingLoading,
   selectTrackingError,
+  selectTrackingLoading,
 } from "@/store/slices/trackingSlice";
-
 import { fetchOrderTracking } from "@/store/thunks/trackingThunks";
+import {
+  formatDateShort,
+  formatDateTime,
+  formatLabelText,
+  getOrderStatusBadgeClasses,
+  resolveOrderTimeline,
+} from "@/components/orders/orderTimelineUtils";
 
-/* --------------------------------
-   TRACKING STAGES
---------------------------------- */
+function ShipmentDetailTile({ icon: Icon, label, value, copyable = false }) {
+  const [copied, setCopied] = useState(false);
 
-const TRACKING_STEPS = [
-  {
-    status: "NEW",
-    title: "Order Received",
-    description: "Your order has been successfully registered.",
-    icon: ShoppingBag,
-    color: "blue",
-  },
-  {
-    status: "PICKUP SCHEDULED",
-    title: "Pickup Scheduled",
-    description: "The courier pickup has been arranged.",
-    icon: CalendarDays,
-    color: "violet",
-  },
-  {
-    status: "PICKED UP",
-    title: "Package Picked Up",
-    description: "Your package has been collected by the courier.",
-    icon: PackageCheck,
-    color: "cyan",
-  },
-  {
-    status: "IN TRANSIT",
-    title: "In Transit",
-    description: "Your package is moving towards its destination.",
-    icon: Truck,
-    color: "amber",
-  },
-  {
-    status: "OUT FOR DELIVERY",
-    title: "Out for Delivery",
-    description: "Your package is on its way to your doorstep.",
-    icon: MapPin,
-    color: "orange",
-  },
-  {
-    status: "DELIVERED",
-    title: "Delivered",
-    description: "Your package has been successfully delivered.",
-    icon: House,
-    color: "emerald",
-  },
-];
-
-/* --------------------------------
-   UNIQUE STAGE COLORS
---------------------------------- */
-
-const STEP_STYLES = {
-  blue: {
-    active: "bg-blue-600 text-white ring-4 ring-blue-100",
-    completed: "bg-blue-600 text-white",
-    pending: "bg-blue-50 text-blue-300",
-    line: "bg-blue-500",
-    label: "bg-blue-50 text-blue-700",
-  },
-
-  violet: {
-    active: "bg-violet-600 text-white ring-4 ring-violet-100",
-    completed: "bg-violet-600 text-white",
-    pending: "bg-violet-50 text-violet-300",
-    line: "bg-violet-500",
-    label: "bg-violet-50 text-violet-700",
-  },
-
-  cyan: {
-    active: "bg-cyan-600 text-white ring-4 ring-cyan-100",
-    completed: "bg-cyan-600 text-white",
-    pending: "bg-cyan-50 text-cyan-300",
-    line: "bg-cyan-500",
-    label: "bg-cyan-50 text-cyan-700",
-  },
-
-  amber: {
-    active: "bg-amber-500 text-white ring-4 ring-amber-100",
-    completed: "bg-amber-500 text-white",
-    pending: "bg-amber-50 text-amber-300",
-    line: "bg-amber-500",
-    label: "bg-amber-50 text-amber-700",
-  },
-
-  orange: {
-    active: "bg-orange-600 text-white ring-4 ring-orange-100",
-    completed: "bg-orange-600 text-white",
-    pending: "bg-orange-50 text-orange-300",
-    line: "bg-orange-500",
-    label: "bg-orange-50 text-orange-700",
-  },
-
-  emerald: {
-    active: "bg-emerald-600 text-white ring-4 ring-emerald-100",
-    completed: "bg-emerald-600 text-white",
-    pending: "bg-emerald-50 text-emerald-300",
-    line: "bg-emerald-500",
-    label: "bg-emerald-50 text-emerald-700",
-  },
-};
-
-/* --------------------------------
-   HELPERS
---------------------------------- */
-
-const formatDate = (date) => {
-  if (!date) return "Not available";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "Not available";
-  }
-
-  return parsedDate.toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-};
-
-const formatDateTime = (date) => {
-  if (!date) return "";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return "";
-  }
-
-  return parsedDate.toLocaleString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
-const normalizeStatus = (status) =>
-  String(status || "")
-    .trim()
-    .toUpperCase()
-    .replace(/[_-]+/g, " ")
-    .replace(/\s+/g, " ");
-
-const getCurrentStepIndex = (status) => {
-  const normalized = normalizeStatus(status);
-
-  const aliases = {
-    "PICKUP REQUESTED": "PICKUP SCHEDULED",
-    "PICKUP SCHEDULED": "PICKUP SCHEDULED",
-    "PICKED UP": "PICKED UP",
-    SHIPPED: "IN TRANSIT",
-    "IN TRANSIT": "IN TRANSIT",
-    "OUT FOR DELIVERY": "OUT FOR DELIVERY",
-    DELIVERED: "DELIVERED",
+  const handleCopy = async () => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      toast.success(`${label} copied.`);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Unable to copy.");
+    }
   };
 
-  const resolvedStatus = aliases[normalized] || normalized;
-
-  return TRACKING_STEPS.findIndex(
-    (step) => step.status === resolvedStatus
-  );
-};
-
-/* --------------------------------
-   INFO CARD
---------------------------------- */
-
-function InfoCard({ icon: Icon, label, value }) {
   return (
-    <div className="group rounded-2xl border border-slate-200 bg-white p-4 transition duration-300 hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md">
+    <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9] transition group-hover:bg-[#0755E9] group-hover:text-white">
-          <Icon size={20} />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0755E9] shadow-xs">
+          <Icon size={18} aria-hidden="true" />
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-medium text-slate-400">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#64748B]">
             {label}
           </p>
-
-          <p className="mt-1 break-all text-sm font-bold text-slate-900">
-            {value || "Not available"}
-          </p>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="break-all text-sm font-bold text-[#101828]">
+              {value}
+            </p>
+            {copyable && value && (
+              <button
+                type="button"
+                onClick={handleCopy}
+                aria-label={`Copy ${label}`}
+                className="shrink-0 rounded-lg border border-[#E2E8F0] bg-white p-1.5 text-[#64748B] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+              >
+                {copied ? (
+                  <Check size={13} className="text-emerald-600" />
+                ) : (
+                  <Copy size={13} />
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* --------------------------------
-   TRACKING PAGE CONTENT
---------------------------------- */
-
 function TrackingContent() {
   const params = useParams();
-  const orderId = params?.orderId;
-
+  const orderId = typeof params?.orderId === "string" ? params.orderId : "";
   const dispatch = useDispatch();
 
   const tracking = useSelector(selectOrderTracking);
-  const loading = useSelector(selectTrackingLoading);
-  const error = useSelector(selectTrackingError);
+  const trackingLoading = useSelector(selectTrackingLoading);
+  const trackingError = useSelector(selectTrackingError);
 
-  const loadTracking = useCallback(() => {
-    if (orderId) {
-      dispatch(fetchOrderTracking(orderId));
-    }
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [orderLoading, setOrderLoading] = useState(Boolean(orderId));
+  const [orderError, setOrderError] = useState(
+    orderId ? "" : "Order ID is missing from the URL."
+  );
+  const [orderNotFound, setOrderNotFound] = useState(false);
+
+  const loadAllTrackingData = useCallback(() => {
+    if (!orderId) return;
+
+    dispatch(fetchOrderTracking(orderId));
+    setOrderLoading(true);
+    setOrderError("");
+    setOrderNotFound(false);
+
+    orderService
+      .getOrderById(orderId)
+      .then((response) => {
+        const data = response?.data?.data || response?.data || response;
+        if (data?._id) {
+          setOrderDetails(data);
+        }
+      })
+      .catch((err) => {
+        if (err?.response?.status === 404) {
+          setOrderNotFound(true);
+        }
+        setOrderError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load order details."
+        );
+      })
+      .finally(() => {
+        setOrderLoading(false);
+      });
   }, [dispatch, orderId]);
 
   useEffect(() => {
-    loadTracking();
+    if (!orderId) return undefined;
+    let active = true;
+
+    dispatch(fetchOrderTracking(orderId));
+
+    orderService
+      .getOrderById(orderId)
+      .then((response) => {
+        if (!active) return;
+        const data = response?.data?.data || response?.data || response;
+        if (data?._id) {
+          setOrderDetails(data);
+        }
+        setOrderError("");
+        setOrderNotFound(false);
+      })
+      .catch((err) => {
+        if (!active) return;
+        if (err?.response?.status === 404) {
+          setOrderNotFound(true);
+        }
+        setOrderError(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Unable to load order details."
+        );
+      })
+      .finally(() => {
+        if (active) {
+          setOrderLoading(false);
+        }
+      });
 
     return () => {
+      active = false;
       dispatch(clearTracking());
     };
-  }, [loadTracking, dispatch]);
+  }, [dispatch, orderId]);
 
-  const shipment = tracking?.shipment;
-
-  const currentStatus = normalizeStatus(
-    shipment?.currentStatus
+  const effectiveOrderStatus =
+    tracking?.orderStatus || orderDetails?.orderStatus || "";
+  const effectiveShipment = useMemo(
+    () => tracking?.shipment || orderDetails?.shipment || {},
+    [tracking?.shipment, orderDetails?.shipment]
   );
+  const effectiveOrderNumber =
+    tracking?.orderNumber || orderDetails?.orderNumber || orderId;
+  const effectiveCreatedAt =
+    tracking?.createdAt || orderDetails?.createdAt || null;
 
-  const currentStepIndex = getCurrentStepIndex(currentStatus);
+  const timeline = useMemo(() => {
+    if (!tracking && !orderDetails) return null;
+    return resolveOrderTimeline({
+      orderStatus: effectiveOrderStatus,
+      orderStatusHistory: orderDetails?.orderStatusHistory || [],
+      createdAt: effectiveCreatedAt,
+      deliveredAt: orderDetails?.deliveredAt || null,
+      cancelledAt: orderDetails?.cancelledAt || null,
+      shipment: effectiveShipment,
+    });
+  }, [
+    tracking,
+    orderDetails,
+    effectiveOrderStatus,
+    effectiveCreatedAt,
+    effectiveShipment,
+  ]);
 
-  const trackingHistory = Array.isArray(
-    shipment?.trackingHistory
-  )
-    ? shipment.trackingHistory
-    : [];
+  const isInitialLoading =
+    (trackingLoading || orderLoading) && !tracking && !orderDetails;
+  const isRefreshing = trackingLoading || orderLoading;
 
-  const getHistoryEvent = (status) => {
-    return trackingHistory.find(
-      (event) =>
-        normalizeStatus(event.status || event.event) === status
+  if (isInitialLoading) {
+    return <TrackingSkeleton />;
+  }
+
+  // Order itself does not exist or hard error when neither tracking nor order loaded
+  if (!tracking && !orderDetails && (orderNotFound || orderError || trackingError)) {
+    return (
+      <div className="mx-auto max-w-lg py-12 text-center">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600">
+          {orderNotFound ? <Package size={28} /> : <AlertCircle size={28} />}
+        </div>
+
+        <h1 className="mt-5 text-xl font-extrabold text-[#101828]">
+          {orderNotFound ? "Order not found" : "Unable to load tracking"}
+        </h1>
+
+        <p className="mt-2 text-sm leading-6 text-[#64748B]">
+          {orderError || trackingError || "Tracking information unavailable."}
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          {!orderNotFound && (
+            <button
+              type="button"
+              onClick={loadAllTrackingData}
+              className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#0755E9] px-5 text-sm font-bold text-white transition hover:bg-[#0645C4]"
+            >
+              <RefreshCw size={16} />
+              Try Again
+            </button>
+          )}
+
+          <Link
+            href="/account/orders"
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-5 text-sm font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+          >
+            <ArrowLeft size={16} />
+            Back to My Orders
+          </Link>
+        </div>
+      </div>
     );
-  };
+  }
 
-  const isDelivered = currentStatus === "DELIVERED";
+  const hasShipmentTracking = Boolean(
+    effectiveShipment?.shipmentId || effectiveShipment?.awbCode
+  );
+  const trackingUnavailableYet =
+    !tracking &&
+    !hasShipmentTracking &&
+    Boolean(orderDetails);
 
-  const hasTracking = Boolean(
-    shipment?.shipmentId ||
-    shipment?.awbCode ||
-    shipment?.currentStatus
+  const isDelivered =
+    timeline?.activeStageIndex === 7 ||
+    String(effectiveOrderStatus).toLowerCase() === "delivered" ||
+    String(effectiveShipment?.currentStatus || "").toUpperCase() ===
+      "DELIVERED";
+
+  const address = orderDetails?.shippingAddress || null;
+  const trackingHistory = timeline?.chronologicalTrackingHistory || [];
+  const supportSubject = encodeURIComponent(
+    `${BRAND_NAME} Tracking Support - #${effectiveOrderNumber}`
   );
 
-  const progress =
-    currentStepIndex >= 0
-      ? ((currentStepIndex + 1) / TRACKING_STEPS.length) * 100
-      : 0;
+  const heroStatusTitle = timeline?.terminal?.isTerminal
+    ? timeline.terminal.label
+    : effectiveShipment?.currentStatus
+      ? formatLabelText(effectiveShipment.currentStatus)
+      : effectiveOrderStatus || "Pending";
 
   return (
-    <main className="min-h-screen bg-white px-4 py-6 sm:px-6 sm:py-9">
-      <div className="mx-auto w-full">
+    <div className="mx-auto w-full max-w-[1320px] space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "My Account", href: "/account" },
+          { label: "My Orders", href: "/account/orders" },
+          {
+            label: `#${effectiveOrderNumber}`,
+            href: `/account/orders/${orderId}`,
+          },
+          { label: "Track Order" },
+        ]}
+      />
 
-        {/* BACK NAVIGATION */}
+      {/* Header */}
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <Link
+            href={`/account/orders/${orderId}`}
+            className="mb-2 inline-flex items-center gap-1.5 text-xs font-bold text-[#64748B] transition hover:text-[#0755E9]"
+          >
+            <ArrowLeft size={14} />
+            Back to Order Details
+          </Link>
 
-        <Link
-          href="/account/orders"
-          className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-[#0755E9]"
-        >
-          <ArrowLeft size={17} />
-          Back to My Orders
-        </Link>
+          <div className="flex items-center gap-2">
+            <Image
+              src={BRAND_ASSETS.icon}
+              alt={BRAND_NAME}
+              width={20}
+              height={20}
+              className="h-5 w-5 object-contain"
+            />
+            <span className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
+              {BRAND_NAME} Tracking
+            </span>
+          </div>
 
-        {/* PAGE HEADER */}
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight text-[#101828] sm:text-3xl">
+            Shipment Tracking
+          </h1>
 
-        <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <p className="mt-1 text-sm text-[#64748B]">
+            Real-time courier milestones and shipment progress for Order #
+            {effectiveOrderNumber}.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={loadAllTrackingData}
+            disabled={isRefreshing}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-4 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] disabled:opacity-60"
+          >
+            <RefreshCw
+              size={14}
+              className={isRefreshing ? "animate-spin text-[#0755E9]" : ""}
+            />
+            {isRefreshing ? "Refreshing..." : "Refresh Tracking"}
+          </button>
+
+          <Link
+            href={`/account/orders/${orderId}`}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+          >
+            <Package size={14} />
+            Order Details
+          </Link>
+        </div>
+      </div>
+
+      {/* Hero Status Banner */}
+      <section className="relative overflow-hidden rounded-2xl bg-[#082B70] p-6 text-white shadow-xs sm:p-8">
+        <div
+          aria-hidden="true"
+          className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[32px] border-white/5"
+        />
+
+        <div className="relative z-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div>
-            <div className="mb-3 flex items-center gap-2">
-              <span className="h-1.5 w-6 rounded-full bg-[#0755E9]" />
-
-              <span className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
-                ELEZIO
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1">
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  timeline?.terminal?.isTerminal
+                    ? "bg-red-400"
+                    : isDelivered
+                      ? "bg-emerald-400"
+                      : "animate-pulse bg-sky-300"
+                }`}
+              />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-blue-50">
+                {timeline?.terminal?.isTerminal
+                  ? timeline.terminal.label
+                  : isDelivered
+                    ? "Delivery Completed"
+                    : "Active Shipment"}
               </span>
             </div>
 
-            <h1 className="text-2xl font-extrabold tracking-tight text-[#101828] sm:text-3xl">
-              Track Your Order
-            </h1>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-widest text-blue-200">
+              Current Status
+            </p>
 
-            <p className="mt-2 text-sm text-slate-500">
-              Follow your package and stay updated on its delivery.
+            <h2 className="mt-1.5 text-2xl font-extrabold sm:text-3xl">
+              {heroStatusTitle}
+            </h2>
+
+            <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">
+              {timeline?.terminal?.isTerminal
+                ? timeline.terminalNote ||
+                  "This shipment has ended in a terminal state."
+                : isDelivered
+                  ? "Your package has been delivered to your shipping address."
+                  : trackingUnavailableYet
+                    ? "Your order is confirmed in our system and waiting for courier pickup assignment."
+                    : "Your package is progressing through the courier network."}
             </p>
           </div>
 
-          {!loading && tracking && (
-            <button
-              type="button"
-              onClick={loadTracking}
-              disabled={loading}
-              className="inline-flex w-fit items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition hover:border-[#0755E9] hover:text-[#0755E9] disabled:opacity-50"
-            >
-              <RefreshCw size={15} />
-              Refresh Tracking
-            </button>
-          )}
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/10 sm:h-20 sm:w-20">
+            {isDelivered ? (
+              <House size={36} aria-hidden="true" />
+            ) : (
+              <Truck size={36} aria-hidden="true" />
+            )}
+          </div>
         </div>
 
-        {/* LOADING STATE */}
-
-        {loading && (
-          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
-              <RefreshCw
-                size={28}
-                className="animate-spin text-[#0755E9]"
-              />
-            </div>
-
-            <h2 className="mt-5 text-lg font-bold text-slate-900">
-              Loading tracking information
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Please wait while we fetch your shipment details.
+        <div className="relative z-10 mt-6 grid grid-cols-1 gap-4 border-t border-white/15 pt-5 sm:grid-cols-3">
+          <div>
+            <p className="text-[11px] font-medium text-blue-200">
+              Order Number
+            </p>
+            <p className="mt-1 break-all text-sm font-bold">
+              #{effectiveOrderNumber}
             </p>
           </div>
-        )}
 
-        {/* ERROR STATE */}
-
-        {!loading && error && (
-          <div className="rounded-3xl border border-red-100 bg-white px-5 py-12 text-center shadow-sm">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-red-50 text-red-500">
-              <Package size={28} />
-            </div>
-
-            <h2 className="mt-5 text-lg font-bold text-slate-900">
-              Unable to load tracking
-            </h2>
-
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
-              {error}
+          <div>
+            <p className="text-[11px] font-medium text-blue-200">Order Date</p>
+            <p className="mt-1 text-sm font-bold">
+              {formatDateShort(effectiveCreatedAt) || "N/A"}
             </p>
-
-            <button
-              type="button"
-              onClick={loadTracking}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
-            >
-              <RefreshCw size={16} />
-              Try Again
-            </button>
           </div>
-        )}
 
-        {/* TRACKING DATA */}
+          <div>
+            <p className="text-[11px] font-medium text-blue-200">
+              Estimated Delivery
+            </p>
+            <p className="mt-1 text-sm font-bold">
+              {effectiveShipment?.estimatedDeliveryDate
+                ? formatDateShort(effectiveShipment.estimatedDeliveryDate)
+                : isDelivered && (effectiveShipment?.deliveredAt || orderDetails?.deliveredAt)
+                  ? `Delivered ${formatDateShort(
+                      effectiveShipment?.deliveredAt || orderDetails?.deliveredAt
+                    )}`
+                  : "Awaiting courier update"}
+            </p>
+          </div>
+        </div>
+      </section>
 
-        {!loading && !error && tracking && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            className="space-y-6"
+      {/* Tracking Not Available Yet Banner */}
+      {trackingUnavailableYet && !timeline?.terminal?.isTerminal && (
+        <section className="flex flex-col justify-between gap-4 rounded-2xl border border-[#0755E9]/25 bg-[#EFF6FF] p-5 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0755E9] shadow-xs">
+              <Clock3 size={20} />
+            </div>
+            <div>
+              <h3 className="text-sm font-extrabold text-[#082B70]">
+                Courier tracking details are not assigned yet
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-[#101828]/80">
+                {trackingError ||
+                  "Once a courier partner picks up your package and issues an AWB number, live scans and courier tracking links will appear here automatically."}
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={loadAllTrackingData}
+            disabled={isRefreshing}
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
           >
+            <RefreshCw
+              size={14}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            Check Again
+          </button>
+        </section>
+      )}
 
-            {/* CURRENT STATUS HERO */}
-
-            <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0755E9] via-[#164FCB] to-[#082B70] p-6 text-white shadow-xl shadow-blue-900/10 sm:p-8">
-
-              <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full border-[35px] border-white/5" />
-
-              <div className="absolute -bottom-24 right-24 h-48 w-48 rounded-full bg-white/5 blur-2xl" />
-
-              <div className="relative z-10 flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
-
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        isDelivered
-                          ? "bg-green-400"
-                          : "animate-pulse bg-yellow-300"
-                      }`}
-                    />
-
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-blue-50">
-                      {isDelivered
-                        ? "Delivery Completed"
-                        : "Shipment Status"}
-                    </span>
-                  </div>
-
-                  <p className="mt-5 text-xs font-medium uppercase tracking-widest text-blue-100">
-                    Current Shipment Status
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-extrabold sm:text-3xl">
-                    {shipment?.currentStatus || "Processing"}
-                  </h2>
-
-                  <p className="mt-3 max-w-lg text-sm leading-6 text-blue-100">
-                    {isDelivered
-                      ? "Your package has been marked as delivered."
-                      : "Your package is moving through the delivery process."}
-                  </p>
-                </div>
-
-                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl border border-white/20 bg-white/10 shadow-inner backdrop-blur-sm">
-                  {isDelivered ? (
-                    <House size={42} />
-                  ) : (
-                    <Truck size={42} />
-                  )}
-                </div>
-              </div>
-
-              {/* HERO DETAILS */}
-
-              <div className="relative z-10 mt-7 grid grid-cols-1 gap-5 border-t border-white/15 pt-5 sm:grid-cols-3">
-                <div>
-                  <p className="text-[11px] text-blue-200">
-                    Order Number
-                  </p>
-
-                  <p className="mt-1 break-all text-sm font-bold">
-                    {tracking.orderNumber || "N/A"}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-[11px] text-blue-200">
-                    Order Date
-                  </p>
-
-                  <p className="mt-1 text-sm font-bold">
-                    {formatDate(tracking.createdAt)}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-[11px] text-blue-200">
-                    Estimated Delivery
-                  </p>
-
-                  <p className="mt-1 text-sm font-bold">
-                    {formatDate(shipment?.estimatedDeliveryDate)}
-                  </p>
-                </div>
-              </div>
-            </section>
-
-            {/* SHIPMENT INFORMATION */}
-
-            <section>
-              <div className="mb-4">
-                <h2 className="text-lg font-extrabold text-[#101828]">
-                  Shipment Information
+      {/* Main 2-Column Tracking Grid */}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        {/* Left Main Column */}
+        <div className="min-w-0 space-y-6">
+          {/* 8-Stage Visual Timeline */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs sm:p-7">
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b border-[#E2E8F0] pb-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-[#0755E9]">
+                  {BRAND_NAME} Delivery
+                </p>
+                <h2 className="mt-1 text-lg font-extrabold text-[#101828] sm:text-xl">
+                  Order & Shipment Timeline
                 </h2>
+              </div>
 
-                <p className="mt-1 text-xs text-slate-500">
-                  Important details about your delivery.
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF6FF] px-3 py-1 text-xs font-extrabold text-[#0755E9] tabular-nums">
+                <Truck size={14} />
+                {timeline?.progressPercent || 0}% Complete
+              </span>
+            </div>
+
+            <div className="mb-6">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#64748B]">
+                <span>Delivery Progress</span>
+                <span className="tabular-nums">
+                  {timeline?.progressPercent || 0}%
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[#F8FAFC]">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    timeline?.terminal?.isTerminal
+                      ? timeline.terminal.kind === "returned"
+                        ? "bg-orange-500"
+                        : "bg-red-500"
+                      : "bg-[#0755E9]"
+                  }`}
+                  style={{ width: `${timeline?.progressPercent || 0}%` }}
+                />
+              </div>
+            </div>
+
+            <OrderStatusTimeline timeline={timeline} />
+          </section>
+
+          {/* Tracking History (Chronological Order) */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs sm:p-7">
+            <div className="mb-5 flex items-center gap-3 border-b border-[#E2E8F0] pb-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                <Clock3 size={20} />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-[#101828] sm:text-lg">
+                  Tracking History
+                </h2>
+                <p className="mt-0.5 text-xs text-[#64748B]">
+                  Chronological shipment scan activity (earliest to latest)
                 </p>
               </div>
+            </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {trackingHistory.length > 0 ? (
+              <ol className="space-y-3">
+                {trackingHistory.map((event, index) => {
+                  const eventTime = formatDateTime(
+                    event.timestamp ||
+                      event.date ||
+                      event.createdAt ||
+                      event.updatedAt
+                  );
 
-                <InfoCard
+                  return (
+                    <li
+                      key={event._id || index}
+                      className="flex gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4"
+                    >
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-[#0755E9] shadow-xs">
+                        <CheckCircle2 size={17} aria-hidden="true" />
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-extrabold text-[#101828]">
+                              {formatLabelText(
+                                event.status || event.event || "Shipment Update"
+                              )}
+                            </span>
+                            {event.source && (
+                              <span className="rounded-md border border-[#E2E8F0] bg-white px-2 py-0.5 text-[10px] font-bold uppercase text-[#64748B]">
+                                {event.source}
+                              </span>
+                            )}
+                          </div>
+
+                          {eventTime && (
+                            <span className="text-[11px] font-medium text-[#64748B]">
+                              {eventTime}
+                            </span>
+                          )}
+                        </div>
+
+                        {event.description && (
+                          <p className="mt-1.5 text-xs leading-5 text-[#64748B]">
+                            {event.description}
+                          </p>
+                        )}
+
+                        {event.location && (
+                          <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-[#101828]">
+                            <MapPin size={12} className="text-[#0755E9]" />
+                            {event.location}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            ) : (
+              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-8 text-center">
+                <Clock3 size={28} className="mx-auto text-[#64748B]/40" />
+                <p className="mt-3 text-sm font-bold text-[#101828]">
+                  No courier scan events yet
+                </p>
+                <p className="mt-1 text-xs text-[#64748B]">
+                  Carrier scan updates with timestamps and hubs will appear here
+                  in chronological order.
+                </p>
+              </div>
+            )}
+          </section>
+        </div>
+
+        {/* Right Sticky Column */}
+        <aside className="space-y-5 lg:sticky lg:top-6">
+          {/* Courier & Shipment Information */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs sm:p-6">
+            <h2 className="text-base font-extrabold text-[#101828]">
+              Shipment Information
+            </h2>
+            <p className="mt-0.5 text-xs text-[#64748B]">
+              Verified courier and consignment identifiers
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {(effectiveShipment?.courierName || effectiveShipment?.provider) && (
+                <ShipmentDetailTile
                   icon={Truck}
                   label="Courier Partner"
                   value={
-                    shipment?.courierName ||
-                    shipment?.provider ||
-                    "Not assigned"
+                    effectiveShipment.courierName || effectiveShipment.provider
                   }
                 />
+              )}
 
-                <InfoCard
+              {effectiveShipment?.awbCode && (
+                <ShipmentDetailTile
                   icon={Package}
                   label="AWB / Tracking Number"
-                  value={shipment?.awbCode || "Not available"}
+                  value={effectiveShipment.awbCode}
+                  copyable
                 />
+              )}
 
-                <InfoCard
+              {effectiveShipment?.shipmentId && (
+                <ShipmentDetailTile
                   icon={MapPinned}
                   label="Shipment ID"
-                  value={shipment?.shipmentId || "Not available"}
+                  value={effectiveShipment.shipmentId}
+                  copyable
                 />
-
-              </div>
-
-              {shipment?.trackingUrl && (
-                <a
-                  href={shipment.trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-[#0755E9] transition hover:bg-blue-100 sm:w-fit"
-                >
-                  Track on Courier Website
-                  <ExternalLink size={15} />
-                </a>
               )}
-            </section>
 
-            {/* PREMIUM DELIVERY TIMELINE */}
+              {effectiveShipment?.lastLocation && (
+                <ShipmentDetailTile
+                  icon={MapPin}
+                  label="Last Recorded Location"
+                  value={effectiveShipment.lastLocation}
+                />
+              )}
 
-            <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-              {/* TIMELINE HEADER */}
-
-              <div className="flex flex-col justify-between gap-4 border-b border-slate-100 p-5 sm:flex-row sm:items-center sm:p-7">
-                <div>
-                  <span className="text-xs font-bold uppercase tracking-widest text-[#0755E9]">
-                    ELEZIO DELIVERY
+              {effectiveShipment?.currentStatus && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                  <span className="text-xs font-semibold text-[#64748B]">
+                    Shipment Status
                   </span>
-
-                  <h2 className="mt-2 text-xl font-extrabold text-slate-900">
-                    Shipment Journey
-                  </h2>
-
-                  <p className="mt-1 text-sm text-slate-500">
-                    Follow every step of your package delivery.
-                  </p>
-                </div>
-
-                <div className="flex w-fit items-center gap-2 rounded-xl bg-blue-50 px-3 py-2">
-                  <Truck size={17} className="text-[#0755E9]" />
-
-                  <span className="text-xs font-bold text-[#0755E9]">
-                    {Math.max(0, currentStepIndex + 1)} of 6 stages
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-bold capitalize ${getOrderStatusBadgeClasses(
+                      effectiveShipment.currentStatus
+                    )}`}
+                  >
+                    {formatLabelText(effectiveShipment.currentStatus)}
                   </span>
-                </div>
-              </div>
-
-              {/* PROGRESS BAR */}
-
-              <div className="px-5 pt-6 sm:px-7">
-                <div className="flex justify-between text-xs font-semibold text-slate-400">
-                  <span>Order Progress</span>
-                  <span>{Math.round(progress)}%</span>
-                </div>
-
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 0.8 }}
-                    className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400"
-                  />
-                </div>
-              </div>
-
-              {/* TIMELINE CONTENT */}
-
-              <div className="p-5 sm:p-7">
-                <div className="space-y-0">
-
-                  {TRACKING_STEPS.map((step, index) => {
-                    const Icon = step.icon;
-
-                    const styles = STEP_STYLES[step.color];
-
-                    const event = getHistoryEvent(step.status);
-
-                    const completed =
-                      currentStepIndex >= 0 &&
-                      index <= currentStepIndex;
-
-                    const active = index === currentStepIndex;
-
-                    const isLast =
-                      index === TRACKING_STEPS.length - 1;
-
-                    const connectorCompleted =
-                      currentStepIndex >= 0 &&
-                      index < currentStepIndex;
-
-                    return (
-                      <div
-                        key={step.status}
-                        className="relative flex gap-4 sm:gap-6"
-                      >
-
-                        {/* CONNECTOR */}
-
-                        {!isLast && (
-                          <div
-                            className={`absolute left-[22px] top-[52px] h-[calc(100%-42px)] w-0.5 transition-colors duration-500 ${
-                              connectorCompleted
-                                ? styles.line
-                                : "bg-slate-100"
-                            }`}
-                          />
-                        )}
-
-                        {/* UNIQUE ICON */}
-
-                        <div
-                          className={`relative z-10 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl transition-all duration-300 ${
-                            active
-                              ? styles.active
-                              : completed
-                                ? styles.completed
-                                : styles.pending
-                          }`}
-                        >
-                          <Icon size={20} strokeWidth={2.2} />
-                        </div>
-
-                        {/* STAGE DETAILS */}
-
-                        <div
-                          className={`mb-7 min-w-0 flex-1 rounded-2xl border p-4 transition-all duration-300 sm:mb-8 ${
-                            active
-                              ? "border-blue-200 bg-blue-50/60 shadow-sm"
-                              : completed
-                                ? "border-slate-100 bg-white"
-                                : "border-slate-100 bg-slate-50/60"
-                          }`}
-                        >
-                          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
-
-                            <div>
-                              <h3
-                                className={`text-sm font-extrabold ${
-                                  completed
-                                    ? "text-slate-900"
-                                    : "text-slate-400"
-                                }`}
-                              >
-                                {step.title}
-                              </h3>
-
-                              <p className="mt-1 text-xs leading-5 text-slate-500">
-                                {event?.description || step.description}
-                              </p>
-                            </div>
-
-                            {active && (
-                              <span
-                                className={`w-fit shrink-0 rounded-full px-3 py-1 text-[10px] font-extrabold uppercase ${styles.label}`}
-                              >
-                                Current
-                              </span>
-                            )}
-
-                            {!active && completed && (
-                              <span className="w-fit shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold text-emerald-700">
-                                Completed
-                              </span>
-                            )}
-
-                            {!completed && (
-                              <span className="w-fit shrink-0 rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-400">
-                                Pending
-                              </span>
-                            )}
-
-                          </div>
-
-                          {/* EVENT DETAILS */}
-
-                          {event && (
-                            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-slate-200/70 pt-3">
-
-                              <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-                                <Clock3 size={13} />
-
-                                {formatDateTime(
-                                  event.timestamp ||
-                                  event.date ||
-                                  event.createdAt ||
-                                  event.updatedAt
-                                )}
-                              </span>
-
-                              {event.location && (
-                                <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
-                                  <MapPin size={13} />
-                                  {event.location}
-                                </span>
-                              )}
-
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                </div>
-              </div>
-            </section>
-
-            {/* TRACKING HISTORY */}
-
-            <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]">
-                  <Clock3 size={21} />
-                </div>
-
-                <div>
-                  <h2 className="text-base font-extrabold text-[#101828]">
-                    Tracking History
-                  </h2>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Recent updates about your shipment.
-                  </p>
-                </div>
-              </div>
-
-              {trackingHistory.length > 0 ? (
-                <div className="mt-6 space-y-3">
-
-                  {[...trackingHistory]
-                    .reverse()
-                    .map((event, index) => (
-                      <div
-                        key={event._id || index}
-                        className="flex gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 p-4"
-                      >
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#0755E9] shadow-sm">
-                          <CheckCircle2 size={18} />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-center">
-                            <p className="text-sm font-bold text-[#101828]">
-                              {event.status ||
-                                event.event ||
-                                "Shipment Update"}
-                            </p>
-
-                            <span className="text-[11px] text-slate-400">
-                              {formatDateTime(
-                                event.timestamp ||
-                                event.date ||
-                                event.createdAt ||
-                                event.updatedAt
-                              )}
-                            </span>
-                          </div>
-
-                          {event.description && (
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                              {event.description}
-                            </p>
-                          )}
-
-                          {event.location && (
-                            <p className="mt-2 flex items-center gap-1 text-xs text-slate-400">
-                              <MapPin size={12} />
-                              {event.location}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-
-                </div>
-              ) : (
-                <div className="mt-6 rounded-2xl bg-slate-50 px-4 py-8 text-center">
-                  <Clock3
-                    size={28}
-                    className="mx-auto text-slate-300"
-                  />
-
-                  <p className="mt-3 text-sm font-semibold text-slate-600">
-                    No tracking history available
-                  </p>
-
-                  <p className="mt-1 text-xs text-slate-400">
-                    Shipment updates will appear here.
-                  </p>
                 </div>
               )}
 
-            </section>
+              {!effectiveShipment?.courierName &&
+                !effectiveShipment?.provider &&
+                !effectiveShipment?.awbCode &&
+                !effectiveShipment?.shipmentId && (
+                  <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-xs leading-5 text-[#64748B]">
+                    Courier details will appear once this order is dispatched.
+                  </div>
+                )}
+            </div>
 
-            {/* SUPPORT CARD */}
+            {effectiveShipment?.trackingUrl && (
+              <a
+                href={effectiveShipment.trackingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+              >
+                Track Shipment on Courier Website
+                <ExternalLink size={14} />
+              </a>
+            )}
+          </section>
 
-            <section className="flex flex-col justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:p-6">
+          {/* Delivery Destination Summary */}
+          {address && (
+            <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs sm:p-6">
+              <div className="flex items-center gap-2.5">
+                <MapPin size={18} className="text-[#0755E9]" />
+                <h2 className="text-base font-extrabold text-[#101828]">
+                  Delivery Destination
+                </h2>
+              </div>
 
-              <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]">
-                  <ShieldCheck size={22} />
-                </div>
-
-                <div>
-                  <h3 className="text-sm font-extrabold text-[#101828]">
-                    Need help with your order?
-                  </h3>
-
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    Our support team is here to help you.
-                  </p>
-                </div>
+              <div className="mt-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-xs leading-5 text-[#64748B]">
+                <p className="font-bold text-[#101828]">
+                  {address.fullName || "Recipient"}
+                </p>
+                <p className="mt-1">
+                  {[address.addressLine1, address.addressLine2]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+                <p>
+                  {[address.city, address.state].filter(Boolean).join(", ")}
+                  {address.pincode ? ` - ${address.pincode}` : ""}
+                </p>
               </div>
 
               <Link
-                href="/contact"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+                href={`/account/orders/${orderId}`}
+                className="mt-3 inline-flex items-center gap-1.5 text-xs font-bold text-[#0755E9] hover:underline"
               >
-                Contact Support
-                <ExternalLink size={14} />
+                View full order & payment details
+                <ArrowRight size={13} />
               </Link>
-
             </section>
+          )}
 
-          </motion.div>
-        )}
-
-        {/* NO TRACKING DATA */}
-
-        {!loading && !error && !tracking && (
-          <div className="rounded-3xl border border-slate-200 bg-white px-5 py-12 text-center shadow-sm">
-
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-[#0755E9]">
-              <Box size={30} />
+          {/* Support Card */}
+          <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-xs sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h2 className="text-sm font-extrabold text-[#101828]">
+                  Need Help With This Shipment?
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-[#64748B]">
+                  Contact {BRAND_NAME} Customer Support with Order #
+                  {effectiveOrderNumber}.
+                </p>
+              </div>
             </div>
 
-            <h2 className="mt-5 text-lg font-extrabold text-[#101828]">
-              Tracking information unavailable
-            </h2>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Please try again later or contact our support team.
-            </p>
-
-            <button
-              type="button"
-              onClick={loadTracking}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
+            <a
+              href={`mailto:${BRAND_SUPPORT_EMAIL}?subject=${supportSubject}`}
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#0755E9]/25 bg-[#EFF6FF] px-4 text-xs font-bold text-[#0755E9] transition hover:bg-[#0755E9] hover:text-white"
             >
-              <RefreshCw size={16} />
-              Try Again
-            </button>
+              <Mail size={15} />
+              Email Support ({BRAND_SUPPORT_EMAIL})
+            </a>
 
-          </div>
-        )}
-
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <Link
+                href="/account/orders"
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+              >
+                <Package size={14} />
+                My Orders
+              </Link>
+              <Link
+                href="/products"
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+              >
+                <ShoppingBag size={14} />
+                Shop More
+              </Link>
+            </div>
+          </section>
+        </aside>
       </div>
-    </main>
+    </div>
   );
 }
-
-/* --------------------------------
-   PROTECTED PAGE
---------------------------------- */
 
 export default function TrackingPage() {
   return (
     <ProtectedRoute>
-      <TrackingContent />
+      <main className="min-h-screen w-full bg-[#FFFFFF] px-4 py-5 pb-24 sm:px-6 sm:py-7 lg:px-8 xl:pb-12">
+        <TrackingContent />
+      </main>
     </ProtectedRoute>
   );
 }

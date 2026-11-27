@@ -1,410 +1,436 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  Plus,
-  Search,
-  Pencil,
-  Trash2,
-  Power,
-  Loader2,
-  Video,
-  RefreshCw,
-  Play,
-  Film,
-} from "lucide-react";
-
+  Alert,
+  App,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Modal,
+  Select,
+  Statistic,
+  Switch,
+  Table,
+  Tag,
+  Tooltip,
+} from "antd";
 import {
+  CheckCircle2,
+  Eye,
+  Film,
+  Play,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+  Video as VideoIcon,
+} from "lucide-react";
+import AdminPageHeader from "@/components/admin/layout/AdminPageHeader";
+import {
+  deleteProductVideo,
   fetchAdminProductVideos,
   updateProductVideo,
-  deleteProductVideo,
 } from "@/store/thunks/productVideoThunks";
 
 export default function AdminProductVideosPage() {
   const dispatch = useDispatch();
+  const { message } = App.useApp();
 
   const {
-    adminVideos: videos = [],
+    adminVideos = [],
     loading,
     error,
   } = useSelector((state) => state.productVideos);
 
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
-  const [actionError, setActionError] = useState("");
-  const [actionSuccess, setActionSuccess] = useState("");
+  const [videoToDelete, setVideoToDelete] = useState(null);
   const [previewVideo, setPreviewVideo] = useState(null);
+  const [actionError, setActionError] = useState("");
+
+  useEffect(() => {
+    dispatch(fetchAdminProductVideos());
+  }, [dispatch]);
 
   const refreshVideos = () => {
+    setActionError("");
     dispatch(fetchAdminProductVideos());
   };
 
-  useEffect(() => {
-    refreshVideos();
-  }, [dispatch]);
-
   const filteredVideos = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const query = search.trim().toLowerCase();
 
-    if (!term) return videos;
+    return adminVideos.filter((video) => {
+      if (statusFilter === "active" && !video.isActive) return false;
+      if (statusFilter === "inactive" && video.isActive) return false;
 
-    return videos.filter((video) =>
-      [
-        video.title,
-        video.description,
-        video.product?.name,
-      ].some((value) => value?.toLowerCase().includes(term))
-    );
-  }, [videos, search]);
+      if (!query) return true;
+
+      return (
+        video.title?.toLowerCase().includes(query) ||
+        video.description?.toLowerCase().includes(query) ||
+        video.product?.name?.toLowerCase().includes(query)
+      );
+    });
+  }, [adminVideos, search, statusFilter]);
+
+  const activeCount = useMemo(
+    () => adminVideos.filter((video) => video.isActive).length,
+    [adminVideos],
+  );
+
+  const totalViews = useMemo(
+    () =>
+      adminVideos.reduce((sum, video) => sum + (Number(video.views) || 0), 0),
+    [adminVideos],
+  );
 
   const handleToggleStatus = async (video) => {
-    if (updatingId || deletingId) return;
-
     try {
       setActionError("");
-      setActionSuccess("");
       setUpdatingId(video._id);
+      const nextStatus = !video.isActive;
 
       await dispatch(
         updateProductVideo({
           videoId: video._id,
-          videoData: {
-            isActive: !video.isActive,
-          },
-        })
+          videoData: { isActive: nextStatus },
+        }),
       ).unwrap();
 
-      setActionSuccess("Video status updated successfully");
-    } catch (err) {
-      setActionError(
-        typeof err === "string" ? err : "Failed to update video"
+      message.success(
+        `Video "${video.title}" ${nextStatus ? "activated" : "deactivated"}.`,
       );
+    } catch (err) {
+      setActionError(err || "Failed to update video status.");
     } finally {
       setUpdatingId(null);
     }
   };
 
-  const handleDelete = async (video) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete "${video.title}"?`
-    );
-
-    if (!confirmed || updatingId || deletingId) return;
+  const handleConfirmDelete = async () => {
+    if (!videoToDelete) return;
 
     try {
       setActionError("");
-      setActionSuccess("");
-      setDeletingId(video._id);
-
-      await dispatch(deleteProductVideo(video._id)).unwrap();
-
-      setActionSuccess("Product video deleted successfully");
+      setDeletingId(videoToDelete._id);
+      await dispatch(deleteProductVideo(videoToDelete._id)).unwrap();
+      message.success(`Video "${videoToDelete.title}" deleted.`);
+      setVideoToDelete(null);
     } catch (err) {
-      setActionError(
-        typeof err === "string" ? err : "Failed to delete video"
-      );
+      setActionError(err || "Failed to delete video.");
     } finally {
       setDeletingId(null);
     }
   };
 
+  const columns = [
+    {
+      title: "Video",
+      key: "video",
+      width: 310,
+      render: (_, video) => (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setPreviewVideo(video)}
+            className="group relative flex h-20 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-[#E2E8F0] bg-[#0F172A]"
+            title="Preview video"
+          >
+            {video.thumbnailUrl ? (
+              <img
+                src={video.thumbnailUrl}
+                alt={video.title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <VideoIcon size={20} className="text-white" />
+            )}
+
+            <span className="absolute inset-0 flex items-center justify-center bg-black/35 text-white opacity-0 transition group-hover:opacity-100">
+              <Play size={18} fill="currentColor" />
+            </span>
+          </button>
+
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-[#101828]">
+              {video.title}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs text-[#64748B]">
+              {video.description || "No description"}
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Linked Product",
+      key: "product",
+      width: 220,
+      render: (_, video) => (
+        <span className="text-sm font-medium text-[#334155]">
+          {video.product?.name || "Product not found"}
+        </span>
+      ),
+    },
+    {
+      title: "Duration",
+      dataIndex: "duration",
+      key: "duration",
+      width: 110,
+      render: (duration) => (
+        <span className="text-sm text-[#475569]">
+          {Math.floor(duration || 0)} sec
+        </span>
+      ),
+    },
+    {
+      title: "Views",
+      dataIndex: "views",
+      key: "views",
+      width: 110,
+      render: (views) => (
+        <span className="font-semibold text-[#101828]">
+          {Number(views || 0).toLocaleString("en-IN")}
+        </span>
+      ),
+    },
+    {
+      title: "Order",
+      dataIndex: "displayOrder",
+      key: "displayOrder",
+      width: 90,
+      align: "center",
+      render: (order) => (
+        <span className="font-medium text-[#475569]">{order ?? 0}</span>
+      ),
+    },
+    {
+      title: "Status",
+      key: "status",
+      width: 145,
+      render: (_, video) => (
+        <div className="flex items-center gap-2">
+          <Switch
+            size="small"
+            checked={Boolean(video.isActive)}
+            loading={updatingId === video._id}
+            disabled={Boolean(deletingId)}
+            onChange={() => handleToggleStatus(video)}
+            aria-label={`Toggle ${video.title}`}
+          />
+          <Tag color={video.isActive ? "success" : "default"}>
+            {video.isActive ? "Active" : "Inactive"}
+          </Tag>
+        </div>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 110,
+      align: "right",
+      render: (_, video) => {
+        const isBusy = updatingId === video._id || deletingId === video._id;
+
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <Tooltip title="Watch preview">
+              <Button
+                size="small"
+                icon={<Play size={14} />}
+                onClick={() => setPreviewVideo(video)}
+                disabled={isBusy}
+              />
+            </Tooltip>
+
+            <Tooltip title="Delete video">
+              <Button
+                size="small"
+                danger
+                icon={<Trash2 size={14} />}
+                loading={deletingId === video._id}
+                disabled={isBusy}
+                onClick={() => setVideoToDelete(video)}
+              />
+            </Tooltip>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Product Videos
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage your product reels and video shopping content.
-          </p>
-        </div>
-
-        <Link
-          href="/admin/product-videos/create"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-800"
-        >
-          <Plus size={18} />
-          Add Product Video
-        </Link>
-      </div>
-
-      {/* Statistics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Total Videos</p>
-          <p className="mt-2 text-2xl font-bold text-slate-900">
-            {videos.length}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Active Videos</p>
-          <p className="mt-2 text-2xl font-bold text-green-600">
-            {videos.filter((video) => video.isActive).length}
-          </p>
-        </div>
-
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Inactive Videos</p>
-          <p className="mt-2 text-2xl font-bold text-red-600">
-            {videos.filter((video) => !video.isActive).length}
-          </p>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-md">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          />
-
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search videos or products..."
-            className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-          />
-        </div>
-
-        <button
-          type="button"
-          onClick={refreshVideos}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-        >
-          <RefreshCw
-            size={16}
-            className={loading ? "animate-spin" : ""}
-          />
-          Refresh
-        </button>
-      </div>
-
-      {/* Feedback */}
-      {actionError && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
-
-      {actionSuccess && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-          {actionSuccess}
-        </div>
-      )}
-
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {/* Videos table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[950px] text-left">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr>
-                {[
-                  "Video",
-                  "Product",
-                  "Duration",
-                  "Views",
-                  "Status",
-                  "Order",
-                  "Actions",
-                ].map((heading) => (
-                  <th
-                    key={heading}
-                    className="px-5 py-4 text-xs font-semibold uppercase text-slate-500"
-                  >
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center">
-                    <Loader2 className="mx-auto animate-spin text-blue-700" />
-                    <p className="mt-2 text-sm text-slate-500">
-                      Loading videos...
-                    </p>
-                  </td>
-                </tr>
-              ) : filteredVideos.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-12 text-center">
-                    <Film className="mx-auto text-slate-300" size={32} />
-                    <p className="mt-2 font-medium text-slate-700">
-                      No videos found
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {search
-                        ? "Try a different search term."
-                        : "Upload your first product video."}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                filteredVideos.map((video) => {
-                  const isUpdating = updatingId === video._id;
-                  const isDeleting = deletingId === video._id;
-
-                  return (
-                    <tr
-                      key={video._id}
-                      className="transition hover:bg-slate-50"
-                    >
-                      {/* Video */}
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => setPreviewVideo(video)}
-                            className="group relative h-20 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-900"
-                            title="Preview video"
-                          >
-                            {video.thumbnailUrl ? (
-                              <img
-                                src={video.thumbnailUrl}
-                                alt={video.title}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <Video className="mx-auto text-white" />
-                            )}
-                            <span className="absolute inset-0 flex items-center justify-center bg-black/20 text-white opacity-0 transition group-hover:opacity-100">
-                              <Play size={20} fill="currentColor" />
-                            </span>
-                          </button>
-
-                          <div className="max-w-[230px]">
-                            <p className="font-semibold text-slate-900">
-                              {video.title}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-xs text-slate-500">
-                              {video.description || "No description"}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {video.product?.name || "Product not found"}
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {Math.floor(video.duration || 0)} sec
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {video.views || 0}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            video.isActive
-                              ? "bg-green-50 text-green-700"
-                              : "bg-red-50 text-red-700"
-                          }`}
-                        >
-                          {video.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {video.displayOrder ?? 0}
-                      </td>
-
-                      <td className="px-5 py-4">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(video)}
-                            disabled={Boolean(updatingId || deletingId)}
-                            title={video.isActive ? "Deactivate" : "Activate"}
-                            className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-50"
-                          >
-                            {isUpdating ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <Power size={16} />
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(video)}
-                            disabled={Boolean(updatingId || deletingId)}
-                            title="Delete video"
-                            className="rounded-lg border border-slate-200 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            {isDeleting ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <Trash2 size={16} />
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="border-t border-slate-200 px-5 py-3">
-          <p className="text-xs text-slate-500">
-            Showing {filteredVideos.length} of {videos.length} videos
-          </p>
-        </div>
-      </div>
-
-      {/* Video preview */}
-      {previewVideo && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setPreviewVideo(null)}
-        >
-          <div
-            className="relative w-full max-w-sm"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setPreviewVideo(null)}
-              className="mb-3 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-slate-900"
+      <AdminPageHeader
+        title="Product Videos"
+        subtitle="Manage shoppable video reels and product showcases across the ELENZO storefront."
+        badge={`${adminVideos.length} Videos`}
+        extra={
+          <>
+            <Button
+              icon={
+                <RefreshCw
+                  size={15}
+                  className={loading ? "animate-spin" : ""}
+                />
+              }
+              onClick={refreshVideos}
+              disabled={loading}
             >
-              Close preview
-            </button>
+              Refresh
+            </Button>
 
+            <Link href="/admin/product-videos/create">
+              <Button type="primary" icon={<Plus size={16} />}>
+                Upload Video
+              </Button>
+            </Link>
+          </>
+        }
+      />
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="border-[#E2E8F0] shadow-xs">
+          <Statistic
+            title="Total Videos"
+            value={adminVideos.length}
+            prefix={<Film size={18} className="text-[#0755E9]" />}
+          />
+        </Card>
+
+        <Card className="border-[#E2E8F0] shadow-xs">
+          <Statistic
+            title="Active Videos"
+            value={activeCount}
+            prefix={<CheckCircle2 size={18} className="text-emerald-600" />}
+            styles={{ content: { color: "#059669" } }}
+          />
+        </Card>
+
+        <Card className="border-[#E2E8F0] shadow-xs">
+          <Statistic
+            title="Total Video Views"
+            value={totalViews}
+            prefix={<Eye size={18} className="text-[#0755E9]" />}
+          />
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="border-[#E2E8F0] shadow-xs">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
+          <div className="md:col-span-8">
+            <Input
+              size="large"
+              allowClear
+              prefix={<Search size={16} className="text-[#64748B]" />}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search videos by title, description, or product name..."
+            />
+          </div>
+
+          <div className="md:col-span-4">
+            <Select
+              size="large"
+              className="w-full"
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={[
+                { label: "All Status", value: "all" },
+                { label: "Active Only", value: "active" },
+                { label: "Inactive Only", value: "inactive" },
+              ]}
+            />
+          </div>
+        </div>
+      </Card>
+
+      {(actionError || error) && (
+        <Alert
+          type="error"
+          showIcon
+          title={actionError || error}
+          closable={Boolean(actionError)}
+          onClose={() => setActionError("")}
+        />
+      )}
+
+      {/* Table */}
+      <Card
+        className="overflow-hidden border-[#E2E8F0] shadow-xs"
+        styles={{ body: { padding: 0 } }}
+      >
+        <Table
+          rowKey="_id"
+          columns={columns}
+          dataSource={filteredVideos}
+          loading={loading}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          scroll={{ x: 980 }}
+          locale={{
+            emptyText: (
+              <Empty description="No product videos found" className="py-10" />
+            ),
+          }}
+        />
+      </Card>
+
+      {/* Preview Modal */}
+      <Modal
+        open={Boolean(previewVideo)}
+        title={previewVideo?.title || "Video Preview"}
+        footer={null}
+        onCancel={() => setPreviewVideo(null)}
+        centered
+      >
+        {previewVideo && (
+          <div className="space-y-3">
             <video
               src={previewVideo.videoUrl}
               controls
               autoPlay
               playsInline
-              className="max-h-[75vh] w-full rounded-xl bg-black"
+              className="max-h-[68vh] w-full rounded-xl bg-black"
             />
-            <p className="mt-2 text-center text-sm font-medium text-white">
-              {previewVideo.title}
-            </p>
+            {previewVideo.product?.name && (
+              <p className="text-xs text-[#64748B]">
+                Product:{" "}
+                <span className="font-semibold text-[#101828]">
+                  {previewVideo.product.name}
+                </span>
+              </p>
+            )}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
+
+      {/* Delete Confirmation */}
+      <Modal
+        open={Boolean(videoToDelete)}
+        title="Delete Product Video"
+        onCancel={() => !deletingId && setVideoToDelete(null)}
+        onOk={handleConfirmDelete}
+        okText="Delete Video"
+        okButtonProps={{ danger: true, loading: Boolean(deletingId) }}
+        cancelButtonProps={{ disabled: Boolean(deletingId) }}
+      >
+        <p className="text-sm text-[#475569]">
+          Are you sure you want to delete video{" "}
+          <span className="font-semibold text-[#101828]">
+            {videoToDelete?.title}
+          </span>
+          ? This action cannot be undone.
+        </p>
+      </Modal>
     </div>
   );
 }

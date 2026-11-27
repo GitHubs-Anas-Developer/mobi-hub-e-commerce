@@ -334,7 +334,7 @@ export default function CreateBannerPage() {
         </h1>
 
         <p className="mt-1 text-sm text-slate-500">
-          Add a promotional banner to ELEZIO.
+          Add a promotional banner to ELENZO.
         </p>
       </div>
 
@@ -487,7 +487,7 @@ export default function CreateBannerPage() {
           </div>
 
           <p className="mt-4 text-xs text-slate-500">
-            Select where this banner should appear on the ELEZIO website.
+            Select where this banner should appear on the ELENZO website.
           </p>
         </div>
 

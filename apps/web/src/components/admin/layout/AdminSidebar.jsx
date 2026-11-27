@@ -1,178 +1,111 @@
-
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, Tag } from "antd";
 
+import { BRAND_ASSETS, BRAND_NAME, BRAND_TAGLINE } from "@/config/brand";
 import {
-  LayoutDashboard,
-  Package,
-  FolderTree,
-  ShoppingCart,
-  Users,
-  Star,
-  Settings,
-  Store,
-  TicketPercent,
-  Images,
-  Video,
-} from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
-import { BRAND_NAME } from "@/config/brand";
+  ADMIN_NAV_GROUPS,
+  resolveAdminPageMeta,
+} from "@/components/admin/layout/adminNavigation";
 
-// ========================================
-// NAVIGATION ITEMS
-// ========================================
-
-const NAV_ITEMS = [
-  {
-    label: "Dashboard",
-    href: "/admin",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Products",
-    href: "/admin/products",
-    icon: Package,
-  },
-  {
-    label: "Categories",
-    href: "/admin/categories",
-    icon: FolderTree,
-  },
-  {
-    label: "Banners",
-    href: "/admin/banners",
-    icon: Images,
-  },
-  {
-    label: "Product Videos",
-    href: "/admin/product-videos",
-    icon: Video,
-  },
-  {
-    label: "Brands",
-    href: "/admin/brands",
-    icon: Store,
-  },
-  {
-    label: "Orders",
-    href: "/admin/orders",
-    icon: ShoppingCart,
-  },
-  {
-    label: "Coupons",
-    href: "/admin/coupons",
-    icon: TicketPercent,
-  },
-  {
-    label: "Customers",
-    href: "/admin/users",
-    icon: Users,
-  },
-  {
-    label: "Reviews",
-    href: "/admin/reviews",
-    icon: Star,
-  },
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-  },
-];
-
-// ========================================
-// ADMIN SIDEBAR
-// ========================================
-
-export default function AdminSidebar() {
+export default function AdminSidebar({ collapsed = false, onNavigate }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { activeKey } = resolveAdminPageMeta(pathname);
 
-  // Active menu detection
-  const isActive = (href) => {
-    if (href === "/admin") {
-      return pathname === "/admin";
-    }
+  const menuItems = ADMIN_NAV_GROUPS.map((group) => ({
+    type: "group",
+    key: group.key,
+    label: collapsed ? (
+      <span className="block border-t border-[#E2E8F0] my-1" />
+    ) : (
+      <span className="px-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#94A3B8]">
+        {group.label}
+      </span>
+    ),
+    children: group.items.map((item) => {
+      const Icon = item.icon;
+      return {
+        key: item.href,
+        icon: <Icon size={17} strokeWidth={2} />,
+        label: item.label,
+        title: collapsed ? item.label : undefined,
+      };
+    }),
+  }));
 
-    return pathname === href || pathname.startsWith(`${href}/`);
+  const handleMenuClick = ({ key }) => {
+    router.push(key);
+    onNavigate?.();
   };
 
   return (
-    <aside className="flex h-full min-h-screen w-64 flex-col border-r border-slate-200 bg-white">
-
-      {/* BRAND */}
+    <div className="flex h-full flex-col bg-white">
+      {/* Brand Header */}
       <Link
         href="/admin"
-        className="flex h-[72px] shrink-0 items-center gap-3 border-b border-slate-200 px-6"
+        onClick={() => onNavigate?.()}
+        aria-label={`${BRAND_NAME} Admin Dashboard`}
+        className={`flex h-[68px] shrink-0 items-center border-b border-[#E2E8F0] transition-all ${
+          collapsed ? "justify-center px-2" : "justify-between gap-2 px-5"
+        }`}
       >
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0755E9] text-white shadow-sm">
-          <BrandMark className="h-5 w-5" />
-        </div>
+        {collapsed ? (
+          <Image
+            src={BRAND_ASSETS.icon}
+            alt={BRAND_NAME}
+            width={36}
+            height={36}
+            className="h-9 w-9 object-contain"
+          />
+        ) : (
+          <>
+            <Image
+              src={BRAND_ASSETS.logo}
+              alt={`${BRAND_NAME} - ${BRAND_TAGLINE}`}
+              width={856}
+              height={224}
+              className="h-7 w-auto max-w-[138px] object-contain"
+            />
 
-        <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900">
-            {BRAND_NAME}
-          </h2>
-
-          <p className="text-[11px] font-medium tracking-wider text-slate-500 uppercase">
-            Administration
-          </p>
-        </div>
+            <Tag
+              color="blue"
+              className="!m-0 !border-[#0755E9]/20 !bg-[#EFF6FF] !px-2 !py-0.5 !text-[10px] !font-extrabold !uppercase !tracking-wider !text-[#0755E9]"
+            >
+              Admin
+            </Tag>
+          </>
+        )}
       </Link>
 
-      {/* NAVIGATION */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-
-        <p className="mb-3 px-3 text-[11px] font-semibold tracking-wider text-slate-400 uppercase">
-          Main Menu
-        </p>
-
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(item.href);
-
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`group flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
-            >
-              <Icon
-                size={19}
-                className={
-                  active
-                    ? "text-blue-600"
-                    : "text-slate-400 group-hover:text-slate-600"
-                }
-              />
-
-              <span>{item.label}</span>
-
-              {active && (
-                <span className="ml-auto h-2 w-2 rounded-full bg-blue-600" />
-              )}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* FOOTER */}
-      <div className="shrink-0 border-t border-slate-200 p-4">
-        <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs font-semibold text-slate-700">
-            {BRAND_NAME} Admin
-          </p>
-
-          <p className="mt-1 text-[11px] text-slate-500">
-            Manage your store efficiently.
-          </p>
-        </div>
+      {/* Scrollable Navigation */}
+      <div className="flex-1 overflow-y-auto py-3">
+        <Menu
+          mode="inline"
+          inlineCollapsed={collapsed}
+          selectedKeys={[activeKey]}
+          items={menuItems}
+          onClick={handleMenuClick}
+          style={{ borderInlineEnd: 0 }}
+        />
       </div>
-    </aside>
+
+      {/* Footer Card */}
+      {!collapsed && (
+        <div className="shrink-0 border-t border-[#E2E8F0] p-3.5">
+          <div className="rounded-xl border border-[#0755E9]/15 bg-[#EFF6FF]/60 p-3">
+            <p className="text-xs font-bold text-[#082B70]">
+              {BRAND_NAME} Console
+            </p>
+            <p className="mt-0.5 text-[11px] text-[#64748B]">
+              Verified store operations hub
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

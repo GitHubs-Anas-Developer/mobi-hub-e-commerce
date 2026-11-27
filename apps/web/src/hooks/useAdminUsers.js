@@ -7,13 +7,20 @@ export default function useAdminUsers() {
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState(null);
 
-  const [filters, setFilters] = useState({
-    search: "",
-    status: "all",
-    verification: "all",
-    sort: "newest",
-    page: 1,
-    limit: 10,
+  const [filters, setFilters] = useState(() => {
+    const initial = {
+      search: "",
+      status: "all",
+      verification: "all",
+      sort: "newest",
+      page: 1,
+      limit: 10,
+    };
+    if (typeof window !== "undefined") {
+      const urlSearch = new URLSearchParams(window.location.search).get("search");
+      if (urlSearch) initial.search = urlSearch;
+    }
+    return initial;
   });
 
   const [loading, setLoading] = useState(true);
@@ -38,7 +45,13 @@ export default function useAdminUsers() {
   }, [filters]);
 
   useEffect(() => {
-    fetchUsers();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) fetchUsers();
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchUsers]);
 
   // Update customer status

@@ -3,6 +3,11 @@ import {
   verifyPayment,
   handleRazorpayWebhook,
   refundPayment,
+  syncOrderCancellationRefund,
+  getAdminOrderPaymentDetails,
+  getAdminPaymentsList,
+  getAdminRefundsList,
+  sanitizePaymentForCustomer,
 } from "../services/payment.service.js";
 
 export const createPayment = async (req, res, next) => {
@@ -35,7 +40,7 @@ export const verifyCustomerPayment = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Payment verified successfully",
-      data: payment,
+      data: sanitizePaymentForCustomer(payment),
     });
   } catch (error) {
     next(error);
@@ -61,14 +66,88 @@ export const razorpayWebhook = async (req, res, next) => {
 
 export const processRefund = async (req, res, next) => {
   try {
-    const { paymentId, reason } = req.validatedData.body;
+    const {
+      paymentId,
+      orderId,
+      reason,
+      amount,
+      provider,
+      manualRefundConfirmed,
+    } = req.validatedData.body;
 
-    const payment = await refundPayment(paymentId, reason);
+    const result = await refundPayment(paymentId, reason, {
+      orderId,
+      adminId: req.user._id,
+      amount,
+      provider,
+      manualRefundConfirmed,
+    });
 
     res.status(200).json({
       success: true,
-      message: "Refund request processed",
-      data: payment,
+      message: result?.alreadyProcessed
+        ? "Refund was already processed"
+        : "Refund request processed",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const syncOrderRefund = async (req, res, next) => {
+  try {
+    const { orderId } = req.validatedData.body;
+
+    const result = await syncOrderCancellationRefund(orderId, {
+      adminId: req.user._id,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Refund status synchronized with payment gateway",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchAdminOrderPaymentDetails = async (req, res, next) => {
+  try {
+    const { orderId } = req.validatedData.params;
+
+    const details = await getAdminOrderPaymentDetails(orderId);
+
+    res.status(200).json({
+      success: true,
+      data: details,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchAdminPayments = async (req, res, next) => {
+  try {
+    const result = await getAdminPaymentsList(req.query);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchAdminRefunds = async (req, res, next) => {
+  try {
+    const result = await getAdminRefundsList(req.query);
+
+    res.status(200).json({
+      success: true,
+      data: result,
     });
   } catch (error) {
     next(error);

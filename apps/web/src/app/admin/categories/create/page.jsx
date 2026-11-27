@@ -159,7 +159,7 @@ export default function CreateCategoryPage() {
         </h1>
 
         <p className="mt-1 text-sm text-slate-500">
-          Add a new product category to ELEZIO.
+          Add a new product category to ELENZO.
         </p>
       </div>
 

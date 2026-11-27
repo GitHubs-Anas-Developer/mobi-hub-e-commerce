@@ -1,4 +1,4 @@
-export const BRAND_NAME = "ELEZIO";
+export const BRAND_NAME = "ELENZO";
 export const BRAND_TAGLINE = "Online Gadget & Electronics Store";
 export const BRAND_PRIMARY_COLOR = "#0755E9";
 export const BRAND_SECONDARY_COLOR = "#082B70";
@@ -7,5 +7,4 @@ export const BRAND_BACKGROUND = "#FFFFFF";
 export const BRAND_TEXT_PRIMARY = "#101828";
 export const BRAND_TEXT_SECONDARY = "#64748B";
 export const BRAND_EMAIL_FROM_NAME = process.env.EMAIL_FROM_NAME || BRAND_NAME;
-export const BRAND_SUPPORT_EMAIL = "support@elezio.com";
-
+export const BRAND_SUPPORT_EMAIL = "support@elenzo.com";

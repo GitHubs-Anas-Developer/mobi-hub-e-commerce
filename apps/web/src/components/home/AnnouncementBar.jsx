@@ -24,14 +24,14 @@ import "swiper/css";
 // ========================================
 
 const announcements = [
- {
-  id: 1,
-  icon: Truck,
-  title: "Free Delivery",
-  highlight: "On All Orders",
-  link: "/products",
-  action: "Shop Now",
-},
+  {
+    id: 1,
+    icon: Truck,
+    message: "Free Delivery",
+    highlight: "On All Orders",
+    link: "/products",
+    linkText: "Shop Now",
+  },
   {
     id: 2,
     icon: Wallet,
@@ -45,8 +45,8 @@ const announcements = [
     icon: RefreshCw,
     message: "Shop with Confidence",
     highlight: "7 Days Easy Returns",
-    link: "/return-policy",
-    linkText: "Learn More",
+    link: "/account/orders",
+    linkText: "View Orders",
   },
   {
     id: 4,
@@ -74,21 +74,21 @@ function AnnouncementItem({ item }) {
   const Icon = item.icon;
 
   return (
-    <div className="flex min-h-10 w-full items-center justify-center px-3 py-2 sm:min-h-11 sm:px-6">
-      <div className="flex w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-x-3">
+    <div className="flex min-h-9 w-full items-center justify-center px-3 py-1.5 sm:min-h-10 sm:px-6">
+      <div className="flex w-full max-w-[1440px] flex-wrap items-center justify-center gap-x-2 gap-y-1 sm:gap-x-3">
 
         {/* ICON */}
         <Icon
-          size={15}
+          size={14}
           strokeWidth={2}
           aria-hidden="true"
-          className="shrink-0 text-blue-100"
+          className="shrink-0 text-blue-300"
         />
 
         {/* MESSAGE */}
-        <p className="text-center text-[11px] font-medium leading-relaxed text-white sm:text-xs">
+        <p className="text-center text-[11px] font-medium leading-relaxed text-blue-100 sm:text-xs">
           {item.message}{" "}
-          <span className="font-bold text-white">
+          <span className="font-semibold text-white">
             {item.highlight}
           </span>
         </p>
@@ -96,21 +96,14 @@ function AnnouncementItem({ item }) {
         {/* LINK */}
         <Link
           href={item.link}
-          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-semibold text-white underline decoration-white/60 underline-offset-4 transition-colors hover:text-blue-200 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-xs"
+          className="inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[11px] font-semibold text-white underline decoration-white/50 underline-offset-4 transition-colors hover:text-blue-200 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:text-xs"
         >
           {item.linkText}
           <ChevronRight
-            size={13}
+            size={12}
             aria-hidden="true"
           />
         </Link>
-
-        {/* DECORATION */}
-        <Sparkles
-          size={13}
-          aria-hidden="true"
-          className="hidden shrink-0 text-blue-200 sm:block"
-        />
       </div>
     </div>
   );
@@ -135,7 +128,7 @@ export default function AnnouncementBar() {
     return (
       <div
         aria-label="Store announcement"
-        className="flex min-h-10 w-full items-center justify-center overflow-hidden bg-[#0755e9] text-white sm:min-h-11"
+        className="flex min-h-9 w-full items-center justify-center overflow-hidden bg-[#082B70] text-white sm:min-h-10"
       >
         <AnnouncementItem item={announcements[0]} />
       </div>
@@ -148,8 +141,8 @@ export default function AnnouncementBar() {
 
   return (
     <div
-      aria-label="ELEZIO store announcements"
-      className="w-full overflow-hidden bg-[#0755e9] text-white"
+      aria-label="ELENZO store announcements"
+      className="w-full overflow-hidden bg-[#082B70] text-white"
     >
       <Swiper
         modules={[Autoplay, A11y]}
@@ -164,7 +157,7 @@ export default function AnnouncementBar() {
         allowTouchMove
         a11y={{
           enabled: true,
-          containerMessage: "ELEZIO store announcements",
+          containerMessage: "ELENZO store announcements",
           slideRole: "group",
         }}
         className="w-full"

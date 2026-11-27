@@ -81,7 +81,7 @@ export default function CreateProductPage() {
 
         setError(
           err.response?.data?.message ||
-            "Unable to load categories.",
+          "Unable to load categories.",
         );
       } finally {
         setCategoriesLoading(false);
@@ -107,7 +107,7 @@ export default function CreateProductPage() {
 
         setError(
           err.response?.data?.message ||
-            "Unable to load brands.",
+          "Unable to load brands.",
         );
       } finally {
         setBrandsLoading(false);
@@ -278,12 +278,12 @@ export default function CreateProductPage() {
       prev.map((variant, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              attributes: [
-                ...variant.attributes,
-                { key: "", value: "" },
-              ],
-            }
+            ...variant,
+            attributes: [
+              ...variant.attributes,
+              { key: "", value: "" },
+            ],
+          }
           : variant,
       ),
     );
@@ -299,13 +299,13 @@ export default function CreateProductPage() {
       prev.map((variant, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              attributes: variant.attributes.map((attribute, j) =>
-                j === attributeIndex
-                  ? { ...attribute, [field]: value }
-                  : attribute,
-              ),
-            }
+            ...variant,
+            attributes: variant.attributes.map((attribute, j) =>
+              j === attributeIndex
+                ? { ...attribute, [field]: value }
+                : attribute,
+            ),
+          }
           : variant,
       ),
     );
@@ -319,11 +319,11 @@ export default function CreateProductPage() {
       prev.map((variant, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              attributes: variant.attributes.filter(
-                (_, j) => j !== attributeIndex,
-              ),
-            }
+            ...variant,
+            attributes: variant.attributes.filter(
+              (_, j) => j !== attributeIndex,
+            ),
+          }
           : variant,
       ),
     );
@@ -382,9 +382,9 @@ export default function CreateProductPage() {
       prev.map((variant, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              images: [...variant.images, ...selectedFiles],
-            }
+            ...variant,
+            images: [...variant.images, ...selectedFiles],
+          }
           : variant,
       ),
     );
@@ -397,11 +397,11 @@ export default function CreateProductPage() {
       prev.map((variant, i) =>
         i === variantIndex
           ? {
-              ...variant,
-              images: variant.images.filter(
-                (_, j) => j !== imageIndex,
-              ),
-            }
+            ...variant,
+            images: variant.images.filter(
+              (_, j) => j !== imageIndex,
+            ),
+          }
           : variant,
       ),
     );
@@ -616,8 +616,8 @@ export default function CreateProductPage() {
 
       setError(
         err.response?.data?.message ||
-          err.message ||
-          "Unable to create product. Please try again.",
+        err.message ||
+        "Unable to create product. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -644,7 +644,7 @@ export default function CreateProductPage() {
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Add a new product to ELEZIO.
+              Add a new product to ELENZO.
             </p>
           </div>
         </div>

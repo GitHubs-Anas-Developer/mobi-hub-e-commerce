@@ -18,7 +18,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import Logo from "@/components/layout/navbar/Logo";
 
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser } from "@/store/thunks/authThunks";
@@ -106,8 +106,8 @@ export default function RegisterPage() {
         typeof error === "string"
           ? error
           : error?.message ||
-              error?.response?.data?.message ||
-              "Registration failed. Please try again."
+          error?.response?.data?.message ||
+          "Registration failed. Please try again."
       );
     }
   };
@@ -128,7 +128,7 @@ export default function RegisterPage() {
     } catch (error) {
       setFormError(
         error?.response?.data?.message ||
-          "Unable to resend verification email. Please try again."
+        "Unable to resend verification email. Please try again."
       );
     } finally {
       setResendingEmail(false);
@@ -151,26 +151,14 @@ export default function RegisterPage() {
             xl:px-12
           "
         >
-          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
-
-          <Link
-            href="/"
-            className="relative z-10 flex items-center gap-2.5"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-xl font-bold tracking-tight">
-              ELE<span className="text-blue-300">ZIO</span>
-            </span>
-          </Link>
+          <div className="relative z-10">
+            <Logo variant="white" />
+          </div>
 
           <div className="relative z-10 max-w-md">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
               <ShoppingBag size={14} />
-              Join the ELEZIO community
+              Join the ELENZO community
             </span>
 
             <h1 className="text-3xl font-bold leading-tight xl:text-4xl">
@@ -234,7 +222,7 @@ export default function RegisterPage() {
           </div>
 
           <p className="relative z-10 text-[11px] text-blue-100/60">
-            © {currentYear} ELEZIO. All rights reserved.
+            © {currentYear} ELENZO. All rights reserved.
           </p>
         </motion.section>
 
@@ -251,18 +239,9 @@ export default function RegisterPage() {
           <div className="w-full max-w-[400px]">
 
             {/* MOBILE BRAND */}
-            <Link
-              href="/"
-              className="mb-6 flex items-center justify-center gap-2 lg:hidden"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <BrandMark className="h-5 w-5" />
-              </span>
-
-              <span className="text-lg font-bold text-slate-900">
-                ELE<span className="text-blue-600">ZIO</span>
-              </span>
-            </Link>
+            <div className="mb-6 flex justify-center lg:hidden">
+              <Logo />
+            </div>
 
             {registrationComplete ? (
               /* REGISTRATION SUCCESS */
@@ -299,7 +278,7 @@ export default function RegisterPage() {
 
                   <p className="mt-3 text-xs leading-5 text-slate-500">
                     Open the email and click the verification link to
-                    activate your ELEZIO account. You cannot log in
+                    activate your ELENZO account. You cannot log in
                     until your email is verified.
                   </p>
                 </div>
@@ -376,7 +355,7 @@ export default function RegisterPage() {
                   </p>
 
                   <h2 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-[27px]">
-                    Join ELEZIO
+                    Join ELENZO
                   </h2>
 
                   <p className="mt-1.5 text-sm leading-5 text-slate-500">
@@ -640,7 +619,7 @@ export default function RegisterPage() {
                   </div>
 
                   <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
-                    By creating an account, you agree to ELEZIO's{" "}
+                    By creating an account, you agree to ELENZO's{" "}
                     <Link
                       href="/terms"
                       className="text-blue-600 hover:underline"

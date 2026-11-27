@@ -1,6 +1,6 @@
-
 "use client";
 
+import { Card, Segmented, Skeleton } from "antd";
 import SalesChart from "./SalesChart";
 
 const PERIOD_OPTIONS = [
@@ -11,51 +11,66 @@ const PERIOD_OPTIONS = [
 
 export default function SalesAnalytics({
   sales = [],
+  monthlySales = [],
   loading = false,
   period,
   setPeriod,
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Sales Analytics
-          </h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Sales performance for the selected period.
-          </p>
-        </div>
-
-        {/* Period Filter */}
-        <div className="flex w-fit rounded-lg bg-slate-100 p-1">
-          {PERIOD_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setPeriod(option.value)}
-              className={`rounded-md px-3 py-2 text-xs font-medium transition sm:text-sm ${
-                period === option.value
-                  ? "bg-white text-blue-700 shadow-sm"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Chart */}
-      <div className="mt-6">
+    <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+      {/* Revenue Overview */}
+      <Card
+        className="xl:col-span-7 !border-[#E2E8F0]"
+        title={
+          <div>
+            <h3 className="!m-0 text-base font-bold text-[#101828]">
+              Revenue Overview
+            </h3>
+            <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+              Paid order revenue across the selected time window
+            </p>
+          </div>
+        }
+        extra={
+          <Segmented
+            size="small"
+            value={period}
+            onChange={(value) => setPeriod(value)}
+            options={PERIOD_OPTIONS}
+          />
+        }
+      >
         {loading ? (
-          <div className="h-[300px] animate-pulse rounded-lg bg-slate-100" />
+          <div className="py-10">
+            <Skeleton active paragraph={{ rows: 5 }} />
+          </div>
         ) : (
-          <SalesChart sales={sales} />
+          <SalesChart sales={sales} variant="area" />
         )}
-      </div>
-    </section>
+      </Card>
+
+      {/* Monthly Sales Chart */}
+      <Card
+        className="xl:col-span-5 !border-[#E2E8F0]"
+        title={
+          <div>
+            <h3 className="!m-0 text-base font-bold text-[#101828]">
+              Monthly Sales
+            </h3>
+            <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+              Last 12 months revenue performance
+            </p>
+          </div>
+        }
+      >
+        {loading ? (
+          <div className="py-10">
+            <Skeleton active paragraph={{ rows: 5 }} />
+          </div>
+        ) : (
+          <SalesChart sales={monthlySales} variant="bar" />
+        )}
+      </Card>
+    </div>
   );
 }

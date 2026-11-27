@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 
 import {
@@ -12,23 +13,31 @@ import {
 } from "lucide-react";
 
 import { motion, useScroll, useSpring } from "framer-motion";
-import { BRAND_NAME, BRAND_SUPPORT_EMAIL } from "@/config/brand";
+import {
+  BRAND_ASSETS,
+  BRAND_NAME,
+  BRAND_SUPPORT_EMAIL,
+  BRAND_TAGLINE,
+} from "@/config/brand";
 
 const footerLinks = {
   Shop: [
     { label: "All Products", href: "/products" },
     { label: "Categories", href: "/categories" },
-    { label: "New Arrivals", href: "/products?sort=newest" },
+    { label: "New Arrivals", href: "/products?isNewArrival=true&sort=newest" },
     {
       label: "Featured Products",
       href: "/products?isFeatured=true",
     },
+    { label: "About Us", href: "/about" },
   ],
 
-  "Customer Service": [
+  "Customer & Account": [
     { label: "My Account", href: "/account" },
-    { label: "Track Orders", href: "/account/orders" },
-    { label: "Returns & Refunds", href: "/account/returns" },
+    { label: "My Orders", href: "/account/orders" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Return & Refund Policy", href: "/return-policy" },
+    { label: "Shipping & Delivery Policy", href: "/shipping-policy" },
     { label: "Contact Us", href: "/contact" },
   ],
 };
@@ -82,7 +91,7 @@ export default function Footer() {
   const [currentYear, setCurrentYear] = useState("2026");
 
   useEffect(() => {
-    setCurrentYear(String(new Date().getFullYear()));
+    queueMicrotask(() => setCurrentYear(String(new Date().getFullYear())));
   }, []);
 
   const { scrollYProgress } = useScroll();
@@ -102,11 +111,6 @@ export default function Footer() {
         className="absolute left-0 top-0 z-20 h-[2px] w-full origin-left bg-[#0755E9]"
       />
 
-      {/* Background Decorations */}
-      <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-blue-100/40 blur-3xl" />
-
-      <div className="pointer-events-none absolute -bottom-40 -left-32 h-72 w-72 rounded-full bg-indigo-100/30 blur-3xl" />
-
       {/* Main Footer */}
       <div className="mh-container relative">
         <motion.div
@@ -124,9 +128,16 @@ export default function Footer() {
           >
             <Link
               href="/"
-              className="inline-flex items-center text-xl font-extrabold tracking-tight text-[#101828] sm:text-[22px]"
+              aria-label={`${BRAND_NAME} Home`}
+              className="inline-flex items-center"
             >
-              ELE<span className="text-[#0755E9]">ZIO</span>
+              <Image
+                src={BRAND_ASSETS.logo}
+                alt={`${BRAND_NAME} - ${BRAND_TAGLINE}`}
+                width={856}
+                height={224}
+                className="h-10 w-auto object-contain sm:h-11"
+              />
             </Link>
 
             <p className="mt-3 max-w-sm text-[12px] leading-[1.8] text-[#64748B] sm:text-[13px]">
@@ -238,6 +249,41 @@ export default function Footer() {
 
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[11px] text-[#64748B] sm:justify-end sm:text-xs">
               <Link
+                href="/about"
+                className="transition-colors hover:text-[#0755E9]"
+              >
+                About Us
+              </Link>
+
+              <Link
+                href="/contact"
+                className="transition-colors hover:text-[#0755E9]"
+              >
+                Contact Us
+              </Link>
+
+              <Link
+                href="/faq"
+                className="transition-colors hover:text-[#0755E9]"
+              >
+                FAQ
+              </Link>
+
+              <Link
+                href="/return-policy"
+                className="transition-colors hover:text-[#0755E9]"
+              >
+                Return &amp; Refund Policy
+              </Link>
+
+              <Link
+                href="/shipping-policy"
+                className="transition-colors hover:text-[#0755E9]"
+              >
+                Shipping &amp; Delivery Policy
+              </Link>
+
+              <Link
                 href="/privacy-policy"
                 className="transition-colors hover:text-[#0755E9]"
               >
@@ -248,7 +294,7 @@ export default function Footer() {
                 href="/terms"
                 className="transition-colors hover:text-[#0755E9]"
               >
-                Terms & Conditions
+                Terms &amp; Conditions
               </Link>
             </div>
 

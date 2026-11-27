@@ -1,65 +1,58 @@
-
 "use client";
-
-import AddressForm from "./AddressForm";
-
-import { motion, AnimatePresence } from "framer-motion";
 
 import {
   MapPin,
   Plus,
-  Home,
-  Briefcase,
-  MapPinned,
-  Phone,
-  CheckCircle2,
   AlertCircle,
   LoaderCircle,
   Map,
   ArrowRight,
+  RefreshCw,
 } from "lucide-react";
 
-const getAddressIcon = (type) => {
-  switch (type?.toLowerCase()) {
-    case "home":
-      return Home;
-    case "work":
-      return Briefcase;
-    default:
-      return MapPinned;
-  }
-};
+import AddressCard from "./AddressCard";
+import AddressForm from "./AddressForm";
 
 export default function DeliveryAddress({
   addresses = [],
   selectedAddress,
   onSelectAddress,
-  addressLoading,
-  addressError,
-  showAddressForm,
+  addressLoading = false,
+  addressError = "",
+  onRetryAddresses,
+  showAddressForm = false,
+  addressFormMode = "create",
   onOpenAddressForm,
+  onEditAddress,
+  onDeleteAddress,
+  deletingAddressId = "",
   onCancelAddressForm,
   addressForm,
   onAddressChange,
-  onAddAddress,
-  savingAddress,
+  onSubmitAddress,
+  savingAddress = false,
 }) {
   return (
-    <section className="rounded-2xl bg-white">
+    <section
+      aria-labelledby="checkout-address-heading"
+      className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+    >
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]">
-            <MapPin size={21} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+            <MapPin size={19} aria-hidden="true" />
           </div>
 
           <div>
-            <h2 className="text-base font-bold text-[#101828] sm:text-lg">
+            <h2
+              id="checkout-address-heading"
+              className="text-base font-bold text-[#101828] sm:text-lg"
+            >
               Delivery Address
             </h2>
-
-            <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-              Choose where you want your order delivered.
+            <p className="text-xs text-[#64748B]">
+              Select where your ELENZO order should be delivered
             </p>
           </div>
         </div>
@@ -69,205 +62,92 @@ export default function DeliveryAddress({
             type="button"
             onClick={onOpenAddressForm}
             disabled={addressLoading}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
           >
-            <Plus size={17} />
-            Add New Address
+            <Plus size={16} aria-hidden="true" />
+            <span>Add New Address</span>
           </button>
         )}
       </div>
 
       {/* Error Message */}
-      <AnimatePresence>
-        {addressError && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: -5 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0 }}
-            role="alert"
-            className="mb-5 flex items-start gap-3 overflow-hidden rounded-xl border border-red-200 bg-red-50 p-4"
-          >
-            <AlertCircle
-              size={18}
-              className="mt-0.5 shrink-0 text-red-500"
-            />
+      {addressError && (
+        <div
+          role="alert"
+          className="mb-5 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 sm:text-sm"
+        >
+          <div className="flex items-start gap-2.5">
+            <AlertCircle size={17} className="mt-0.5 shrink-0 text-red-500" />
+            <span>{addressError}</span>
+          </div>
 
-            <p className="text-sm leading-5 text-red-600">
-              {addressError}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          {onRetryAddresses && addresses.length === 0 && (
+            <button
+              type="button"
+              onClick={onRetryAddresses}
+              className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-red-700 shadow-xs hover:bg-red-100"
+            >
+              <RefreshCw size={12} />
+              Retry
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Address Loading */}
+      {/* Loading State */}
       {addressLoading ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/50 py-12">
-          <LoaderCircle
-            size={30}
-            className="animate-spin text-[#0755E9]"
-          />
-
-          <p className="mt-3 text-sm font-medium text-slate-500">
-            Loading your addresses...
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] py-12">
+          <LoaderCircle size={28} className="animate-spin text-[#0755E9]" />
+          <p className="mt-3 text-xs font-semibold text-[#64748B] sm:text-sm">
+            Loading your saved addresses...
           </p>
         </div>
       ) : (
         <>
-          {/* Empty Address State */}
           {addresses.length === 0 && !showAddressForm && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/50 px-5 py-12 text-center"
-            >
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-[#0755E9]">
-                <Map size={29} />
+            <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#F8FAFC] px-5 py-12 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-[#0755E9]/15 bg-[#EFF6FF] text-[#0755E9]">
+                <Map size={26} aria-hidden="true" />
               </div>
 
-              <h3 className="mt-5 text-base font-bold text-[#101828]">
-                No saved addresses yet
+              <h3 className="mt-4 text-base font-bold text-[#101828]">
+                No saved delivery addresses yet
               </h3>
 
-              <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-slate-500">
-                Add your delivery address to continue with your ELEZIO order.
+              <p className="mx-auto mt-1.5 max-w-xs text-xs leading-relaxed text-[#64748B] sm:text-sm">
+                Add your delivery address to continue with your ELENZO order.
               </p>
 
               <button
                 type="button"
                 onClick={onOpenAddressForm}
-                className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
+                className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#0755E9] px-5 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] sm:text-sm"
               >
-                Add Your First Address
-                <ArrowRight size={16} />
+                <span>Add Your First Address</span>
+                <ArrowRight size={15} />
               </button>
-            </motion.div>
+            </div>
           )}
 
-          {/* Address List */}
           {addresses.length > 0 && (
             <div className="space-y-3">
-              {addresses.map((address, index) => {
+              {addresses.map((address) => {
                 const isSelected =
-                  String(selectedAddress || "") ===
-                  String(address._id);
-
-                const AddressIcon = getAddressIcon(
-                  address.addressType
-                );
+                  String(selectedAddress || "") === String(address._id);
 
                 return (
-                  <motion.label
+                  <AddressCard
                     key={address._id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{
-                      duration: 0.3,
-                      delay: index * 0.06,
-                    }}
-                    className={`relative flex cursor-pointer gap-3 overflow-hidden rounded-2xl border p-4 transition-all duration-200 sm:gap-4 sm:p-5 ${
-                      isSelected
-                        ? "border-[#0755E9] bg-blue-50/50 shadow-sm shadow-blue-100"
-                        : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50/50"
-                    }`}
-                  >
-                    {/* Radio */}
-                    <div className="pt-1">
-                      <input
-                        type="radio"
-                        name="deliveryAddress"
-                        value={address._id}
-                        checked={isSelected}
-                        onChange={() =>
-                          onSelectAddress(address._id)
-                        }
-                        className="h-[18px] w-[18px] cursor-pointer accent-[#0755E9]"
-                      />
-                    </div>
-
-                    {/* Address Content */}
-                    <div className="min-w-0 flex-1">
-                      {/* Name and Badges */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-sm font-bold text-[#101828] sm:text-base">
-                          {address.fullName}
-                        </h3>
-
-                        {address.addressType && (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-600">
-                            <AddressIcon size={11} />
-                            {address.addressType}
-                          </span>
-                        )}
-
-                        {address.isDefault && (
-                          <span className="rounded-md bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
-                            DEFAULT
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Address Details */}
-                      <div className="mt-3 space-y-1.5 text-sm leading-5 text-slate-600">
-                        {address.addressLine1 && (
-                          <p>{address.addressLine1}</p>
-                        )}
-
-                        {address.addressLine2 && (
-                          <p>{address.addressLine2}</p>
-                        )}
-
-                        {address.landmark && (
-                          <p className="text-xs text-slate-500">
-                            Landmark: {address.landmark}
-                          </p>
-                        )}
-
-                        <p>
-                          {[
-                            address.city,
-                            address.state,
-                          ]
-                            .filter(Boolean)
-                            .join(", ")}
-                          {address.pincode &&
-                            ` - ${address.pincode}`}
-                        </p>
-
-                        {address.country && (
-                          <p>{address.country}</p>
-                        )}
-                      </div>
-
-                      {/* Contact Details */}
-                      {(address.phone ||
-                        address.alternatePhone) && (
-                        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-3">
-                          {address.phone && (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600">
-                              <Phone
-                                size={13}
-                                className="text-slate-400"
-                              />
-                              {address.phone}
-                            </span>
-                          )}
-
-                          {address.alternatePhone && (
-                            <span className="text-xs text-slate-500">
-                              Alternate: {address.alternatePhone}
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Selected Indicator */}
-                    {isSelected && (
-                      <div className="absolute right-3 top-3 text-[#0755E9]">
-                        <CheckCircle2 size={19} />
-                      </div>
-                    )}
-                  </motion.label>
+                    address={address}
+                    selected={isSelected}
+                    disabled={savingAddress}
+                    deleting={
+                      String(deletingAddressId || "") === String(address._id)
+                    }
+                    onSelect={onSelectAddress}
+                    onEdit={onEditAddress}
+                    onDelete={onDeleteAddress}
+                  />
                 );
               })}
             </div>
@@ -275,25 +155,19 @@ export default function DeliveryAddress({
         </>
       )}
 
-      {/* Add Address Form */}
-      <AnimatePresence>
-        {showAddressForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0, y: 10 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0 }}
-            className="mt-6 overflow-hidden border-t border-slate-100 pt-5"
-          >
-            <AddressForm
-              addressForm={addressForm}
-              onChange={onAddressChange}
-              onSubmit={onAddAddress}
-              onCancel={onCancelAddressForm}
-              saving={savingAddress}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Inline Add / Edit Address Form */}
+      {showAddressForm && (
+        <div className="mt-5 border-t border-[#E2E8F0] pt-5">
+          <AddressForm
+            mode={addressFormMode}
+            addressForm={addressForm}
+            onChange={onAddressChange}
+            onSubmit={onSubmitAddress}
+            onCancel={onCancelAddressForm}
+            saving={savingAddress}
+          />
+        </div>
+      )}
     </section>
   );
 }

@@ -6,8 +6,10 @@ const orderService = {
     return response.data;
   },
 
-  getOrders: async () => {
-    const response = await axiosInstance.get("/orders");
+  getOrders: async (params = {}) => {
+    const response = await axiosInstance.get("/orders", {
+      params,
+    });
     return response.data;
   },
 
@@ -38,8 +40,11 @@ const orderService = {
     }
   },
 
-  cancelOrder: async (orderId) => {
-    const response = await axiosInstance.patch(`/orders/${orderId}/cancel`);
+  cancelOrder: async (orderId, { reason, comment = "" } = {}) => {
+    const response = await axiosInstance.patch(`/orders/${orderId}/cancel`, {
+      reason,
+      ...(comment ? { comment } : {}),
+    });
     return response.data;
   },
 };

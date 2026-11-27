@@ -16,7 +16,7 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import { BRAND_ASSETS, BRAND_NAME, BRAND_TAGLINE } from "@/config/brand";
 
 import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
@@ -237,14 +237,12 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }) {
 
         <div className="px-4 py-5 sm:px-6 sm:py-6">
           {/* BRAND */}
-          <div className="mb-4 flex items-center justify-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-lg font-extrabold text-slate-900">
-              ELE<span className="text-blue-600">ZIO</span>
-            </span>
+          <div className="mb-4 flex items-center justify-center">
+            <img
+              src={BRAND_ASSETS.logo}
+              alt={`${BRAND_NAME} - ${BRAND_TAGLINE}`}
+              className="h-9 w-auto object-contain"
+            />
           </div>
 
           {/* HEADING */}

@@ -3,68 +3,98 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { toast } from "sonner";
 import {
   User,
   Mail,
   Phone,
   Lock,
   Save,
-  ArrowLeft,
+  Pencil,
+  X,
   Eye,
   EyeOff,
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
+  LoaderCircle,
 } from "lucide-react";
-import { motion, useScroll, useSpring } from "framer-motion";
 
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AccountShell from "@/components/account/AccountShell";
 import {
   updateUserProfile,
   changeUserPassword,
 } from "@/store/thunks/authThunks";
 import { clearCredentials, updateUser } from "@/store/slices/authSlice";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
-// Animation variants
-const fadeUp = {
-  hidden: {
-    opacity: 0,
-    y: 35,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.55,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
+function getInitials(name = "") {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return "EL";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
 
-const staggerContainer = {
-  hidden: {},
-  visible: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-};
+const inputClass =
+  "w-full rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5 text-sm text-[#101828] outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-[#0755E9] focus:bg-white focus:ring-2 focus:ring-[#0755E9]/15 disabled:cursor-not-allowed disabled:opacity-60";
+
+const labelClass = "mb-1.5 block text-xs font-bold text-[#101828]";
+
+function PasswordField({
+  id,
+  name,
+  label,
+  value,
+  visible,
+  onToggle,
+  onChange,
+  placeholder,
+  autoComplete,
+  disabled,
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className={labelClass}>
+        {label}
+      </label>
+
+      <div className="relative">
+        <input
+          id={id}
+          name={name}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={onChange}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`${inputClass} pr-11`}
+        />
+
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#64748B] transition hover:text-[#0755E9]"
+        >
+          {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ProfilePageContent() {
   const dispatch = useDispatch();
   const router = useRouter();
 
-  const { user } = useSelector((state) => state.auth);
+  const { user } = useSelector((state) => state.auth || {});
 
-  // Scroll progress
-  const { scrollYProgress } = useScroll();
-
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
+  const [activeNavSection, setActiveNavSection] = useState("profile");
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
     name: "",
@@ -82,13 +112,25 @@ function ProfilePageContent() {
 
   const [profileError, setProfileError] = useState("");
   const [profileSuccess, setProfileSuccess] = useState("");
-
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
 
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    const syncHash = () => {
+      if (typeof window !== "undefined" && window.location.hash === "#password") {
+        setActiveNavSection("password");
+      } else {
+        setActiveNavSection("profile");
+      }
+    };
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => window.removeEventListener("hashchange", syncHash);
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -101,25 +143,21 @@ function ProfilePageContent() {
 
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
-
-    setProfileForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+    setProfileForm((previous) => ({ ...previous, [name]: value }));
   };
 
-  const handlePasswordChange = (event) => {
-    const { name, value } = event.target;
-
-    setPasswordForm((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
+  const handleCancelEdit = () => {
+    setProfileForm({
+      name: user?.name || "",
+      phone: user?.phone || "",
+    });
+    setProfileError("");
+    setProfileSuccess("");
+    setIsEditingProfile(false);
   };
 
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
-
     setProfileError("");
     setProfileSuccess("");
 
@@ -148,26 +186,31 @@ function ProfilePageContent() {
         updateUserProfile({
           name,
           phone: phone || null,
-        }),
+        })
       ).unwrap();
 
       dispatch(updateUser(result));
-
       setProfileSuccess("Profile updated successfully.");
-    } catch (error) {
+      toast.success("Profile updated successfully.");
+      setIsEditingProfile(false);
+    } catch (err) {
       setProfileError(
-        typeof error === "string"
-          ? error
-          : "Unable to update profile. Please try again.",
+        typeof err === "string"
+          ? err
+          : "Unable to update profile. Please try again."
       );
     } finally {
       setProfileLoading(false);
     }
   };
 
+  const handlePasswordChange = (event) => {
+    const { name, value } = event.target;
+    setPasswordForm((previous) => ({ ...previous, [name]: value }));
+  };
+
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
-
     setPasswordError("");
     setPasswordSuccess("");
 
@@ -201,7 +244,7 @@ function ProfilePageContent() {
           currentPassword,
           newPassword,
           confirmPassword,
-        }),
+        })
       ).unwrap();
 
       setPasswordForm({
@@ -210,458 +253,386 @@ function ProfilePageContent() {
         confirmPassword: "",
       });
 
-      setPasswordSuccess("Password changed successfully.");
+      setPasswordSuccess("Password updated successfully. Redirecting to login...");
+      toast.success("Password updated. Please sign in again.");
 
-      // Backend clears authentication cookies.
       dispatch(clearCredentials());
-
       router.replace("/login");
-    } catch (error) {
+    } catch (err) {
       setPasswordError(
-        typeof error === "string"
-          ? error
-          : "Unable to change password. Please try again.",
+        typeof err === "string"
+          ? err
+          : "Unable to change password. Please try again."
       );
-
       setPasswordLoading(false);
     }
   };
 
-  const inputClass =
-    "w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition-all duration-200 placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-600 focus:ring-4 focus:ring-blue-100";
-
-  const labelClass = "mb-2 block text-sm font-semibold text-slate-700";
-
-  const sectionHeader = (Icon, title, description) => (
-    <div className="flex items-center gap-3 border-b border-slate-100 p-5 sm:p-6">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-        <Icon size={22} />
-      </div>
-
-      <div>
-        <h2 className="font-bold text-slate-900">{title}</h2>
-        <p className="mt-1 text-xs text-slate-500 sm:text-sm">{description}</p>
-      </div>
-    </div>
-  );
-
-  const PasswordInput = ({
-    id,
-    name,
-    label,
-    value,
-    visible,
-    toggle,
-    placeholder,
-    autoComplete,
-  }) => (
-    <div>
-      <label htmlFor={id} className={labelClass}>
-        {label}
-      </label>
-
-      <div className="relative">
-        <input
-          id={id}
-          name={name}
-          type={visible ? "text" : "password"}
-          value={value}
-          onChange={handlePasswordChange}
-          autoComplete={autoComplete}
-          placeholder={placeholder}
-          className={`${inputClass} pr-12`}
-        />
-
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={visible ? `Hide ${label}` : `Show ${label}`}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-blue-600"
-        >
-          {visible ? <EyeOff size={19} /> : <Eye size={19} />}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen overflow-hidden bg-white px-4 py-8 sm:px-6 lg:px-8">
-      {/* Blue Scroll Progress */}
-      <motion.div
-        className="fixed left-0 top-0 z-[100] h-1 w-full origin-left bg-gradient-to-r from-[#0755E9] via-[#2583FF] to-cyan-400"
-        style={{ scaleX: smoothProgress }}
-      />
-
-      <div className="mx-auto w-full">
-        {/* Page Header */}
-        <motion.div
-          variants={staggerContainer}
-          initial="hidden"
-          animate="visible"
-          className="mb-8"
-        >
-          <motion.div variants={fadeUp}>
-            <Link
-              href="/account"
-              className="mb-6 inline-flex items-center gap-2 rounded-lg text-sm font-semibold text-slate-500 transition hover:text-blue-600"
-            >
-              <ArrowLeft size={17} />
-              Back to My Account
-            </Link>
-          </motion.div>
-
-          <motion.div variants={fadeUp}>
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="h-1.5 w-8 rounded-full bg-blue-600" />
-                  <span className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">
-                    My Account
-                  </span>
-                </div>
-
-                <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
-                  Profile Settings
-                </h1>
-
-                <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
-                  Manage your personal information and account security.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 text-white">
-                  <User size={21} />
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-blue-600">
-                    Welcome back
-                  </p>
-                  <p className="max-w-[180px] truncate text-sm font-bold text-slate-900">
-                    {user?.name || "Customer"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Personal Information */}
-          <motion.section
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.15 }}
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md lg:col-span-2"
+    <AccountShell
+      activeSection={activeNavSection}
+      breadcrumbLabel="Profile & Security"
+      title="My Profile & Security"
+      description="View and update your personal details, verify account status, and manage your password."
+    >
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+          {/* Personal Information Card */}
+          <section
+            aria-labelledby="profile-info-heading"
+            className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white xl:col-span-2"
           >
-            {sectionHeader(
-              User,
-              "Personal Information",
-              "Update your personal account details.",
-            )}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E2E8F0] px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#0755E9] text-sm font-extrabold text-white">
+                  {getInitials(user?.name)}
+                </div>
 
-            <form
-              onSubmit={handleProfileSubmit}
-              className="space-y-6 p-5 sm:p-7"
-            >
-              {profileError && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  role="alert"
-                  className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                <div>
+                  <h2
+                    id="profile-info-heading"
+                    className="text-base font-bold text-[#101828]"
+                  >
+                    Personal Information
+                  </h2>
+                  <p className="text-xs text-[#64748B]">
+                    Your verified ELENZO customer details
+                  </p>
+                </div>
+              </div>
+
+              {!isEditingProfile && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileError("");
+                    setProfileSuccess("");
+                    setIsEditingProfile(true);
+                  }}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#0755E9] bg-[#EFF6FF] px-3.5 text-xs font-bold text-[#0755E9] transition hover:bg-[#0755E9] hover:text-white"
                 >
-                  <AlertCircle size={18} />
-                  {profileError}
-                </motion.div>
+                  <Pencil size={13} aria-hidden="true" />
+                  <span>Edit Profile</span>
+                </button>
+              )}
+            </div>
+
+            <div className="p-5 sm:p-6">
+              {profileError && (
+                <div
+                  role="alert"
+                  className="mb-4 flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 sm:text-sm"
+                >
+                  <AlertCircle size={17} className="shrink-0" />
+                  <span>{profileError}</span>
+                </div>
               )}
 
               {profileSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
+                <div
                   role="status"
-                  className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+                  className="mb-4 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700 sm:text-sm"
                 >
-                  <CheckCircle2 size={18} />
-                  {profileSuccess}
-                </motion.div>
+                  <CheckCircle2 size={17} className="shrink-0" />
+                  <span>{profileSuccess}</span>
+                </div>
               )}
 
-              <motion.div
-                variants={staggerContainer}
-                initial="hidden"
-                animate="visible"
-                className="space-y-5"
-              >
-                <motion.div variants={fadeUp}>
-                  <label htmlFor="name" className={labelClass}>
-                    Full Name
-                  </label>
-
-                  <div className="relative">
-                    <User
-                      size={18}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      value={profileForm.name}
-                      onChange={handleProfileChange}
-                      placeholder="Enter your full name"
-                      maxLength={50}
-                      required
-                      className={`${inputClass} pl-11`}
-                    />
-                  </div>
-                </motion.div>
-
-                <motion.div variants={fadeUp}>
-                  <label htmlFor="email" className={labelClass}>
-                    Email Address
-                  </label>
-
-                  <div className="relative">
-                    <Mail
-                      size={18}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      id="email"
-                      type="email"
-                      value={user?.email || ""}
-                      readOnly
-                      className={`${inputClass} cursor-not-allowed bg-slate-50 pl-11 text-slate-500`}
-                    />
+              {isEditingProfile ? (
+                <form onSubmit={handleProfileSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="name" className={labelClass}>
+                      Full Name <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <User
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]"
+                        aria-hidden="true"
+                      />
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        value={profileForm.name}
+                        onChange={handleProfileChange}
+                        placeholder="Enter your full name"
+                        maxLength={50}
+                        required
+                        disabled={profileLoading}
+                        className={`${inputClass} pl-10`}
+                      />
+                    </div>
                   </div>
 
-                  <p className="mt-2 text-xs text-slate-400">
-                    Email address cannot be changed here.
-                  </p>
-                </motion.div>
-
-                <motion.div variants={fadeUp}>
-                  <label htmlFor="phone" className={labelClass}>
-                    Phone Number
-                  </label>
-
-                  <div className="relative">
-                    <Phone
-                      size={18}
-                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                    />
-
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      value={profileForm.phone}
-                      onChange={handleProfileChange}
-                      placeholder="Enter your phone number"
-                      maxLength={20}
-                      className={`${inputClass} pl-11`}
-                    />
+                  <div>
+                    <label htmlFor="email" className={labelClass}>
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]"
+                        aria-hidden="true"
+                      />
+                      <input
+                        id="email"
+                        type="email"
+                        value={user?.email || ""}
+                        readOnly
+                        className={`${inputClass} cursor-not-allowed bg-slate-100 pl-10 text-[#64748B]`}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] text-[#64748B]">
+                      Email address cannot be updated directly for security reasons.
+                    </p>
                   </div>
-                </motion.div>
-              </motion.div>
 
-              <div className="flex justify-end border-t border-slate-100 pt-5">
-                <motion.button
-                  type="submit"
-                  disabled={profileLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Save size={17} />
-                  {profileLoading ? "Saving..." : "Save Changes"}
-                </motion.button>
-              </div>
-            </form>
-          </motion.section>
+                  <div>
+                    <label htmlFor="phone" className={labelClass}>
+                      Phone Number
+                    </label>
+                    <div className="relative">
+                      <Phone
+                        size={16}
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]"
+                        aria-hidden="true"
+                      />
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={profileForm.phone}
+                        onChange={handleProfileChange}
+                        placeholder="Enter your phone number"
+                        maxLength={20}
+                        disabled={profileLoading}
+                        className={`${inputClass} pl-10`}
+                      />
+                    </div>
+                  </div>
 
-          {/* Account Information */}
-          <motion.aside
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.2 }}
-            whileHover={{ y: -4 }}
-            className="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow duration-300 hover:shadow-md sm:p-6"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                <ShieldCheck size={23} />
+                  <div className="flex flex-col-reverse gap-2.5 border-t border-[#E2E8F0] pt-4 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={profileLoading}
+                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-4 text-xs font-bold text-[#64748B] transition hover:bg-slate-50 hover:text-[#101828] disabled:opacity-50"
+                    >
+                      <X size={15} />
+                      <span>Cancel</span>
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={profileLoading}
+                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-5 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {profileLoading ? (
+                        <LoaderCircle size={15} className="animate-spin" />
+                      ) : (
+                        <Save size={15} />
+                      )}
+                      <span>{profileLoading ? "Saving..." : "Save Changes"}</span>
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                    <dt className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                      Full Name
+                    </dt>
+                    <dd className="mt-1 text-sm font-bold text-[#101828]">
+                      {user?.name || "Not provided"}
+                    </dd>
+                  </div>
+
+                  <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                    <dt className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                      Phone Number
+                    </dt>
+                    <dd className="mt-1 text-sm font-bold text-[#101828] tabular-nums">
+                      {user?.phone || "Not added yet"}
+                    </dd>
+                  </div>
+
+                  <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5 sm:col-span-2">
+                    <dt className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                      Email Address
+                    </dt>
+                    <dd className="mt-1 break-all text-sm font-bold text-[#101828]">
+                      {user?.email || "Not available"}
+                    </dd>
+                  </div>
+                </dl>
+              )}
+            </div>
+          </section>
+
+          {/* Account Status Card */}
+          <aside className="h-fit rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6">
+            <div className="flex items-center gap-3 border-b border-[#E2E8F0] pb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                <ShieldCheck size={19} aria-hidden="true" />
               </div>
 
               <div>
-                <h2 className="font-bold text-slate-900">
+                <h2 className="text-sm font-bold text-[#101828]">
                   Account Information
                 </h2>
-                <p className="mt-1 text-xs text-slate-500">
-                  Your account details.
+                <p className="text-[11px] text-[#64748B]">
+                  Verification &amp; membership details
                 </p>
               </div>
             </div>
 
-            <div className="mt-7 space-y-5">
-              <div className="border-b border-slate-100 pb-4">
-                <p className="text-xs font-medium text-slate-400">
-                  Account Name
-                </p>
-                <p className="mt-1 break-words text-sm font-bold text-slate-900">
-                  {user?.name || "Not available"}
-                </p>
-              </div>
-
-              <div className="border-b border-slate-100 pb-4">
-                <p className="text-xs font-medium text-slate-400">
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                   Account Role
                 </p>
-                <p className="mt-1 text-sm font-bold capitalize text-slate-900">
+                <p className="mt-1 text-sm font-bold capitalize text-[#101828]">
                   {user?.role || "Customer"}
                 </p>
               </div>
 
-              <div>
-                <p className="text-xs font-medium text-slate-400">
+              <div className="border-t border-[#E2E8F0] pt-4">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
                   Email Verification
                 </p>
 
-                <div className="mt-2 flex items-center gap-2">
+                <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1">
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      user?.isEmailVerified ? "bg-green-500" : "bg-amber-500"
+                      user?.isEmailVerified ? "bg-emerald-500" : "bg-amber-500"
                     }`}
                   />
-
-                  <p
-                    className={`text-sm font-bold ${
+                  <span
+                    className={`text-xs font-bold ${
                       user?.isEmailVerified
-                        ? "text-green-600"
-                        : "text-amber-600"
+                        ? "text-emerald-700"
+                        : "text-amber-700"
                     }`}
                   >
-                    {user?.isEmailVerified ? "Verified" : "Not verified"}
-                  </p>
+                    {user?.isEmailVerified ? "Verified" : "Pending Verification"}
+                  </span>
                 </div>
               </div>
             </div>
-          </motion.aside>
+          </aside>
+        </div>
 
-          {/* Change Password */}
-          <motion.section
-            variants={fadeUp}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.12 }}
-            className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-300 hover:shadow-md lg:col-span-3"
-          >
-            {sectionHeader(
-              Lock,
-              "Change Password",
-              "Update your password to keep your account secure.",
+        {/* Change Password Section */}
+        <section
+          id="password"
+          aria-labelledby="change-password-heading"
+          className="scroll-mt-24 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white"
+        >
+          <div className="flex items-center gap-3 border-b border-[#E2E8F0] px-5 py-4 sm:px-6">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+              <Lock size={19} aria-hidden="true" />
+            </div>
+
+            <div>
+              <h2
+                id="change-password-heading"
+                className="text-base font-bold text-[#101828]"
+              >
+                Change Password
+              </h2>
+              <p className="text-xs text-[#64748B]">
+                Update your password to keep your ELENZO account protected
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handlePasswordSubmit} className="space-y-5 p-5 sm:p-6">
+            {passwordError && (
+              <div
+                role="alert"
+                className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700 sm:text-sm"
+              >
+                <AlertCircle size={17} className="shrink-0" />
+                <span>{passwordError}</span>
+              </div>
             )}
 
-            <form
-              onSubmit={handlePasswordSubmit}
-              className="space-y-6 p-5 sm:p-7"
-            >
-              {passwordError && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  role="alert"
-                  className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-                >
-                  <AlertCircle size={18} />
-                  {passwordError}
-                </motion.div>
-              )}
-
-              {passwordSuccess && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  role="status"
-                  className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
-                >
-                  <CheckCircle2 size={18} />
-                  {passwordSuccess}
-                </motion.div>
-              )}
-
-              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <PasswordInput
-                    id="currentPassword"
-                    name="currentPassword"
-                    label="Current Password"
-                    value={passwordForm.currentPassword}
-                    visible={showCurrentPassword}
-                    toggle={() =>
-                      setShowCurrentPassword((previous) => !previous)
-                    }
-                    placeholder="Enter current password"
-                    autoComplete="current-password"
-                  />
-                </div>
-
-                <div>
-                  <PasswordInput
-                    id="newPassword"
-                    name="newPassword"
-                    label="New Password"
-                    value={passwordForm.newPassword}
-                    visible={showNewPassword}
-                    toggle={() => setShowNewPassword((previous) => !previous)}
-                    placeholder="Enter new password"
-                    autoComplete="new-password"
-                  />
-
-                  <p className="mt-2 text-xs text-slate-400">
-                    Minimum 8 characters.
-                  </p>
-                </div>
-
-                <div>
-                  <PasswordInput
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    label="Confirm New Password"
-                    value={passwordForm.confirmPassword}
-                    visible={showConfirmPassword}
-                    toggle={() =>
-                      setShowConfirmPassword((previous) => !previous)
-                    }
-                    placeholder="Confirm new password"
-                    autoComplete="new-password"
-                  />
-                </div>
+            {passwordSuccess && (
+              <div
+                role="status"
+                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700 sm:text-sm"
+              >
+                <CheckCircle2 size={17} className="shrink-0" />
+                <span>{passwordSuccess}</span>
               </div>
+            )}
 
-              <div className="flex justify-end border-t border-slate-100 pt-5">
-                <motion.button
-                  type="submit"
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <PasswordField
+                id="currentPassword"
+                name="currentPassword"
+                label="Current Password"
+                value={passwordForm.currentPassword}
+                visible={showCurrentPassword}
+                onToggle={() => setShowCurrentPassword((v) => !v)}
+                onChange={handlePasswordChange}
+                placeholder="Current password"
+                autoComplete="current-password"
+                disabled={passwordLoading}
+              />
+
+              <div>
+                <PasswordField
+                  id="newPassword"
+                  name="newPassword"
+                  label="New Password"
+                  value={passwordForm.newPassword}
+                  visible={showNewPassword}
+                  onToggle={() => setShowNewPassword((v) => !v)}
+                  onChange={handlePasswordChange}
+                  placeholder="Min. 8 characters"
+                  autoComplete="new-password"
                   disabled={passwordLoading}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.97 }}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-slate-900/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Lock size={17} />
-                  {passwordLoading ? "Updating..." : "Change Password"}
-                </motion.button>
+                />
               </div>
-            </form>
-          </motion.section>
-        </div>
+
+              <PasswordField
+                id="confirmPassword"
+                name="confirmPassword"
+                label="Confirm New Password"
+                value={passwordForm.confirmPassword}
+                visible={showConfirmPassword}
+                onToggle={() => setShowConfirmPassword((v) => !v)}
+                onChange={handlePasswordChange}
+                placeholder="Confirm new password"
+                autoComplete="new-password"
+                disabled={passwordLoading}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#E2E8F0] pt-4">
+              <p className="text-xs text-[#64748B]">
+                After updating your password, you will be asked to sign in again.
+              </p>
+
+              <button
+                type="submit"
+                disabled={passwordLoading}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#082B70] px-5 text-xs font-bold text-white shadow-xs transition hover:bg-[#0755E9] disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+              >
+                {passwordLoading ? (
+                  <LoaderCircle size={15} className="animate-spin" />
+                ) : (
+                  <Lock size={15} aria-hidden="true" />
+                )}
+                <span>{passwordLoading ? "Updating..." : "Update Password"}</span>
+              </button>
+            </div>
+          </form>
+        </section>
       </div>
-    </div>
+    </AccountShell>
   );
 }
 

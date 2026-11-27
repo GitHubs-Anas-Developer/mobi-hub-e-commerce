@@ -1,15 +1,6 @@
-
 "use client";
 
-import { motion } from "framer-motion";
-
-import {
-  ShoppingBag,
-  Package,
-  ShieldCheck,
-  Receipt,
-  Tag,
-} from "lucide-react";
+import { ShoppingBag, ShieldCheck, Receipt } from "lucide-react";
 
 import CheckoutCartItems from "./CheckoutCartItems";
 import CouponSection from "./CouponSection";
@@ -32,48 +23,42 @@ export default function OrderSummary({
   onRemoveCoupon,
 }) {
   return (
-    <aside className="h-fit overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <aside
+      aria-labelledby="checkout-summary-heading"
+      className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]">
-            <ShoppingBag size={20} />
+      <div className="flex items-center justify-between border-b border-[#E2E8F0] px-5 py-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+            <ShoppingBag size={18} aria-hidden="true" />
           </div>
 
           <div>
-            <h2 className="text-base font-bold text-[#101828]">
+            <h2
+              id="checkout-summary-heading"
+              className="text-base font-bold text-[#101828]"
+            >
               Order Summary
             </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Review your order details
+            <p className="text-[11px] text-[#64748B]">
+              Review items &amp; payable amount
             </p>
           </div>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-[#0755E9]">
-          <Package size={13} />
-          {totalItems} Items
+        <span className="rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1 text-xs font-bold text-[#101828] tabular-nums">
+          {totalItems} {totalItems === 1 ? "Item" : "Items"}
         </span>
       </div>
 
-      {/* Cart Items */}
-      <div className="p-4 sm:p-5">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#101828]">
-            Your Products
-          </h3>
-
-          <span className="text-xs text-slate-400">
-            {cartItems.length} Products
-          </span>
-        </div>
-
+      {/* Items List */}
+      <div className="p-5">
         <CheckoutCartItems cartItems={cartItems} />
       </div>
 
-      {/* Coupon Section */}
-      <div className="px-4 sm:px-5">
+      {/* Promo Code */}
+      <div className="px-5">
         <CouponSection
           appliedCoupon={appliedCoupon}
           couponCode={couponCode}
@@ -86,13 +71,12 @@ export default function OrderSummary({
         />
       </div>
 
-      {/* Price Breakdown */}
-      <div className="p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Receipt size={17} className="text-[#0755E9]" />
-
-          <h3 className="text-sm font-bold text-[#101828]">
-            Price Details
+      {/* Price Details */}
+      <div className="p-5">
+        <div className="mb-3 flex items-center gap-1.5">
+          <Receipt size={15} className="text-[#0755E9]" aria-hidden="true" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+            Price Breakdown
           </h3>
         </div>
 
@@ -104,17 +88,14 @@ export default function OrderSummary({
         />
       </div>
 
-      {/* Server Validation Notice */}
-      <div className="mx-4 mb-4 flex items-start gap-2.5 rounded-xl border border-blue-100 bg-blue-50/70 p-3 sm:mx-5 sm:mb-5">
+      <div className="mx-5 mb-5 flex items-start gap-2 rounded-xl border border-[#E2E8F0] bg-[#EFF6FF]/70 p-3">
         <ShieldCheck
-          size={17}
+          size={15}
           className="mt-0.5 shrink-0 text-[#0755E9]"
+          aria-hidden="true"
         />
-
-        <p className="text-[11px] leading-5 text-slate-600">
-          Final order amount, coupon eligibility, stock availability
-          and shipping charges will be validated securely by the
-          server when your order is placed.
+        <p className="text-[11px] leading-relaxed text-[#64748B]">
+          Product stock, coupon validity, and order totals are verified directly by ELENZO before order placement.
         </p>
       </div>
     </aside>

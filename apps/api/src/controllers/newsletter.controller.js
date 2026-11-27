@@ -23,7 +23,7 @@ export const subscribeNewsletter = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Successfully subscribed to ELEZIO newsletter!",
+      message: "Successfully subscribed to ELENZO newsletter!",
       data: {
         email: subscriber.email,
         status: subscriber.status,

@@ -49,6 +49,14 @@ const dashboardService = {
 
     return response.data;
   },
+
+  getRecentActivity: async (limit = 8) => {
+    const response = await axiosInstance.get("/admin/dashboard/recent-activity", {
+      params: { limit },
+    });
+
+    return response.data;
+  },
 };
 
 export default dashboardService;

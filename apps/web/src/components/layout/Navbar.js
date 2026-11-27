@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AnimatePresence, motion } from "framer-motion";
@@ -169,9 +170,9 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-slate-200 bg-white">
-        <div className="mx-auto w-full px-3 sm:px-5 lg:px-8">
-          <div className="flex h-[60px] items-center justify-between gap-2 sm:h-[68px] sm:gap-3 lg:gap-5">
+      <header className="sticky top-0 z-50 w-full border-b border-[#E2E8F0] bg-white">
+        <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
+          <div className="flex h-[62px] items-center justify-between gap-2 sm:h-[70px] sm:gap-3 lg:gap-6">
 
             {/* LEFT: MOBILE MENU + LOGO */}
             <div className="flex min-w-0 shrink-0 items-center gap-2 sm:gap-3">
@@ -202,6 +203,30 @@ export default function Navbar() {
               </button>
 
               <Logo />
+
+              <nav
+                aria-label="Primary navigation"
+                className="ml-2 hidden items-center gap-1 xl:flex"
+              >
+                <Link
+                  href="/products"
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${pathname?.startsWith("/products")
+                    ? "bg-[#EFF6FF] text-[#0755E9]"
+                    : "text-[#101828] hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+                    }`}
+                >
+                  Shop
+                </Link>
+                <Link
+                  href="/categories"
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${pathname?.startsWith("/categories")
+                    ? "bg-[#EFF6FF] text-[#0755E9]"
+                    : "text-[#101828] hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+                    }`}
+                >
+                  Categories
+                </Link>
+              </nav>
             </div>
 
             {/* DESKTOP SEARCH */}
@@ -301,11 +326,11 @@ export default function Navbar() {
 
               <div className="min-w-0 flex-1">
                 <p className="text-[13px] font-semibold leading-5 text-slate-900">
-                  Search ELEZIO
+                  Search ELENZO
                 </p>
 
                 <p className="text-[11px] leading-4 text-slate-400">
-                  Find your favourite accessories
+                  Find gadgets, brands &amp; electronics
                 </p>
               </div>
 
@@ -330,6 +355,8 @@ export default function Navbar() {
               className="min-h-0 flex-1 overflow-y-auto px-3 py-4"
             >
               <SearchBar
+                variant="mobile"
+                autoFocus
                 onSearchSubmit={closeMobileSearch}
               />
             </motion.div>
@@ -340,7 +367,7 @@ export default function Navbar() {
               className="shrink-0 border-t border-slate-100 px-4 py-3"
             >
               <p className="text-center text-[11px] text-slate-400">
-                Discover products, brands and gadgets at ELEZIO
+                Discover products, brands and gadgets at ELENZO
               </p>
             </motion.div>
           </motion.div>

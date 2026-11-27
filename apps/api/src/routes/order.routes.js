@@ -9,6 +9,7 @@ import {
   fetchUserOrders,
   fetchOrderById,
   cancelUserOrder,
+  cancelAdminOrder,
   fetchAllOrders,
   changeOrderStatus,
   changePaymentStatus,
@@ -42,6 +43,8 @@ import { validate } from "../middlewares/validate.middleware.js";
 import {
   createOrderSchema,
   orderIdSchema,
+  cancelOrderSchema,
+  adminCancelOrderSchema,
   updateOrderStatusSchema,
   updatePaymentStatusSchema,
   orderQuerySchema,
@@ -123,6 +126,15 @@ router.get(
   fetchAdminOrderById,
 );
 
+// Cancel Order (Admin)
+router.patch(
+  "/admin/:orderId/cancel",
+  authorize("admin"),
+  validate(orderIdSchema, "params"),
+  validate(adminCancelOrderSchema, "body"),
+  cancelAdminOrder,
+);
+
 // ==========================================
 // Shiprocket Routes
 // ==========================================
@@ -158,6 +170,7 @@ router.get("/:orderId", validate(orderIdSchema, "params"), fetchOrderById);
 router.patch(
   "/:orderId/cancel",
   validate(orderIdSchema, "params"),
+  validate(cancelOrderSchema, "body"),
   cancelUserOrder,
 );
 

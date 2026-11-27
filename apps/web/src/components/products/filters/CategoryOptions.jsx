@@ -1,93 +1,49 @@
-
 "use client";
 
 import { useState } from "react";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 export default function CategoryOptions({
-  categories,
-  category,
+  categories = [],
+  category = "",
   setCategory,
   mobile = false,
 }) {
   const [showAll, setShowAll] = useState(false);
 
-  const visibleCategories = showAll
-    ? categories
-    : categories.slice(0, 6);
+  const visibleCategories = showAll ? categories : categories.slice(0, 6);
+
+  const items = [{ _id: "", name: "All Categories" }, ...visibleCategories];
+
+  const handleToggle = (id) => {
+    if (!id) {
+      setCategory("");
+      return;
+    }
+    setCategory(String(category) === String(id) ? "" : id);
+  };
 
   if (mobile) {
     return (
-      <div className="space-y-2">
-        <button
-          type="button"
-          onClick={() => setCategory("")}
-          aria-pressed={!category}
-          className={`flex w-full items-center justify-between rounded-xl border px-3.5 py-3 transition ${
-            !category
-              ? "border-blue-300 bg-blue-50"
-              : "border-slate-200 bg-white"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <span
-              className={`flex h-5 w-5 items-center justify-center rounded-full border ${
-                !category
-                  ? "border-blue-600 bg-blue-600"
-                  : "border-slate-300"
-              }`}
-            >
-              {!category && (
-                <span className="h-2 w-2 rounded-full bg-white" />
-              )}
-            </span>
-
-            <span
-              className={`text-xs ${
-                !category
-                  ? "font-bold text-blue-700"
-                  : "font-medium text-slate-700"
-              }`}
-            >
-              All Categories
-            </span>
-          </div>
-
-          {!category && (
-            <Check size={16} className="text-blue-600" />
-          )}
-        </button>
-
-        <div className="grid grid-cols-2 gap-2">
-          {visibleCategories.map((item) => {
-            const selected = category === item._id;
+      <>
+        <div className="flex flex-wrap gap-2">
+          {items.map((item) => {
+            const selected = String(category) === String(item._id);
 
             return (
               <button
-                key={item._id}
+                key={item._id || "all-categories-mobile"}
                 type="button"
-                onClick={() => setCategory(item._id)}
                 aria-pressed={selected}
-                className={`flex min-w-0 items-center justify-between gap-2 rounded-xl border px-2.5 py-3 text-left transition ${
+                onClick={() => handleToggle(item._id)}
+                className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-[0.98] ${
                   selected
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-600"
+                    ? "border-[#0755E9] bg-[#0755E9] text-white shadow-xs"
+                    : "border-[#E2E8F0] bg-[#F8FAFC] text-[#101828] hover:border-[#0755E9]/40"
                 }`}
               >
-                <span
-                  className={`truncate text-[11px] ${
-                    selected ? "font-bold" : "font-medium"
-                  }`}
-                >
-                  {item.name}
-                </span>
-
-                {selected && (
-                  <Check
-                    size={14}
-                    className="shrink-0 text-blue-600"
-                  />
-                )}
+                {selected && <Check size={13} strokeWidth={2.5} />}
+                <span>{item.name}</span>
               </button>
             );
           })}
@@ -97,58 +53,58 @@ export default function CategoryOptions({
           <button
             type="button"
             onClick={() => setShowAll((value) => !value)}
-            className="mt-2 flex items-center gap-1.5 text-xs font-bold text-blue-600"
+            className="mt-3 flex items-center gap-1 text-xs font-semibold text-[#0755E9]"
           >
-            {showAll ? "Show less" : "View all categories"}
-
-            {showAll ? (
-              <ChevronUp size={14} />
-            ) : (
-              <ChevronDown size={14} />
-            )}
+            {showAll
+              ? "Show fewer categories"
+              : `Show all ${categories.length} categories`}
+            {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         )}
-      </div>
+      </>
     );
   }
 
   return (
     <>
-      <div className="space-y-1.5">
-        {[
-          { _id: "", name: "All Categories" },
-          ...visibleCategories,
-        ].map((item) => {
-          const selected = category === item._id;
+      <div className="space-y-1">
+        {items.map((item) => {
+          const selected = String(category) === String(item._id);
 
           return (
             <label
               key={item._id || "all-categories"}
-              className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2.5 transition ${
+              className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 transition ${
                 selected
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-slate-600 hover:bg-slate-50"
+                  ? "bg-[#EFF6FF] text-[#082B70]"
+                  : "text-[#101828] hover:bg-[#F8FAFC]"
               }`}
             >
               <input
-                type="radio"
-                name="product-category-filter"
+                type="checkbox"
                 checked={selected}
-                onChange={() => setCategory(item._id)}
-                className="h-4 w-4 accent-blue-600"
+                onChange={() => handleToggle(item._id)}
+                className="sr-only"
               />
 
               <span
-                className={`flex-1 text-xs ${
-                  selected ? "font-bold" : "font-medium"
+                aria-hidden="true"
+                className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                  selected
+                    ? "border-[#0755E9] bg-[#0755E9] text-white"
+                    : "border-[#CBD5E1] bg-white"
+                }`}
+              >
+                {selected && <Check size={11} strokeWidth={3} />}
+              </span>
+
+              <span
+                className={`flex-1 truncate text-xs ${
+                  selected ? "font-bold text-[#082B70]" : "font-medium text-[#64748B]"
                 }`}
               >
                 {item.name}
               </span>
-
-              {selected && (
-                <Check size={14} className="text-blue-600" />
-              )}
             </label>
           );
         })}
@@ -158,15 +114,10 @@ export default function CategoryOptions({
         <button
           type="button"
           onClick={() => setShowAll((value) => !value)}
-          className="mt-3 flex items-center gap-1 text-xs font-bold text-blue-600"
+          className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-[#0755E9] transition hover:text-[#082B70]"
         >
-          {showAll ? "Show less" : "View all categories"}
-
-          {showAll ? (
-            <ChevronUp size={14} />
-          ) : (
-            <ChevronDown size={14} />
-          )}
+          {showAll ? "Show less" : `View all (${categories.length})`}
+          {showAll ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       )}
     </>

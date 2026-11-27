@@ -109,12 +109,12 @@ export default function AccountDropdown({
       {/* Dropdown Panel */}
       {isOpen && (
         <div
-          className="absolute right-0 top-full z-50 mt-3 w-[270px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.12)]"
+          className="absolute right-0 top-full z-50 mt-2.5 w-[270px] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
           role="menu"
         >
 
           {/* Profile Header */}
-          <div className="relative overflow-hidden bg-blue-600 px-5 py-5">
+          <div className="relative overflow-hidden bg-[#0755E9] px-5 py-4">
             <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/10" />
             <div className="absolute -bottom-12 right-12 h-24 w-24 rounded-full bg-white/10" />
 
@@ -125,7 +125,7 @@ export default function AccountDropdown({
 
               <div className="min-w-0">
                 <p className="text-[11px] font-medium text-blue-100">
-                  Welcome to ELEZIO
+                  Welcome to ELENZO
                 </p>
 
                 <p className="mt-1 truncate text-sm font-bold text-white">
@@ -205,7 +205,7 @@ export default function AccountDropdown({
           {/* Footer */}
           <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-center text-[10px] font-medium text-slate-400">
-              ELEZIO · Your Trusted Tech Store
+              ELENZO · Your Trusted Tech Store
             </p>
           </div>
         </div>

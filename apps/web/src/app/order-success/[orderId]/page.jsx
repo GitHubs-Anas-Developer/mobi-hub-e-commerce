@@ -227,8 +227,8 @@ function OrderSuccessContent() {
         if (isMounted) {
           setError(
             err.response?.data?.message ||
-              err.message ||
-              "Unable to load order details."
+            err.message ||
+            "Unable to load order details."
           );
         }
       } finally {
@@ -253,10 +253,10 @@ function OrderSuccessContent() {
 
   /* Loading State */
 
- /* Loading State */
-if (loading) {
-  return <OrderDetailsSkeleton />;
-}
+  /* Loading State */
+  if (loading) {
+    return <OrderDetailsSkeleton />;
+  }
 
   /* Error State */
 
@@ -341,8 +341,6 @@ if (loading) {
           variants={itemVariants}
           className="relative overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-10"
         >
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-full rounded-full bg-blue-100/60 blur-3xl" />
-
           <div className="relative flex flex-col items-center text-center">
             <motion.div
               initial={{ scale: 0, rotate: -30 }}
@@ -353,11 +351,10 @@ if (loading) {
                 damping: 12,
                 delay: 0.2,
               }}
-              className={`flex h-20 w-20 items-center justify-center rounded-full ${
-                isCancelled
-                  ? "bg-red-50 text-red-500"
-                  : "bg-[#EFF6FF] text-[#0755E9]"
-              }`}
+              className={`flex h-20 w-20 items-center justify-center rounded-full ${isCancelled
+                ? "bg-red-50 text-red-500"
+                : "bg-[#EFF6FF] text-[#0755E9]"
+                }`}
             >
               {isCancelled ? (
                 <AlertCircle size={42} />
@@ -380,7 +377,7 @@ if (loading) {
             <p className="mt-3 max-w-xl text-sm leading-7 text-[#64748B]">
               {isCancelled
                 ? "This order has been cancelled."
-                : "Thank you for shopping with ELEZIO. Your order details are shown below."}
+                : "Thank you for shopping with ELENZO. Your order details are shown below."}
             </p>
 
             {!isCancelled && (
@@ -626,11 +623,10 @@ if (loading) {
 
                 {Number(order.discount) > 0 && (
                   <DetailRow
-                    label={`Discount${
-                      order.coupon?.code
-                        ? ` (${order.coupon.code})`
-                        : ""
-                    }`}
+                    label={`Discount${order.coupon?.code
+                      ? ` (${order.coupon.code})`
+                      : ""
+                      }`}
                     value={`-${formatPrice(order.discount)}`}
                     valueClass="text-green-600"
                   />
@@ -751,7 +747,7 @@ export default function OrderSuccessPage() {
   return (
     <ProtectedRoute>
       <main className="min-h-screen bg-white py-6 sm:py-10">
-        <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-10 xl:px-14">
+        <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
           <OrderSuccessContent />
         </div>
       </main>

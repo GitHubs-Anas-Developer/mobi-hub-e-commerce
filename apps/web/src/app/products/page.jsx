@@ -1,245 +1,369 @@
-
 "use client";
 
 import {
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-
+import { useSearchParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
-import { usePathname, useRouter } from "next/navigation";
-
 import { toast } from "sonner";
-import { X, RotateCcw } from "lucide-react";
+import { X, AlertCircle, RefreshCw } from "lucide-react";
 
 import productService from "@/services/productService";
 import categoryService from "@/services/categoryService";
-
-import {
-  fetchCart,
-  addToCart,
-} from "@/store/thunks/cartThunks";
-
+import { fetchCart, addToCart } from "@/store/thunks/cartThunks";
 import {
   fetchWishlist,
   addToWishlist,
   removeFromWishlist,
 } from "@/store/thunks/wishlistThunks";
+import { BRAND_NAME, BRAND_SEARCH_EVENT } from "@/config/brand";
 
 import ProductsHeader from "@/components/products/ProductsHeader";
+import ShopBanner from "@/components/products/ProductsBanner";
 import ProductCategoryCards from "@/components/products/ProductCategoryCards";
 import SubCategoryTabs from "@/components/products/SubCategoryTabs";
 import ProductFilters from "@/components/products/ProductFilters";
 import ProductToolbar from "@/components/products/toolbar/ProductToolbar";
 import ProductGrid from "@/components/products/ProductGrid";
+import ProductError from "@/components/products/ProductError";
 import ProductPagination from "@/components/products/ProductPagination";
-import ShopBanner from "@/components/products/ProductsBanner";
-
-import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
-import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
-import Breadcrumb from "@/components/common/Breadcrumb";
 import ProductsPageSkeleton from "@/components/loading/skeletons/ProductsPageSkeleton";
-
-// ========================================
-// CONSTANTS
-// ========================================
+import Breadcrumb from "@/components/common/Breadcrumb";
+import CategoryDepartmentNav from "@/components/categories/CategoryDepartmentNav";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
 
 const PAGE_SIZE = 12;
 
-const INITIAL_FILTERS = {
-  category: "",
-  subCategory: "",
-  brand: "",
-  minPrice: "",
-  maxPrice: "",
+const ALLOWED_SORTS = new Set([
+  "newest",
+  "oldest",
+  "price-low-high",
+  "price-high-low",
+  "nameAZ",
+  "nameZA",
+]);
+
+const getProductList = (response) => {
+  if (Array.isArray(response?.data?.products)) return response.data.products;
+  if (Array.isArray(response?.products)) return response.products;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response)) return response;
+  return [];
 };
 
-// ========================================
-// WISHLIST PRODUCT ID HELPER
-// ========================================
+const getPaginationInfo = (response, currentPage, itemCount) => {
+  const meta =
+    response?.data?.pagination || response?.pagination || {};
+  const total = Number(meta.total ?? response?.total ?? itemCount) || 0;
+  const limit = Number(meta.limit) || PAGE_SIZE;
+  const totalPages = Math.max(
+    1,
+    Number(meta.totalPages) || Math.ceil(total / limit) || 1
+  );
+
+  return {
+    total,
+    page: Number(meta.page) || currentPage,
+    limit,
+    totalPages,
+  };
+};
+
+const getCategoryList = (response) => {
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.categories)) return response.categories;
+  if (Array.isArray(response?.data?.categories)) return response.data.categories;
+  if (Array.isArray(response)) return response;
+  return [];
+};
+
+const getParentId = (cat) => {
+  if (!cat?.parentCategory) return "";
+  return typeof cat.parentCategory === "object"
+    ? String(cat.parentCategory._id || cat.parentCategory.id || "")
+    : String(cat.parentCategory);
+};
 
 const getWishlistProductId = (item) => {
-  if (typeof item === "string") {
-    return item;
-  }
-
-  if (!item || typeof item !== "object") {
-    return "";
-  }
-
-  const productRef = item.product ?? item.productId;
-
-  if (typeof productRef === "string") {
-    return productRef;
-  }
-
-  if (productRef && typeof productRef === "object") {
-    return productRef._id ?? productRef.id ?? "";
-  }
-
+  if (typeof item === "string") return item;
+  if (!item || typeof item !== "object") return "";
+  const ref = item.product ?? item.productId;
+  if (typeof ref === "string") return ref;
+  if (ref && typeof ref === "object") return ref._id ?? ref.id ?? "";
   return item._id ?? item.id ?? "";
 };
 
-// ========================================
-// PRODUCTS PAGE
-// ========================================
-
-export default function ProductsPage({ categoryId = "" }) {
+function ProductsListingContent({ categoryId = "" }) {
   const dispatch = useDispatch();
-  const router = useRouter();
-  const pathname = usePathname();
-
-  // ========================================
-  // REDUX STATE
-  // ========================================
+  const searchParams = useSearchParams();
 
   const isAuthenticated = useSelector(
-    (state) => state.auth.isAuthenticated
+    (state) => state.auth?.isAuthenticated ?? false
   );
 
-  const cartIsMutating = useSelector(
-    (state) => state.cart.isMutating
-  );
+  const wishlistState = useSelector((state) => state.wishlist);
+  const wishlistProducts = useMemo(() => {
+    const items =
+      wishlistState?.items ||
+      wishlistState?.wishlist?.products ||
+      wishlistState?.products ||
+      [];
+    return Array.isArray(items) ? items : [];
+  }, [wishlistState]);
 
-  const wishlistIsMutating = useSelector(
-    (state) => state.wishlist.isMutating
-  );
-
-  const wishlistProducts = useSelector(
-    (state) => state.wishlist.products || []
-  );
+  const wishlistIsMutating = Boolean(wishlistState?.loading);
 
   // ========================================
-  // LOCAL STATE
+  // CATALOG STATE
   // ========================================
-
+  const [allCategories, setAllCategories] = useState([]);
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const [addingProductId, setAddingProductId] = useState(null);
-  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
-
-  const [appliedFilters, setAppliedFilters] = useState({
-    ...INITIAL_FILTERS,
+  const [knownBrands, setKnownBrands] = useState([]);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: PAGE_SIZE,
+    totalPages: 1,
   });
 
-  const {
-    category,
-    subCategory,
-    brand,
-    minPrice,
-    maxPrice,
-  } = appliedFilters;
-
+  const [category, setCategory] = useState(categoryId || "");
+  const [subCategory, setSubCategory] = useState("");
+  const [brand, setBrand] = useState("");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("newest");
+  const [isFeatured, setIsFeatured] = useState(false);
+  const [isNewArrival, setIsNewArrival] = useState(false);
   const [page, setPage] = useState(1);
 
   const [viewMode, setViewMode] = useState("grid");
   const [showFilters, setShowFilters] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [pagination, setPagination] = useState({
-    total: 0,
-    totalPages: 1,
-    hasNextPage: false,
-    hasPrevPage: false,
-  });
+  const [addingProductId, setAddingProductId] = useState(null);
+  const [miniCartOpen, setMiniCartOpen] = useState(false);
 
   const requestIdRef = useRef(0);
 
   // ========================================
-  // SEARCH URL + HEADER SEARCH EVENT
+  // LOAD CATEGORIES + INITIAL WISHLIST/CART
   // ========================================
-
-
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-
-  setSearch(params.get("search") || "");
-
-  const selectedCategory =
-    params.get("category") || categoryId || "";
-
-  const selectedBrand = params.get("brand") || "";
-
-  setAppliedFilters((prev) => ({
-    ...prev,
-    category: selectedCategory,
-    brand: selectedBrand,
-  }));
-
-  setPage(1);
-
-  const handleSearchUpdate = (event) => {
-    const newSearch = event.detail?.search || "";
-    setSearch(newSearch);
-    setPage(1);
-  };
-
-  window.addEventListener("elezio-search", handleSearchUpdate);
-
-  return () => {
-    window.removeEventListener("elezio-search", handleSearchUpdate);
-  };
-}, [categoryId]);
-
-
-  // ========================================
-  // FETCH CART AND WISHLIST
-  // ========================================
-
   useEffect(() => {
-    if (!isAuthenticated) return;
+    let cancelled = false;
 
-    dispatch(fetchCart());
-    dispatch(fetchWishlist());
-  }, [dispatch, isAuthenticated]);
+    const loadCategories = async () => {
+      try {
+        const res = await categoryService.getCategories();
+        if (!cancelled) {
+          setAllCategories(getCategoryList(res));
+        }
+      } catch (err) {
+        console.error("Failed to fetch categories:", err);
+      }
+    };
 
-  // ========================================
-  // LOGIN REDIRECT
-  // ========================================
+    loadCategories();
 
-  const requireLogin = useCallback(() => {
-    const redirectPath = pathname || "/products";
-
-    router.push(
-      `/login?redirect=${encodeURIComponent(redirectPath)}`
-    );
-  }, [pathname, router]);
-
-  // ========================================
-  // FETCH CATEGORIES
-  // ========================================
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await categoryService.getCategories();
-
-      const data =
-        response?.data?.categories ??
-        response?.data ??
-        [];
-
-      setCategories(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("Category fetching error:", err);
-    }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
+    if (isAuthenticated) {
+      dispatch(fetchWishlist());
+      dispatch(fetchCart());
+    }
+  }, [dispatch, isAuthenticated]);
+
+  // ========================================
+  // SYNC URL QUERY PARAMS & ROUTE CATEGORY
+  // ========================================
+  const searchParamsKey = searchParams.toString();
+
+  useEffect(() => {
+    const syncStateFromUrl = () => {
+      const params = new URLSearchParams(searchParamsKey);
+
+      const urlSearch = params.get("search") || "";
+      const urlBrand = params.get("brand") || "";
+      const urlMinPrice = params.get("minPrice") || "";
+      const urlMaxPrice = params.get("maxPrice") || "";
+      const urlSort = params.get("sort") || "newest";
+      const urlFeatured = params.get("isFeatured") === "true";
+      const urlNewArrival = params.get("isNewArrival") === "true";
+      const urlCategory = params.get("category") || "";
+      const urlSubCategory = params.get("subCategory") || "";
+      const urlPage = Math.max(1, Number(params.get("page")) || 1);
+
+      let nextCategory = categoryId || urlCategory;
+      let nextSubCategory = urlSubCategory;
+
+      if (categoryId && allCategories.length > 0) {
+        const matched = allCategories.find(
+          (item) => String(item._id) === String(categoryId)
+        );
+        const parentId = getParentId(matched);
+        if (parentId) {
+          nextCategory = parentId;
+          nextSubCategory = String(categoryId);
+        }
+      }
+
+      setCategory(nextCategory);
+      setSubCategory(nextSubCategory);
+      setBrand(urlBrand);
+      setMinPrice(urlMinPrice);
+      setMaxPrice(urlMaxPrice);
+      setSearch(urlSearch);
+      setSort(ALLOWED_SORTS.has(urlSort) ? urlSort : "newest");
+      setIsFeatured(urlFeatured);
+      setIsNewArrival(urlNewArrival);
+      setPage(urlPage);
+    };
+
+    queueMicrotask(syncStateFromUrl);
+  }, [searchParamsKey, categoryId, allCategories]);
+
+  // Listen for Navbar global search events when already on /products
+  useEffect(() => {
+    const handleSearchEvent = (event) => {
+      const term =
+        typeof event?.detail === "string"
+          ? event.detail.trim()
+          : event?.detail?.search?.trim() || "";
+      setSearch(term);
+      setPage(1);
+    };
+
+    window.addEventListener(BRAND_SEARCH_EVENT, handleSearchEvent);
+    return () => {
+      window.removeEventListener(BRAND_SEARCH_EVENT, handleSearchEvent);
+    };
+  }, []);
+
+  const syncBrowserUrl = useCallback(
+    (overrides = {}) => {
+      if (typeof window === "undefined") return;
+
+      const nextState = {
+        category,
+        subCategory,
+        brand,
+        minPrice,
+        maxPrice,
+        search,
+        sort,
+        isFeatured,
+        isNewArrival,
+        page,
+        ...overrides,
+      };
+
+      const params = new URLSearchParams();
+
+      if (!categoryId && nextState.category) {
+        params.set("category", String(nextState.category));
+      }
+      if (nextState.subCategory) {
+        params.set("subCategory", String(nextState.subCategory));
+      }
+      if (nextState.brand) {
+        params.set("brand", String(nextState.brand));
+      }
+      if (nextState.minPrice !== "") {
+        params.set("minPrice", String(nextState.minPrice));
+      }
+      if (nextState.maxPrice !== "") {
+        params.set("maxPrice", String(nextState.maxPrice));
+      }
+      if (nextState.search && String(nextState.search).trim()) {
+        params.set("search", String(nextState.search).trim());
+      }
+      if (nextState.sort && nextState.sort !== "newest") {
+        params.set("sort", nextState.sort);
+      }
+      if (nextState.isFeatured) {
+        params.set("isFeatured", "true");
+      }
+      if (nextState.isNewArrival) {
+        params.set("isNewArrival", "true");
+      }
+      if (Number(nextState.page) > 1) {
+        params.set("page", String(nextState.page));
+      }
+
+      const qs = params.toString();
+      const nextUrl = qs
+        ? `${window.location.pathname}?${qs}`
+        : window.location.pathname;
+      window.history.replaceState(null, "", nextUrl);
+    },
+    [
+      category,
+      categoryId,
+      subCategory,
+      brand,
+      minPrice,
+      maxPrice,
+      search,
+      sort,
+      isFeatured,
+      isNewArrival,
+      page,
+    ]
+  );
+
+  // ========================================
+  // DERIVED CATEGORIES, SUBCATEGORIES, BRANDS
+  // ========================================
+  const rootCategories = useMemo(
+    () => allCategories.filter((item) => !getParentId(item)),
+    [allCategories]
+  );
+
+  const subCategories = useMemo(() => {
+    if (!category) return [];
+    return allCategories.filter(
+      (item) => getParentId(item) === String(category)
+    );
+  }, [allCategories, category]);
+
+  const selectedCategory = useMemo(
+    () =>
+      allCategories.find((item) => String(item._id) === String(category)) ||
+      null,
+    [allCategories, category]
+  );
+
+  const selectedSubCategory = useMemo(
+    () =>
+      allCategories.find((item) => String(item._id) === String(subCategory)) ||
+      null,
+    [allCategories, subCategory]
+  );
+
+  const brands = useMemo(() => {
+    const set = new Set(knownBrands);
+    products.forEach((item) => {
+      const name = String(item?.brand || "").trim();
+      if (name) set.add(name);
+    });
+    if (brand) set.add(brand);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [knownBrands, products, brand]);
 
   // ========================================
   // FETCH PRODUCTS
   // ========================================
-
   const fetchProducts = useCallback(async () => {
     const requestId = ++requestIdRef.current;
 
@@ -253,82 +377,39 @@ useEffect(() => {
         sort,
       };
 
-      if (category) {
-        params.category = category;
-      }
-
-      if (subCategory) {
-        params.subCategory = subCategory;
-      }
-
-      if (brand) {
-        params.brand = brand;
-      }
-
-      if (search.trim()) {
-        params.search = search.trim();
-      }
-
-      if (minPrice !== "") {
-        params.minPrice = Number(minPrice);
-      }
-
-      if (maxPrice !== "") {
-        params.maxPrice = Number(maxPrice);
-      }
+      const activeCategory = subCategory || category;
+      if (activeCategory) params.category = activeCategory;
+      if (brand) params.brand = brand;
+      if (minPrice !== "") params.minPrice = minPrice;
+      if (maxPrice !== "") params.maxPrice = maxPrice;
+      if (search.trim()) params.search = search.trim();
+      if (isFeatured) params.isFeatured = true;
+      if (isNewArrival) params.isNewArrival = true;
 
       const response = await productService.getProducts(params);
 
-      // Ignore outdated requests
-      if (requestId !== requestIdRef.current) {
-        return;
+      if (requestId !== requestIdRef.current) return;
+
+      const loadedProducts = getProductList(response);
+      setProducts(loadedProducts);
+      setPagination(getPaginationInfo(response, page, loadedProducts.length));
+
+      const discoveredBrands = loadedProducts
+        .map((item) => String(item?.brand || "").trim())
+        .filter(Boolean);
+
+      if (discoveredBrands.length > 0) {
+        setKnownBrands((prev) =>
+          Array.from(new Set([...prev, ...discoveredBrands]))
+        );
       }
-
-      const data =
-        response?.data?.products ??
-        response?.data ??
-        [];
-
-      setProducts(Array.isArray(data) ? data : []);
-
-      const paginationData =
-        response?.pagination ??
-        response?.data?.pagination ??
-        {};
-
-      const total = Number(paginationData.total ?? 0);
-
-      const totalPages = Math.max(
-        1,
-        Number(
-          paginationData.totalPages ??
-          Math.ceil(total / PAGE_SIZE)
-        )
-      );
-
-      setPagination({
-        total,
-        totalPages,
-        hasNextPage: Boolean(
-          paginationData.hasNextPage ?? page < totalPages
-        ),
-        hasPrevPage: Boolean(
-          paginationData.hasPrevPage ?? page > 1
-        ),
-      });
     } catch (err) {
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
-      console.error("Products fetching error:", err);
-
-      setProducts([]);
+      if (requestId !== requestIdRef.current) return;
 
       setError(
         err?.response?.data?.message ||
-        err?.message ||
-        "Unable to load products. Please try again."
+          err?.message ||
+          "Unable to load products. Please try again."
       );
     } finally {
       if (requestId === requestIdRef.current) {
@@ -344,14 +425,14 @@ useEffect(() => {
     minPrice,
     maxPrice,
     search,
+    isFeatured,
+    isNewArrival,
   ]);
 
-  // ========================================
-  // PRODUCT FETCH EFFECT
-  // ========================================
-
   useEffect(() => {
-    fetchProducts();
+    queueMicrotask(() => {
+      fetchProducts();
+    });
 
     return () => {
       requestIdRef.current += 1;
@@ -359,566 +440,560 @@ useEffect(() => {
   }, [fetchProducts]);
 
   // ========================================
-  // WISHLIST IDS
+  // HANDLERS
   // ========================================
+  const handleCategoryChange = (nextCatId) => {
+    const next = nextCatId || "";
+    setCategory(next);
+    setSubCategory("");
+    setPage(1);
+    syncBrowserUrl({ category: next, subCategory: "", page: 1 });
+  };
 
-  const wishlistedIds = useMemo(() => {
-    return new Set(
-      wishlistProducts
-        .map(getWishlistProductId)
-        .filter(Boolean)
-        .map(String)
-    );
-  }, [wishlistProducts]);
+  const handleSubCategoryChange = (nextSubId) => {
+    const next = nextSubId || "";
+    setSubCategory(next);
+    setPage(1);
+    syncBrowserUrl({ subCategory: next, page: 1 });
+  };
 
-  // ========================================
-  // ADD TO CART
-  // ========================================
-
-  const handleAddToCart = async (product, cardVariant) => {
-    if (!isAuthenticated) {
-      toast.info("Please sign in to continue.");
-      requireLogin();
-      return;
+  const handleApplyFilters = ({
+    category: nextCategory,
+    brand: nextBrand,
+    minPrice: nextMinPrice,
+    maxPrice: nextMaxPrice,
+  }) => {
+    const nextSub = nextCategory !== category ? "" : subCategory;
+    if (nextCategory !== category) {
+      setSubCategory("");
     }
+    setCategory(nextCategory || "");
+    setBrand(nextBrand || "");
+    setMinPrice(nextMinPrice || "");
+    setMaxPrice(nextMaxPrice || "");
+    setPage(1);
+    syncBrowserUrl({
+      category: nextCategory || "",
+      subCategory: nextSub,
+      brand: nextBrand || "",
+      minPrice: nextMinPrice || "",
+      maxPrice: nextMaxPrice || "",
+      page: 1,
+    });
+  };
 
+  const handleClearSearch = useCallback(() => {
+    setSearch("");
+    setPage(1);
+    syncBrowserUrl({ search: "", page: 1 });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(BRAND_SEARCH_EVENT, {
+          detail: { search: "" },
+        })
+      );
+    }
+  }, [syncBrowserUrl]);
+
+  const handleClearAllFilters = () => {
+    const baseCategory = categoryId || "";
+    setCategory(baseCategory);
+    setSubCategory("");
+    setBrand("");
+    setMinPrice("");
+    setMaxPrice("");
+    setSearch("");
+    setIsFeatured(false);
+    setIsNewArrival(false);
+    setSort("newest");
+    setPage(1);
+    syncBrowserUrl({
+      category: baseCategory,
+      subCategory: "",
+      brand: "",
+      minPrice: "",
+      maxPrice: "",
+      search: "",
+      sort: "newest",
+      isFeatured: false,
+      isNewArrival: false,
+      page: 1,
+    });
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent(BRAND_SEARCH_EVENT, {
+          detail: { search: "" },
+        })
+      );
+    }
+  };
+
+  const handleSortChange = (nextSort) => {
+    setSort(nextSort);
+    setPage(1);
+    syncBrowserUrl({ sort: nextSort, page: 1 });
+  };
+
+  const handlePageChange = (nextPage) => {
+    setPage(nextPage);
+    syncBrowserUrl({ page: nextPage });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  // ========================================
+  // CART & WISHLIST MUTATIONS
+  // ========================================
+  const wishlistedIds = useMemo(
+    () =>
+      new Set(
+        wishlistProducts
+          .map(getWishlistProductId)
+          .filter(Boolean)
+          .map(String)
+      ),
+    [wishlistProducts]
+  );
+
+  const handleAddToCart = async (product, selectedVariant) => {
     if (!product?._id) return;
 
-    if (cartIsMutating || addingProductId) {
-      return;
-    }
+    const variantId =
+      selectedVariant?._id || product.variants?.[0]?._id || "";
 
-    const activeVariants = (product.variants || []).filter(
-      (variant) => variant.isActive !== false
-    );
-
-    const selectedVariant =
-      cardVariant ||
-      activeVariants.find((variant) => variant.isDefault) ||
-      activeVariants[0];
-
-    if (!selectedVariant?._id) {
-      toast.error("Product option unavailable.", {
-        description: "Please select a product option.",
-      });
-
-      if (product.slug) {
-        router.push(`/products/${product.slug}`);
-      }
-
-      return;
-    }
-
-    const stock = Number(
-      selectedVariant.stock ??
-      selectedVariant.quantity ??
-      product.stock ??
-      product.quantity ??
-      0
-    );
-
-    if (stock <= 0) {
-      toast.error("This product is currently out of stock.");
+    if (!variantId) {
+      toast.error("Please open product details to choose a variant.");
       return;
     }
 
     try {
-      setAddingProductId(product._id);
+      setAddingProductId(String(product._id));
 
       await dispatch(
         addToCart({
           productId: product._id,
-          variantId: selectedVariant._id,
+          variantId,
           quantity: 1,
         })
       ).unwrap();
 
-      setCartDrawerOpen(true);
+      toast.success(`${product.name || "Product"} added to cart`);
+      setMiniCartOpen(true);
     } catch (err) {
-      toast.error(
+      const message =
         typeof err === "string"
           ? err
-          : err?.message || "Unable to add product to cart."
-      );
+          : err?.message || "Unable to add item to cart";
+      toast.error(message);
     } finally {
       setAddingProductId(null);
     }
   };
 
-  // ========================================
-  // WISHLIST TOGGLE
-  // ========================================
-
   const handleWishlistToggle = async (product) => {
-    if (!isAuthenticated) {
-      toast.info("Please sign in to continue.");
-      requireLogin();
-      return;
-    }
+    const productId = product?._id || product?.id;
+    if (!productId) return;
 
-    if (!product?._id || wishlistIsMutating) {
-      return;
-    }
-
-    const alreadyWishlisted = wishlistedIds.has(
-      String(product._id)
-    );
+    const normalizedId = String(productId);
+    const alreadyWishlisted = wishlistedIds.has(normalizedId);
 
     try {
       if (alreadyWishlisted) {
-        await dispatch(
-          removeFromWishlist(product._id)
-        ).unwrap();
-
-        toast.success("Removed from wishlist.");
+        await dispatch(removeFromWishlist(productId)).unwrap();
+        toast.success("Removed from wishlist");
       } else {
-        await dispatch(
-          addToWishlist(product._id)
-        ).unwrap();
-
-        toast.success("Added to wishlist.");
+        await dispatch(addToWishlist(productId)).unwrap();
+        toast.success("Saved to wishlist");
       }
     } catch (err) {
-      toast.error(
+      const message =
         typeof err === "string"
           ? err
-          : err?.message || "Unable to update wishlist."
-      );
+          : err?.message || "Please sign in to manage your wishlist";
+      toast.error(message);
     }
   };
 
   // ========================================
-  // SELECTED CATEGORY
+  // HEADER & BREADCRUMB METADATA
   // ========================================
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (category) count += 1;
+    if (brand) count += 1;
+    if (minPrice !== "" || maxPrice !== "") count += 1;
+    return count;
+  }, [category, brand, minPrice, maxPrice]);
 
-  const selectedCategory = useMemo(
-    () =>
-      categories.find(
-        (item) => item._id === category
-      ),
-    [categories, category]
-  );
+  const activeChips = useMemo(() => {
+    const chips = [];
 
-  // ========================================
-  // SUBCATEGORIES
-  // ========================================
+    if (search.trim()) {
+      chips.push({
+        key: "search",
+        label: `Search: "${search.trim()}"`,
+        onRemove: handleClearSearch,
+      });
+    }
 
-  const subCategories = useMemo(
-    () =>
-      selectedCategory?.subCategories ||
-      selectedCategory?.children ||
-      [],
-    [selectedCategory]
-  );
+    if (selectedCategory) {
+      chips.push({
+        key: "category",
+        label: `Category: ${selectedCategory.name}`,
+        onRemove: () => {
+          setCategory("");
+          setSubCategory("");
+          setPage(1);
+          syncBrowserUrl({ category: "", subCategory: "", page: 1 });
+        },
+      });
+    }
 
-  const selectedSubCategory = useMemo(
-    () =>
-      subCategories.find(
-        (item) => item._id === subCategory
-      ),
-    [subCategories, subCategory]
-  );
+    if (selectedSubCategory) {
+      chips.push({
+        key: "subCategory",
+        label: `Subcategory: ${selectedSubCategory.name}`,
+        onRemove: () => {
+          setSubCategory("");
+          setPage(1);
+          syncBrowserUrl({ subCategory: "", page: 1 });
+        },
+      });
+    }
 
-  // ========================================
-  // BRANDS
-  // ========================================
+    if (brand) {
+      chips.push({
+        key: "brand",
+        label: `Brand: ${brand}`,
+        onRemove: () => {
+          setBrand("");
+          setPage(1);
+          syncBrowserUrl({ brand: "", page: 1 });
+        },
+      });
+    }
 
-  const brands = useMemo(() => {
-    const values = products
-      .map((product) => product.brand)
-      .filter(Boolean);
+    if (minPrice !== "" || maxPrice !== "") {
+      const priceLabel = `Price: ${minPrice ? `₹${minPrice}` : "₹0"} – ${
+        maxPrice ? `₹${maxPrice}` : "Any"
+      }`;
+      chips.push({
+        key: "price",
+        label: priceLabel,
+        onRemove: () => {
+          setMinPrice("");
+          setMaxPrice("");
+          setPage(1);
+          syncBrowserUrl({ minPrice: "", maxPrice: "", page: 1 });
+        },
+      });
+    }
 
-    return [...new Set(values)].sort();
+    if (isFeatured) {
+      chips.push({
+        key: "featured",
+        label: "Featured Tech",
+        onRemove: () => {
+          setIsFeatured(false);
+          setPage(1);
+          syncBrowserUrl({ isFeatured: false, page: 1 });
+        },
+      });
+    }
+
+    if (isNewArrival) {
+      chips.push({
+        key: "newArrival",
+        label: "New Arrivals",
+        onRemove: () => {
+          setIsNewArrival(false);
+          setPage(1);
+          syncBrowserUrl({ isNewArrival: false, page: 1 });
+        },
+      });
+    }
+
+    return chips;
+  }, [
+    search,
+    selectedCategory,
+    selectedSubCategory,
+    brand,
+    minPrice,
+    maxPrice,
+    isFeatured,
+    isNewArrival,
+    handleClearSearch,
+    syncBrowserUrl,
+  ]);
+
+  const breadcrumbItems = search
+    ? [
+        { label: "Products", href: "/products" },
+        { label: `Search: "${search}"` },
+      ]
+    : selectedSubCategory
+      ? [
+          categoryId
+            ? { label: "Categories", href: "/categories" }
+            : { label: "Products", href: "/products" },
+          ...(selectedCategory
+            ? [
+                {
+                  label: selectedCategory.name,
+                  href: categoryId
+                    ? `/categories/${selectedCategory._id}`
+                    : `/categories/${selectedCategory._id}/products`,
+                },
+              ]
+            : []),
+          { label: selectedSubCategory.name },
+        ]
+      : selectedCategory
+        ? [
+            categoryId
+              ? { label: "Categories", href: "/categories" }
+              : { label: "Products", href: "/products" },
+            { label: selectedCategory.name },
+          ]
+        : isFeatured
+          ? [
+              { label: "Products", href: "/products" },
+              { label: "Featured Products" },
+            ]
+          : isNewArrival
+            ? [
+                { label: "Products", href: "/products" },
+                { label: "New Arrivals" },
+              ]
+            : [{ label: "Products" }];
+
+  const headerTitle = search
+    ? `Search results for "${search}"`
+    : selectedSubCategory?.name ||
+      selectedCategory?.name ||
+      (isFeatured
+        ? "Featured Electronics & Tech"
+        : isNewArrival
+          ? "Latest Tech & New Arrivals"
+          : "All Gadgets & Electronics");
+
+  const headerDescription = search
+    ? `Showing electronics, gadgets, and accessories matching "${search}" at ${BRAND_NAME}.`
+    : selectedSubCategory?.description ||
+      selectedCategory?.description ||
+      `Browse genuine smartphones, audio, accessories, and everyday technology at ${BRAND_NAME}.`;
+
+  const discoveredCategories = useMemo(() => {
+    const map = new Map();
+    products.forEach((item) => {
+      const cat = item?.category;
+      if (cat && typeof cat === "object" && cat._id && cat.name) {
+        map.set(String(cat._id), { _id: String(cat._id), name: cat.name });
+      }
+    });
+    return Array.from(map.values()).slice(0, 6);
   }, [products]);
-
-  // ========================================
-  // SEARCH HANDLER
-  // ========================================
-
-  const handleSearch = (value) => {
-    setSearch(value);
-    setPage(1);
-  };
-
-  // ========================================
-  // CATEGORY HANDLER
-  // ========================================
-
-  const handleCategoryChange = (value) => {
-    setAppliedFilters((previous) => ({
-      ...previous,
-      category: value,
-      subCategory: "",
-    }));
-
-    setPage(1);
-  };
-
-  // ========================================
-  // SUBCATEGORY HANDLER
-  // ========================================
-
-  const handleSubCategoryChange = (value) => {
-    setAppliedFilters((previous) => ({
-      ...previous,
-      subCategory: value,
-    }));
-
-    setPage(1);
-  };
-
-  // ========================================
-  // APPLY FILTERS
-  // ========================================
-
-  const handleApplyFilters = (filters) => {
-    setAppliedFilters((previous) => {
-      const nextCategory =
-        filters.category ?? previous.category;
-
-      return {
-        ...previous,
-        ...filters,
-        subCategory:
-          nextCategory !== previous.category
-            ? ""
-            : filters.subCategory ?? previous.subCategory,
-      };
-    });
-
-    setPage(1);
-    setShowFilters(false);
-  };
-
-  // ========================================
-  // SORT HANDLER
-  // ========================================
-
-  const handleSortChange = (value) => {
-    setSort(value);
-    setPage(1);
-  };
-
-  // ========================================
-  // REMOVE BRAND
-  // ========================================
-
-  const handleRemoveBrand = () => {
-    setAppliedFilters((previous) => ({
-      ...previous,
-      brand: "",
-    }));
-
-    setPage(1);
-  };
-
-  // ========================================
-  // REMOVE PRICE
-  // ========================================
-
-  const handleRemovePrice = () => {
-    setAppliedFilters((previous) => ({
-      ...previous,
-      minPrice: "",
-      maxPrice: "",
-    }));
-
-    setPage(1);
-  };
-
-  // ========================================
-  // CLEAR ALL FILTERS
-  // ========================================
-
-const handleClearFilters = () => {
-  setAppliedFilters({
-    ...INITIAL_FILTERS,
-    category: categoryId || "",
-  });
-
-  setSearch("");
-  setSort("newest");
-  setPage(1);
-  setShowFilters(false);
-};
-
-  // ========================================
-  // PAGINATION
-  // ========================================
-
-  const handlePageChange = (newPage) => {
-    if (
-      newPage < 1 ||
-      newPage > pagination.totalPages
-    ) {
-      return;
-    }
-
-    setPage(newPage);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // ========================================
-  // ACTIVE FILTER COUNT
-  // ========================================
-
-  const activeFilterCount = [
-    category,
-    subCategory,
-    brand,
-    minPrice,
-    maxPrice,
-  ].filter(Boolean).length;
-
-  // ========================================
-  // FILTER PROPS
-  // ========================================
-
-  const filterProps = {
-    categories,
-    brands,
-    category,
-    brand,
-    minPrice,
-    maxPrice,
-    onApply: handleApplyFilters,
-    showFilters,
-    onClose: () => setShowFilters(false),
-  };
-
-  // ========================================
-  // RENDER
-  // ========================================
 
   return (
     <>
-      <main className="min-h-screen w-full">
-        <div className="mx-auto w-full px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+      <main className="min-h-screen w-full bg-[#F8FAFC] pb-24 xl:pb-12">
+        <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+          <Breadcrumb items={breadcrumbItems} className="mb-4" />
 
-          
-          <Breadcrumb
-  items={[
-    { label: "Products" },
-  ]}
-  className="mb-4"
-/>
-
-          {/* PRODUCTS HEADER */}
           <ProductsHeader
             total={pagination.total}
+            title={headerTitle}
+            description={headerDescription}
+            isSearch={Boolean(search)}
+            isFeatured={isFeatured}
+            isNewArrival={isNewArrival}
+            activeCategoryLabel={
+              selectedSubCategory?.name || selectedCategory?.name || ""
+            }
+            discoveredCategories={discoveredCategories}
+            onClearSearch={handleClearSearch}
+            onSelectDiscoveredCategory={handleCategoryChange}
           />
 
+          {!search && <ShopBanner />}
 
-          {/* PRODUCTS BANNER */}
-
-          <ShopBanner />
-
-          {/* INITIAL PAGE SKELETON */}
-
-          {loading && products.length === 0 && !error ? (
+          {loading && products.length === 0 && !error && allCategories.length === 0 ? (
             <ProductsPageSkeleton />
           ) : (
             <>
-              {/* CATEGORY NAVIGATION */}
-
-              <ProductCategoryCards
-            categories={categories}
-            selectedCategory={category}
-            onCategorySelect={handleCategoryChange}
-          />
-
-          {/* SUBCATEGORY NAVIGATION */}
-
-          {subCategories.length > 0 && (
-            <SubCategoryTabs
-              subCategories={subCategories}
-              selectedSubCategory={subCategory}
-              onSelect={handleSubCategoryChange}
-            />
-          )}
-
-          {/* FILTER AND PRODUCTS GRID */}
-
-          <div className="grid w-full min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[245px_minmax(0,1fr)] xl:gap-6">
-
-            {/* FILTERS */}
-
-            <ProductFilters
-              {...filterProps}
-            />
-
-            {/* PRODUCTS SECTION */}
-
-            <section className="w-full min-w-0">
-
-              {/* TOOLBAR */}
-
-              <ProductToolbar
-                total={pagination.total}
-                sort={sort}
-                setSort={handleSortChange}
-                viewMode={viewMode}
-                setViewMode={setViewMode}
-                onFilterClick={() => setShowFilters(true)}
-                activeFilterCount={activeFilterCount}
-              />
-
-              {/* ACTIVE FILTER CHIPS */}
-
-              {(activeFilterCount > 0 || search) && (
-                <div className="mb-4 mt-3 flex flex-wrap items-center gap-2">
-
-                  <span className="text-xs font-semibold text-slate-500">
-                    Active:
-                  </span>
-
-                  {selectedCategory && (
-                    <button
-                      type="button"
-                      onClick={() => handleCategoryChange("")}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      {selectedCategory.name}
-                      <X size={13} />
-                    </button>
-                  )}
-
-                  {subCategory && (
-                    <button
-                      type="button"
-                      onClick={() => handleSubCategoryChange("")}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      {selectedSubCategory?.name || "Subcategory"}
-                      <X size={13} />
-                    </button>
-                  )}
-
-                  {brand && (
-                    <button
-                      type="button"
-                      onClick={handleRemoveBrand}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      {brand}
-                      <X size={13} />
-                    </button>
-                  )}
-
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => handleSearch("")}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      {search}
-                      <X size={13} />
-                    </button>
-                  )}
-
-                  {(minPrice || maxPrice) && (
-                    <button
-                      type="button"
-                      onClick={handleRemovePrice}
-                      className="flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition hover:bg-blue-100"
-                    >
-                      Price Range
-                      <X size={13} />
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleClearFilters}
-                    className="flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-500 transition hover:text-red-700"
-                  >
-                    <RotateCcw size={13} />
-                    Clear all
-                  </button>
-                </div>
+              {categoryId ? (
+                <CategoryDepartmentNav
+                  categories={rootCategories}
+                  activeCategoryId={category}
+                  routeMode="products"
+                />
+              ) : (
+                <ProductCategoryCards
+                  categories={rootCategories}
+                  selectedCategory={category}
+                  onCategorySelect={handleCategoryChange}
+                />
               )}
 
-              {/* ERROR STATE */}
+              {subCategories.length > 0 && (
+                <SubCategoryTabs
+                  subCategories={subCategories}
+                  selectedSubCategory={subCategory}
+                  onSelect={handleSubCategoryChange}
+                />
+              )}
 
-              {error ? (
-                <div className="rounded-2xl border border-red-100 bg-white px-5 py-12 text-center">
+              {/* Sidebar + Catalog Layout */}
+              <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[272px_minmax(0,1fr)] xl:gap-6">
+                <ProductFilters
+                  categories={rootCategories}
+                  brands={brands}
+                  category={category}
+                  brand={brand}
+                  minPrice={minPrice}
+                  maxPrice={maxPrice}
+                  onApply={handleApplyFilters}
+                  onClear={handleClearAllFilters}
+                  showFilters={showFilters}
+                  onClose={() => setShowFilters(false)}
+                />
 
-                  <h3 className="text-lg font-bold text-slate-900">
-                    Something went wrong
-                  </h3>
+                <section className="min-w-0" aria-label="Product results">
+                  <ProductToolbar
+                    total={pagination.total}
+                    shownCount={products.length}
+                    page={page}
+                    pageSize={PAGE_SIZE}
+                    loading={loading}
+                    sort={sort}
+                    setSort={handleSortChange}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onFilterClick={() => setShowFilters(true)}
+                    activeFilterCount={activeFilterCount}
+                  />
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    {error}
-                  </p>
+                  {/* Active Filter Chips */}
+                  {activeChips.length > 0 && (
+                    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-[#E2E8F0] bg-white px-3.5 py-2.5 sm:px-4">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                        Active Filters:
+                      </span>
 
-                  <button
-                    type="button"
-                    onClick={fetchProducts}
-                    className="mt-5 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              ) : (
-                <>
-                  {/* PRODUCT GRID */}
+                      {activeChips.map((chip) => (
+                        <button
+                          key={chip.key}
+                          type="button"
+                          onClick={chip.onRemove}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-[#0755E9]/20 bg-[#EFF6FF] px-3 py-1 text-xs font-semibold text-[#082B70] transition hover:border-[#0755E9]/45 hover:bg-blue-100"
+                        >
+                          <span>{chip.label}</span>
+                          <X size={13} aria-hidden="true" />
+                        </button>
+                      ))}
 
-                  <div
-                    className="w-full min-w-0"
-                    aria-busy={loading}
-                  >
-                    <ProductGrid
-                      products={products}
-                      loading={loading}
-                      viewMode={viewMode}
-                      onAddToCart={handleAddToCart}
-                      onWishlistToggle={handleWishlistToggle}
-                      wishlistedProducts={wishlistProducts}
-                      addingProductId={addingProductId}
-                      wishlistIsMutating={wishlistIsMutating}
-                    />
-                  </div>
-
-                  {/* PAGINATION */}
-
-                  {!loading && products.length > 0 && (
-                    <div className="mt-7">
-                      <ProductPagination
-                        currentPage={page}
-                        totalPages={pagination.totalPages}
-                        onPageChange={handlePageChange}
-                      />
+                      <button
+                        type="button"
+                        onClick={handleClearAllFilters}
+                        className="ml-auto text-xs font-bold text-[#0755E9] transition hover:text-[#082B70]"
+                      >
+                        Clear all
+                      </button>
                     </div>
                   )}
-                </>
-              )}
-            </section>
+
+                  {/* Partial Error Banner (when stale products remain visible) */}
+                  {error && products.length > 0 && (
+                    <div
+                      role="status"
+                      className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3"
+                    >
+                      <div className="flex items-center gap-2 text-xs font-semibold text-amber-800">
+                        <AlertCircle size={16} className="shrink-0" />
+                        <span>{error}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={fetchProducts}
+                        className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs hover:bg-amber-100"
+                      >
+                        <RefreshCw size={13} />
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Full Error vs Product Grid */}
+                  {error && products.length === 0 ? (
+                    <ProductError message={error} onRetry={fetchProducts} />
+                  ) : (
+                    <>
+                      <ProductGrid
+                        products={products}
+                        loading={loading}
+                        viewMode={viewMode}
+                        search={search}
+                        hasActiveFilters={activeChips.length > 0}
+                        onClearFilters={handleClearAllFilters}
+                        onAddToCart={handleAddToCart}
+                        onWishlistToggle={handleWishlistToggle}
+                        wishlistedProducts={wishlistProducts}
+                        addingProductId={addingProductId}
+                        wishlistIsMutating={wishlistIsMutating}
+                      />
+
+                      <ProductPagination
+                        pagination={pagination}
+                        page={page}
+                        setPage={handlePageChange}
+                      />
+                    </>
+                  )}
+                </section>
               </div>
             </>
           )}
 
-          {/* RECENTLY VIEWED - OUTSIDE PRODUCTS GRID */}
-
-          <section className="mt-10 w-full">
-            <RecentlyViewed
-              title="Recently Viewed Products"
-              limit={5}
-            />
+          <section
+            className="mt-12 sm:mt-14"
+            aria-label="Recently viewed products"
+          >
+            <RecentlyViewed title="Recently Viewed Products" limit={10} />
           </section>
-
         </div>
       </main>
 
-      {/* MINI CART DRAWER */}
-
       <MiniCartDrawer
-        isOpen={cartDrawerOpen}
-        onClose={() => setCartDrawerOpen(false)}
+        isOpen={miniCartOpen}
+        onClose={() => setMiniCartOpen(false)}
       />
     </>
+  );
+}
+
+function ProductsPageFallback() {
+  return (
+    <main className="min-h-screen w-full bg-[#F8FAFC]">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-8">
+        <div className="mb-4 h-4 w-40 animate-pulse rounded bg-slate-200" />
+        <div className="mb-6 rounded-2xl border border-[#E2E8F0] bg-white p-5">
+          <div className="h-5 w-32 animate-pulse rounded-full bg-[#EFF6FF]" />
+          <div className="mt-3 h-7 w-64 animate-pulse rounded bg-slate-200" />
+          <div className="mt-2 h-4 w-80 max-w-full animate-pulse rounded bg-slate-100" />
+        </div>
+        <ProductsPageSkeleton />
+      </div>
+    </main>
+  );
+}
+
+export default function ProductsPage({ categoryId = "" }) {
+  return (
+    <Suspense fallback={<ProductsPageFallback />}>
+      <ProductsListingContent categoryId={categoryId} />
+    </Suspense>
   );
 }

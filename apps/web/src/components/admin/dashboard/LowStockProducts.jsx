@@ -1,114 +1,82 @@
-
 "use client";
 
 import Link from "next/link";
-import {
-  AlertTriangle,
-  Package,
-  ArrowRight,
-} from "lucide-react";
+import { Button, Card, Empty, Skeleton, Tag } from "antd";
+import { AlertTriangle, ArrowRight, Package } from "lucide-react";
 
-export default function LowStockProducts({
-  products = [],
-  loading = false,
-}) {
+export default function LowStockProducts({ products = [], loading = false }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 p-5">
-        <div className="flex items-center gap-3">
-          <div className="rounded-lg bg-orange-50 p-2.5">
-            <AlertTriangle size={19} className="text-orange-600" />
-          </div>
-
+    <Card
+      className="h-full !border-[#E2E8F0]"
+      title={
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+            <AlertTriangle size={16} />
+          </span>
           <div>
-            <h2 className="font-semibold text-slate-900">
-              Low Stock Products
-            </h2>
-
-            <p className="mt-1 text-xs text-slate-500">
-              Products that need restocking.
+            <h3 className="!m-0 text-base font-bold text-[#101828]">
+              Low Stock Alerts
+            </h3>
+            <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+              Active products at or below 5 units
             </p>
           </div>
         </div>
-
-        <Link
-          href="/admin/products"
-          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 transition hover:text-blue-800"
-        >
-          View All
-          <ArrowRight size={16} />
+      }
+      extra={
+        <Link href="/admin/inventory">
+          <Button type="link" className="!px-0 !text-xs !font-bold">
+            Inventory
+            <ArrowRight size={13} className="ml-1 inline" />
+          </Button>
         </Link>
-      </div>
-
-      {/* Loading */}
+      }
+      styles={{ body: { padding: loading ? 20 : "8px 20px" } }}
+    >
       {loading ? (
-        <div className="space-y-4 p-5">
-          {[1, 2, 3, 4].map((item) => (
-            <div
-              key={item}
-              className="h-12 animate-pulse rounded-lg bg-slate-100"
-            />
-          ))}
-        </div>
+        <Skeleton active paragraph={{ rows: 4 }} />
       ) : products.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
-          <div className="mb-3 rounded-full bg-green-50 p-4">
-            <Package size={24} className="text-green-600" />
-          </div>
-
-          <p className="text-sm font-semibold text-slate-700">
-            All products are in stock
-          </p>
-
-          <p className="mt-1 text-sm text-slate-500">
-            No low stock products found.
-          </p>
-        </div>
+        <Empty
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+          description="All active products have healthy inventory levels"
+          className="py-8"
+        />
       ) : (
-        /* Products List */
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[#F1F5F9]">
           {products.map((product) => {
             const stock = product.totalStock ?? 0;
 
             return (
               <div
                 key={product._id}
-                className="flex items-center justify-between gap-3 p-4 transition hover:bg-slate-50"
+                className="flex items-center justify-between gap-3 py-3.5"
               >
-                {/* Product Info */}
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-100">
-                    <Package size={19} className="text-slate-500" />
-                  </div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B]">
+                    <Package size={16} />
+                  </span>
 
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-800">
+                    <Link
+                      href={`/admin/products/${product._id}/edit`}
+                      className="block truncate text-sm font-semibold text-[#101828] hover:text-[#0755E9]"
+                    >
                       {product.name || "Unnamed Product"}
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {product.brand || "ELEZIO"}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-[#64748B]">
+                      {product.brand || "ELENZO"}
                     </p>
                   </div>
                 </div>
 
-                {/* Stock Status */}
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                    stock === 0
-                      ? "bg-red-50 text-red-700"
-                      : "bg-orange-50 text-orange-700"
-                  }`}
-                >
+                <Tag color={stock === 0 ? "red" : "orange"} className="!m-0 !font-bold">
                   {stock === 0 ? "Out of stock" : `${stock} left`}
-                </span>
+                </Tag>
               </div>
             );
           })}
         </div>
       )}
-    </section>
+    </Card>
   );
 }

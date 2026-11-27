@@ -1,89 +1,52 @@
-
 "use client";
 
 import { useState } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from "motion/react";
 import { ChevronDown } from "lucide-react";
 
 export default function FilterAccordion({
   title,
-  subtitle,
   icon: Icon,
-  count = 0,
-  children,
   defaultOpen = true,
+  active = false,
+  children,
 }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  const shouldReduceMotion = useReducedMotion();
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <section className="border-b border-slate-100 py-4 last:border-b-0">
+    <section className="border-b border-[#E2E8F0] last:border-b-0">
       <button
         type="button"
-        onClick={() => setIsOpen((value) => !value)}
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-3 text-left"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left transition-colors hover:bg-[#F8FAFC]"
       >
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
-            <Icon size={17} strokeWidth={1.8} />
-          </div>
-
-          <div className="min-w-0">
-            <h3 className="text-sm font-bold text-slate-900">
-              {title}
-            </h3>
-
-            <p className="mt-0.5 text-[10px] text-slate-400">
-              {subtitle}
-            </p>
-          </div>
-
-          {count > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-50 px-1.5 text-[10px] font-bold text-blue-600">
-              {count}
-            </span>
+        <span className="flex min-w-0 items-center gap-2 text-[13px] font-bold text-[#101828]">
+          {Icon && (
+            <Icon
+              size={15}
+              className="shrink-0 text-[#0755E9]"
+              aria-hidden="true"
+            />
           )}
-        </div>
+          <span className="truncate">{title}</span>
+          {active && (
+            <span
+              aria-label="Filter active"
+              className="h-2 w-2 shrink-0 rounded-full bg-[#0755E9]"
+            />
+          )}
+        </span>
 
-        <motion.span
-          animate={{ rotate: isOpen ? 180 : 0 }}
-          transition={{
-            duration: shouldReduceMotion ? 0 : 0.2,
-          }}
-          className="shrink-0 text-slate-400"
-        >
-          <ChevronDown size={17} />
-        </motion.span>
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-[#64748B] transition-transform duration-200 ${
+            open ? "rotate-180 text-[#0755E9]" : ""
+          }`}
+          aria-hidden="true"
+        />
       </button>
 
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={
-              shouldReduceMotion
-                ? false
-                : { height: 0, opacity: 0 }
-            }
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{
-              height: shouldReduceMotion ? "auto" : 0,
-              opacity: shouldReduceMotion ? 1 : 0,
-            }}
-            transition={{
-              duration: shouldReduceMotion ? 0 : 0.25,
-              ease: "easeInOut",
-            }}
-            className="overflow-hidden"
-          >
-            <div className="pt-4">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {open && <div className="px-4 pb-4">{children}</div>}
     </section>
   );
 }

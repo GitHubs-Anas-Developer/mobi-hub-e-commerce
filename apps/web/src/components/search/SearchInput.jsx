@@ -32,7 +32,7 @@ export default function SearchInput({
         aria-expanded={isOpen}
         aria-controls="search-suggestions"
         aria-autocomplete="list"
-        className="h-12 w-full rounded-full border border-slate-200 bg-slate-50 pl-12 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+        className="h-11 w-full rounded-full border border-slate-200 bg-slate-50 pl-11 pr-11 text-sm text-[#101828] outline-none transition placeholder:text-slate-400 focus:border-[#0755E9] focus:bg-white focus:ring-4 focus:ring-[#0755E9]/10"
       />
 
       {query && (

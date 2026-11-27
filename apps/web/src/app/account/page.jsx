@@ -1,383 +1,670 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import { motion, useScroll, useSpring } from "framer-motion";
-
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "sonner";
 import {
   Package,
-  UserRound,
-  Heart,
   MapPin,
+  Heart,
+  Bell,
   ArrowRight,
   ShoppingBag,
-  ShieldCheck,
+  Truck,
   ChevronRight,
-  Sparkles,
+  UserRound,
+  Lock,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 
-const accountLinks = [
-  {
-    title: "My Orders",
-    description: "Track your orders and check delivery updates.",
-    href: "/account/orders",
-    icon: Package,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-  },
-  {
-    title: "My Profile",
-    description: "Manage your personal details and account.",
-    href: "/account/profile",
-    icon: UserRound,
-    iconBg: "bg-violet-50",
-    iconColor: "text-violet-600",
-  },
-  {
-    title: "My Wishlist",
-    description: "View the products you have saved for later.",
-    href: "/wishlist",
-    icon: Heart,
-    iconBg: "bg-rose-50",
-    iconColor: "text-rose-600",
-  },
-  {
-    title: "Saved Addresses",
-    description: "Manage your shipping and delivery addresses.",
-    href: "/account/addresses",
-    icon: MapPin,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-  },
-];
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AccountShell from "@/components/account/AccountShell";
+import AccountSkeleton from "@/components/loading/skeletons/AccountSkeleton";
+import WishlistProductCard from "@/components/wishlist/WishlistProductCard";
+import MiniCartDrawer from "@/components/cart/MiniCartDrawer";
 
-const revealTransition = {
-  duration: 0.65,
-  ease: [0.22, 1, 0.36, 1],
-};
+import orderService from "@/services/orderService";
+import addressService from "@/services/addressService";
+import notificationService from "@/services/notificationService";
+import {
+  fetchWishlist,
+  removeFromWishlist,
+} from "@/store/thunks/wishlistThunks";
+import { addToCart } from "@/store/thunks/cartThunks";
 
-const revealVariants = {
-  hidden: {
-    opacity: 0,
-    y: 45,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: revealTransition,
-  },
-};
+const formatPrice = (amount) =>
+  `₹${Number(amount || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}`;
 
-function AccountContent() {
-  // Smooth scroll progress
-  const { scrollYProgress } = useScroll();
-
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
+const formatDate = (date) => {
+  if (!date) return "N/A";
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
   });
+};
+
+const getStatusBadgeClass = (status) => {
+  const value = String(status || "").toLowerCase();
+  if (["paid", "delivered", "confirmed"].includes(value)) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  if (["cancelled", "failed", "refunded"].includes(value)) {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+  if (["shipped", "processing"].includes(value)) {
+    return "border-[#0755E9]/25 bg-[#EFF6FF] text-[#0755E9]";
+  }
+  return "border-amber-200 bg-amber-50 text-amber-700";
+};
+
+function AccountOverviewContent() {
+  const dispatch = useDispatch();
+
+  const { user } = useSelector((state) => state.auth || {});
+  const wishlistProducts = useSelector(
+    (state) => state.wishlist?.products || []
+  );
+  const wishlistMutating = useSelector(
+    (state) => state.wishlist?.isMutating ?? false
+  );
+
+  const [orders, setOrders] = useState([]);
+  const [addresses, setAddresses] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [overviewError, setOverviewError] = useState("");
+
+  const [removingWishId, setRemovingWishId] = useState("");
+  const [addingWishId, setAddingWishId] = useState("");
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+
+  const loadDashboardData = useCallback(async () => {
+    setLoading(true);
+    setOverviewError("");
+
+    try {
+      const [ordersRes, addressesRes, unreadRes] = await Promise.allSettled([
+        orderService.getOrders(),
+        addressService.getAddresses(),
+        notificationService.getUnreadCount(),
+      ]);
+
+      dispatch(fetchWishlist());
+
+      if (ordersRes.status === "fulfilled") {
+        const res = ordersRes.value;
+        const list =
+          res?.data?.orders ||
+          res?.data?.data ||
+          res?.data ||
+          res?.orders ||
+          [];
+        setOrders(Array.isArray(list) ? list : []);
+      }
+
+      if (addressesRes.status === "fulfilled") {
+        const res = addressesRes.value;
+        const list =
+          res?.data?.addresses ||
+          res?.data?.data ||
+          res?.addresses ||
+          res?.data ||
+          [];
+        setAddresses(Array.isArray(list) ? list : []);
+      }
+
+      if (unreadRes.status === "fulfilled") {
+        const count =
+          unreadRes.value?.data?.unreadCount ??
+          unreadRes.value?.unreadCount ??
+          0;
+        setUnreadCount(Number(count) || 0);
+      }
+
+      if (
+        ordersRes.status === "rejected" &&
+        addressesRes.status === "rejected"
+      ) {
+        setOverviewError("Unable to load some account details right now.");
+      }
+    } catch {
+      setOverviewError("Unable to load your account dashboard.");
+    } finally {
+      setLoading(false);
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const recentOrders = useMemo(() => orders.slice(0, 3), [orders]);
+  const defaultAddress = useMemo(
+    () => addresses.find((a) => a.isDefault) || addresses[0] || null,
+    [addresses]
+  );
+  const previewWishlist = useMemo(
+    () => wishlistProducts.slice(0, 4),
+    [wishlistProducts]
+  );
+
+  const handleRemoveWishlist = async (productId) => {
+    if (!productId || removingWishId) return;
+    setRemovingWishId(productId);
+    try {
+      await dispatch(removeFromWishlist(productId)).unwrap();
+      toast.success("Removed from wishlist.");
+    } catch (err) {
+      toast.error(
+        typeof err === "string" ? err : err?.message || "Unable to remove item."
+      );
+    } finally {
+      setRemovingWishId("");
+    }
+  };
+
+  const handleAddToCartFromWishlist = async (product) => {
+    const productId = product?._id || product?.id;
+    if (!productId || addingWishId) return;
+
+    const activeVariants = Array.isArray(product?.variants)
+      ? product.variants.filter((v) => v?.isActive !== false)
+      : [];
+    const selectedVariant =
+      activeVariants.find((v) => v?.isDefault) || activeVariants[0];
+
+    if (!selectedVariant?._id || Number(selectedVariant.stock ?? 0) < 1) {
+      toast.error("Please view product page to select an available variant.");
+      return;
+    }
+
+    setAddingWishId(productId);
+    try {
+      await dispatch(
+        addToCart({
+          productId,
+          variantId: selectedVariant._id,
+          quantity: 1,
+        })
+      ).unwrap();
+      toast.success(`${product.name || "Product"} added to cart.`);
+      setCartDrawerOpen(true);
+    } catch (err) {
+      toast.error(
+        typeof err === "string" ? err : err?.message || "Unable to add to cart."
+      );
+    } finally {
+      setAddingWishId("");
+    }
+  };
+
+  const summaryStats = [
+    {
+      label: "Total Orders",
+      value: orders.length,
+      href: "/account/orders",
+      icon: Package,
+    },
+    {
+      label: "Saved Addresses",
+      value: addresses.length,
+      href: "/account/addresses",
+      icon: MapPin,
+    },
+    {
+      label: "Wishlist Items",
+      value: wishlistProducts.length,
+      href: "/wishlist",
+      icon: Heart,
+    },
+    {
+      label: "Notifications",
+      value: unreadCount,
+      href: "/account/notifications",
+      icon: Bell,
+    },
+  ];
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
-      {/* Blue Scroll Progress */}
-      <motion.div
-        className="fixed left-0 top-0 z-[100] h-1 w-full origin-left bg-gradient-to-r from-[#0755E9] via-[#2583FF] to-cyan-400"
-        style={{ scaleX: smoothProgress }}
-      />
-
-      <div className="mx-auto w-full">
-        {/* Page Heading */}
-        <motion.div
-          initial={{ opacity: 0, y: 25 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-          className="mb-8"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <motion.span
-              initial={{ width: 0 }}
-              animate={{ width: 24 }}
-              transition={{ duration: 0.7 }}
-              className="h-1.5 rounded-full bg-[#0755E9]"
-            />
-
-            <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#0755E9]">
-              ELEZIO
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#101828] sm:text-3xl">
-            My Account
-          </h1>
-
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Manage your account, orders and shopping preferences.
-          </p>
-        </motion.div>
-
-        {/* Welcome Banner */}
-        <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={revealVariants}
-          className="group relative mb-10 overflow-hidden rounded-2xl bg-[#071B49] px-6 py-8 text-white shadow-lg shadow-blue-950/10 sm:px-9 sm:py-10"
-        >
-          {/* Animated Background Decorations */}
-          <motion.div
-            animate={{
-              scale: [1, 1.15, 1],
-              opacity: [0.15, 0.3, 0.15],
-            }}
-            transition={{
-              duration: 7,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full bg-blue-500/30 blur-3xl"
-          />
-
-          <motion.div
-            animate={{
-              x: [0, 25, 0],
-              y: [0, -15, 0],
-            }}
-            transition={{
-              duration: 9,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            className="pointer-events-none absolute -bottom-24 right-1/4 h-56 w-56 rounded-full bg-cyan-400/15 blur-3xl"
-          />
-
-          <div className="relative flex flex-col justify-between gap-8 sm:flex-row sm:items-center">
-            <div className="max-w-xl">
-              <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-medium text-blue-100"
+    <>
+      <AccountShell
+        activeSection="overview"
+        title={`Welcome back, ${user?.name?.split(" ")[0] || "Customer"}`}
+        description="View your recent ELENZO orders, saved delivery addresses, wishlist items, and account shortcuts."
+      >
+        {loading ? (
+          <AccountSkeleton />
+        ) : (
+          <div className="space-y-6">
+            {overviewError && (
+              <div
+                role="alert"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800 sm:text-sm"
               >
-                <Sparkles size={14} />
-                Your personal shopping space
-              </motion.div>
-
-              <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">
-                Welcome to ELEZIO!
-              </h2>
-
-              <p className="mt-3 max-w-md text-sm leading-7 text-blue-100/80">
-                Everything you need to manage your shopping experience, all in
-                one place. View orders, update your profile and manage your
-                saved items.
-              </p>
-
-              <motion.div
-                whileHover={{ y: -3, scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                className="mt-6 inline-flex"
-              >
-                <Link
-                  href="/products"
-                  className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-[#0755E9] shadow-sm transition-colors hover:bg-blue-50"
+                <div className="flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{overviewError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadDashboardData}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-amber-900 shadow-xs hover:bg-amber-100"
                 >
-                  <ShoppingBag size={17} />
-                  Continue Shopping
-                  <ArrowRight size={16} />
-                </Link>
-              </motion.div>
-            </div>
+                  <RefreshCw size={12} />
+                  Retry
+                </button>
+              </div>
+            )}
 
-            {/* Animated Shopping Icon */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.7, rotate: -15 }}
-              whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-              viewport={{ once: true }}
-              transition={{
-                duration: 0.7,
-                delay: 0.2,
-                ease: "easeOut",
-              }}
-              whileHover={{ scale: 1.08, rotate: 5 }}
-              className="hidden h-36 w-36 shrink-0 items-center justify-center rounded-full border border-white/15 bg-white/10 sm:flex"
+            {/* Account Summary KPI Cards */}
+            <section
+              aria-label="Account summary metrics"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4"
             >
-              <motion.div
-                animate={{ y: [0, -7, 0] }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="flex h-24 w-24 items-center justify-center rounded-full bg-white/10"
-              >
-                <ShoppingBag
-                  size={44}
-                  strokeWidth={1.4}
-                  className="text-blue-100"
-                />
-              </motion.div>
-            </motion.div>
-          </div>
-        </motion.section>
-
-        {/* Account Overview Heading */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.3 }}
-          variants={revealVariants}
-          className="mb-5"
-        >
-          <h2 className="text-lg font-bold text-[#101828]">Account Overview</h2>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Quick access to your account settings and activities.
-          </p>
-        </motion.div>
-
-        {/* Account Cards */}
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.15 }}
-          variants={{
-            hidden: {},
-            visible: {
-              transition: {
-                staggerChildren: 0.12,
-              },
-            },
-          }}
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {accountLinks.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <motion.div
-                key={item.title}
-                variants={{
-                  hidden: {
-                    opacity: 0,
-                    y: 45,
-                    scale: 0.96,
-                  },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    scale: 1,
-                    transition: revealTransition,
-                  },
-                }}
-                whileHover={{
-                  y: -7,
-                  boxShadow: "0px 15px 35px rgba(7,85,233,0.09)",
-                  borderColor: "#BFDBFE",
-                }}
-                whileTap={{ scale: 0.98 }}
-                className="group rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm"
-              >
-                <Link href={item.href} className="block">
-                  <div className="flex items-start justify-between">
-                    <motion.div
-                      whileHover={{
-                        scale: 1.12,
-                        rotate: -7,
-                      }}
-                      transition={{ duration: 0.25 }}
-                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${item.iconBg}`}
-                    >
-                      <Icon
-                        size={23}
-                        className={item.iconColor}
-                        strokeWidth={1.8}
-                      />
-                    </motion.div>
-
-                    <motion.div
-                      whileHover={{ x: 4 }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition-colors group-hover:bg-blue-50 group-hover:text-[#0755E9]"
-                    >
-                      <ChevronRight size={17} />
-                    </motion.div>
+              {summaryStats.map(({ label, value, href, icon: Icon }) => (
+                <Link
+                  key={label}
+                  href={href}
+                  className="group rounded-2xl border border-[#E2E8F0] bg-white p-4 transition-all hover:border-[#0755E9]/40 hover:shadow-xs sm:p-5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[#64748B]">
+                      {label}
+                    </span>
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9] transition group-hover:bg-[#0755E9] group-hover:text-white">
+                      <Icon size={17} aria-hidden="true" />
+                    </span>
                   </div>
-
-                  <h3 className="mt-5 font-bold text-[#101828] transition-colors group-hover:text-[#0755E9]">
-                    {item.title}
-                  </h3>
-
-                  <p className="mt-2 min-h-[42px] text-sm leading-6 text-slate-500">
-                    {item.description}
+                  <p className="mt-3 text-2xl font-extrabold text-[#101828] tabular-nums">
+                    {value}
                   </p>
-
-                  <div className="mt-5 flex items-center gap-2 text-sm font-semibold text-[#0755E9]">
-                    Manage
-                    <motion.span
-                      whileHover={{ x: 5 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ArrowRight size={15} />
-                    </motion.span>
-                  </div>
                 </Link>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+              ))}
+            </section>
 
-        {/* Bottom Information Section */}
-        <motion.section
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, amount: 0.2 }}
-          variants={revealVariants}
-          className="mt-8 flex flex-col gap-5 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-7"
-        >
-          <div className="flex items-start gap-4">
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: -8 }}
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-[#0755E9]"
+            {/* Recent Orders Card */}
+            <section
+              aria-labelledby="recent-orders-heading"
+              className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
             >
-              <ShieldCheck size={22} />
-            </motion.div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2
+                    id="recent-orders-heading"
+                    className="text-base font-bold text-[#101828] sm:text-lg"
+                  >
+                    Recent Orders
+                  </h2>
+                  <p className="text-xs text-[#64748B]">
+                    Your latest order activity and tracking shortcuts
+                  </p>
+                </div>
 
-            <div>
-              <h3 className="font-bold text-[#101828]">
-                Your shopping journey starts here
-              </h3>
+                <Link
+                  href="/account/orders"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#0755E9] hover:text-[#082B70] sm:text-sm"
+                >
+                  <span>View All Orders</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
 
-              <p className="mt-1 max-w-lg text-sm leading-6 text-slate-500">
-                Discover the latest gadgets, electronics and tech essentials at
-                ELEZIO.
-              </p>
+              {recentOrders.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#F8FAFC] px-5 py-10 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                    <ShoppingBag size={22} aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-3 text-sm font-bold text-[#101828]">
+                    No orders placed yet
+                  </h3>
+                  <p className="mt-1 text-xs text-[#64748B]">
+                    Explore our electronics and gadgets catalog to place your first order.
+                  </p>
+                  <Link
+                    href="/products"
+                    className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+                  >
+                    <span>Start Shopping</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentOrders.map((order) => {
+                    const orderId = order._id || order.id;
+                    const firstItem = order.items?.[0];
+                    const thumb =
+                      firstItem?.thumbnail?.url ||
+                      firstItem?.thumbnail ||
+                      firstItem?.product?.thumbnail?.url ||
+                      "";
+                    const itemName =
+                      firstItem?.productName ||
+                      firstItem?.product?.name ||
+                      "Order Item";
+
+                    return (
+                      <div
+                        key={orderId}
+                        className="flex flex-col justify-between gap-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]/60 p-4 transition hover:border-[#0755E9]/35 sm:flex-row sm:items-center"
+                      >
+                        <div className="flex min-w-0 items-center gap-3.5">
+                          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0] bg-white p-1.5">
+                            {thumb ? (
+                              <img
+                                src={thumb}
+                                alt={itemName}
+                                className="h-full w-full object-contain"
+                              />
+                            ) : (
+                              <Package size={22} className="text-slate-300" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate text-xs font-bold text-[#101828] sm:text-sm">
+                                {order.orderNumber || orderId}
+                              </p>
+                              <span
+                                className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${getStatusBadgeClass(
+                                  order.orderStatus
+                                )}`}
+                              >
+                                {order.orderStatus || "Pending"}
+                              </span>
+                            </div>
+
+                            <p className="mt-1 truncate text-xs text-[#64748B]">
+                              {itemName}
+                              {order.items?.length > 1
+                                ? ` +${order.items.length - 1} more`
+                                : ""}
+                            </p>
+
+                            <p className="mt-1 text-[11px] font-medium text-[#64748B] tabular-nums">
+                              Placed {formatDate(order.createdAt)} ·{" "}
+                              <span className="font-bold text-[#101828]">
+                                {formatPrice(order.totalAmount)}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                          {order.shipment?.shipmentId && (
+                            <Link
+                              href={`/account/orders/${orderId}/tracking`}
+                              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#0755E9] bg-[#EFF6FF] px-3 text-xs font-bold text-[#0755E9] transition hover:bg-[#0755E9] hover:text-white"
+                            >
+                              <Truck size={13} aria-hidden="true" />
+                              <span>Track</span>
+                            </Link>
+                          )}
+
+                          <Link
+                            href={`/account/orders/${orderId}`}
+                            className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3.5 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+                          >
+                            <span>Details</span>
+                            <ChevronRight size={14} aria-hidden="true" />
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+
+            {/* Saved Address + Profile Quick Links Grid */}
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {/* Saved Address Snapshot */}
+              <section
+                aria-labelledby="saved-address-summary"
+                className="flex flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+              >
+                <div>
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <h2
+                      id="saved-address-summary"
+                      className="text-base font-bold text-[#101828]"
+                    >
+                      Default Delivery Address
+                    </h2>
+                    <Link
+                      href="/account/addresses"
+                      className="text-xs font-bold text-[#0755E9] hover:underline"
+                    >
+                      Manage
+                    </Link>
+                  </div>
+
+                  {defaultAddress ? (
+                    <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold text-[#101828]">
+                          {defaultAddress.fullName}
+                        </p>
+                        {defaultAddress.addressType && (
+                          <span className="rounded-md border border-[#E2E8F0] bg-white px-2 py-0.5 text-[10px] font-bold text-[#64748B]">
+                            {defaultAddress.addressType}
+                          </span>
+                        )}
+                        {defaultAddress.isDefault && (
+                          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                            DEFAULT
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-2 text-xs leading-relaxed text-[#64748B]">
+                        {[
+                          defaultAddress.addressLine1,
+                          defaultAddress.addressLine2,
+                          defaultAddress.city,
+                          defaultAddress.state,
+                          defaultAddress.pincode,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </p>
+
+                      {defaultAddress.phone && (
+                        <p className="mt-2 text-xs font-semibold text-[#101828] tabular-nums">
+                          Phone: {defaultAddress.phone}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed border-[#E2E8F0] bg-[#F8FAFC] p-5 text-center">
+                      <p className="text-xs text-[#64748B]">
+                        No delivery addresses saved yet.
+                      </p>
+                      <Link
+                        href="/account/addresses"
+                        className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#0755E9] hover:underline"
+                      >
+                        Add Address <ArrowRight size={13} />
+                      </Link>
+                    </div>
+                  )}
+                </div>
+
+                <Link
+                  href="/account/addresses"
+                  className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+                >
+                  <MapPin size={14} aria-hidden="true" />
+                  <span>Open Address Book ({addresses.length})</span>
+                </Link>
+              </section>
+
+              {/* Profile & Account Security Snapshot */}
+              <section
+                aria-labelledby="account-quick-access"
+                className="flex flex-col justify-between rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+              >
+                <div>
+                  <h2
+                    id="account-quick-access"
+                    className="mb-4 text-base font-bold text-[#101828]"
+                  >
+                    Account &amp; Security Shortcuts
+                  </h2>
+
+                  <div className="space-y-2.5">
+                    <Link
+                      href="/account/profile"
+                      className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF]/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <UserRound size={17} className="text-[#0755E9]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-[#101828]">
+                            Edit Profile Details
+                          </p>
+                          <p className="text-[11px] text-[#64748B]">
+                            {user?.name || "Manage name & phone"}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-[#64748B]" />
+                    </Link>
+
+                    <Link
+                      href="/account/profile#password"
+                      className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF]/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Lock size={17} className="text-[#0755E9]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-[#101828]">
+                            Change Account Password
+                          </p>
+                          <p className="text-[11px] text-[#64748B]">
+                            Keep your ELENZO login secure
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-[#64748B]" />
+                    </Link>
+
+                    <Link
+                      href="/account/notifications"
+                      className="flex items-center justify-between rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF]/60"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Bell size={17} className="text-[#0755E9]" aria-hidden="true" />
+                        <div>
+                          <p className="text-xs font-bold text-[#101828]">
+                            Notification Inbox
+                          </p>
+                          <p className="text-[11px] text-[#64748B]">
+                            {unreadCount > 0
+                              ? `${unreadCount} unread updates`
+                              : "All caught up"}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={16} className="text-[#64748B]" />
+                    </Link>
+                  </div>
+                </div>
+              </section>
             </div>
-          </div>
 
-          <motion.div
-            whileHover={{ y: -3, scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            className="shrink-0"
-          >
-            <Link
-              href="/products"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#0645C4] sm:w-auto"
+            {/* Saved Wishlist Quick Grid */}
+            <section
+              aria-labelledby="account-wishlist-heading"
+              className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
             >
-              Explore Products
-              <ArrowRight size={16} />
-            </Link>
-          </motion.div>
-        </motion.section>
-      </div>
-    </main>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h2
+                    id="account-wishlist-heading"
+                    className="text-base font-bold text-[#101828] sm:text-lg"
+                  >
+                    Saved in Wishlist
+                  </h2>
+                  <p className="text-xs text-[#64748B]">
+                    Move favourite gadgets to your cart anytime
+                  </p>
+                </div>
+
+                <Link
+                  href="/wishlist"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#0755E9] hover:text-[#082B70] sm:text-sm"
+                >
+                  <span>View Full Wishlist ({wishlistProducts.length})</span>
+                  <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              {previewWishlist.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-[#E2E8F0] bg-[#F8FAFC] px-5 py-10 text-center">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+                    <Heart size={22} aria-hidden="true" />
+                  </div>
+                  <h3 className="mt-3 text-sm font-bold text-[#101828]">
+                    Your wishlist is empty
+                  </h3>
+                  <p className="mt-1 text-xs text-[#64748B]">
+                    Save electronics and gadgets while browsing to compare later.
+                  </p>
+                  <Link
+                    href="/products"
+                    className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+                  >
+                    <span>Explore Products</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 xl:grid-cols-4">
+                  {previewWishlist.map((product) => {
+                    const pid = product._id || product.id;
+                    if (!pid) return null;
+
+                    return (
+                      <div key={pid} className="min-w-0">
+                        <WishlistProductCard
+                          product={product}
+                          isMutating={wishlistMutating}
+                          isRemoving={String(removingWishId) === String(pid)}
+                          isAdding={String(addingWishId) === String(pid)}
+                          onRemove={handleRemoveWishlist}
+                          onAddToCart={handleAddToCartFromWishlist}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </AccountShell>
+
+      <MiniCartDrawer
+        isOpen={cartDrawerOpen}
+        onClose={() => setCartDrawerOpen(false)}
+      />
+    </>
   );
 }
 
 export default function AccountPage() {
   return (
     <ProtectedRoute>
-      <AccountContent />
+      <AccountOverviewContent />
     </ProtectedRoute>
   );
 }

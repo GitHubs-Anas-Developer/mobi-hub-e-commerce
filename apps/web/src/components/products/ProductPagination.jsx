@@ -1,171 +1,103 @@
-
 "use client";
 
-import {
-  ChevronLeft,
-  ChevronRight,
-  MoreHorizontal,
-} from "lucide-react";
+import { useMemo } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ProductPagination({
   pagination,
   page,
   setPage,
+  currentPage,
+  totalPages,
+  onPageChange,
 }) {
-  const currentPage = Math.max(
-    1,
-    Number(pagination?.page || page || 1)
-  );
+  const safeCurrentPage = Number(currentPage ?? page) || 1;
+  const safeTotalPages =
+    Number(totalPages ?? pagination?.totalPages) || 1;
+  const handlePageChange = onPageChange ?? setPage;
 
-  const totalPages = Math.max(
-    1,
-    Number(pagination?.totalPages || 1)
-  );
+  const pages = useMemo(() => {
+    const items = [];
 
-  const hasPrevPage =
-    pagination?.hasPrevPage ?? currentPage > 1;
+    for (let index = 1; index <= safeTotalPages; index += 1) {
+      const isEdge = index === 1 || index === safeTotalPages;
+      const isNearCurrent = Math.abs(index - safeCurrentPage) <= 1;
 
-  const hasNextPage =
-    pagination?.hasNextPage ?? currentPage < totalPages;
-
-  if (totalPages <= 1) return null;
-
-  // Generate compact page numbers
-  const getPageNumbers = () => {
-    const pages = [];
-
-    if (totalPages <= 5) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i);
+      if (isEdge || isNearCurrent) {
+        items.push(index);
+      } else if (items[items.length - 1] !== "...") {
+        items.push("...");
       }
-
-      return pages;
     }
 
-    pages.push(1);
+    return items;
+  }, [safeCurrentPage, safeTotalPages]);
 
-    if (currentPage > 3) {
-      pages.push("left-ellipsis");
-    }
+  if (safeTotalPages <= 1) return null;
 
-    const start = Math.max(2, currentPage - 1);
-    const end = Math.min(totalPages - 1, currentPage + 1);
-
-    for (let i = start; i <= end; i++) {
-      pages.push(i);
-    }
-
-    if (currentPage < totalPages - 2) {
-      pages.push("right-ellipsis");
-    }
-
-    pages.push(totalPages);
-
-    return pages;
-  };
-
-  const handlePageChange = (nextPage) => {
-    const safePage = Math.min(
-      totalPages,
-      Math.max(1, nextPage)
-    );
-
-    if (safePage !== currentPage) {
-      setPage?.(safePage);
-    }
-  };
-
-  const pageNumbers = getPageNumbers();
-
-  const buttonClass = `
-    flex h-9 min-w-9 items-center justify-center
-    rounded-lg border text-xs font-bold
-    transition-all duration-200
-    disabled:cursor-not-allowed disabled:opacity-40
-  `;
+  const isFirst = safeCurrentPage <= 1;
+  const isLast = safeCurrentPage >= safeTotalPages;
 
   return (
     <nav
       aria-label="Product pagination"
-      className="
-        mt-8 flex flex-wrap items-center
-        justify-center gap-2 sm:gap-3
-      "
+      className="mt-8 flex flex-col items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 sm:mt-10 sm:flex-row"
     >
-      {/* Previous */}
-      <button
-        type="button"
-        disabled={!hasPrevPage}
-        onClick={() => handlePageChange(currentPage - 1)}
-        aria-label="Previous page"
-        className={`
-          ${buttonClass}
-          gap-1.5 border-slate-200 bg-white
-          px-3 text-slate-600
-          hover:border-blue-300 hover:text-blue-600
-          sm:px-4
-        `}
-      >
-        <ChevronLeft size={16} />
-        <span className="hidden sm:inline">Previous</span>
-      </button>
+      <p className="text-xs font-medium text-[#64748B] tabular-nums">
+        Page{" "}
+        <span className="font-bold text-[#101828]">{safeCurrentPage}</span> of{" "}
+        <span className="font-bold text-[#101828]">{safeTotalPages}</span>
+      </p>
 
-      {/* Page Numbers */}
-      <div className="flex items-center gap-1.5">
-        {pageNumbers.map((item) => {
-          if (typeof item !== "number") {
-            return (
-              <span
-                key={item}
-                className="flex h-9 w-5 items-center justify-center text-slate-400"
-                aria-hidden="true"
-              >
-                <MoreHorizontal size={17} />
-              </span>
-            );
-          }
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => !isFirst && handlePageChange?.(safeCurrentPage - 1)}
+          disabled={isFirst}
+          aria-label="Previous page"
+          className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <ChevronLeft size={15} />
+          <span className="hidden sm:inline">Previous</span>
+        </button>
 
-          const isActive = currentPage === item;
-
-          return (
+        {pages.map((item, index) =>
+          item === "..." ? (
+            <span
+              key={`ellipsis-${index}`}
+              className="px-2 text-xs font-bold text-slate-400"
+            >
+              ...
+            </span>
+          ) : (
             <button
-              key={item}
+              key={`page-${item}`}
               type="button"
-              onClick={() => handlePageChange(item)}
-              aria-label={`Go to page ${item}`}
-              aria-current={isActive ? "page" : undefined}
-              className={`
-                ${buttonClass}
-                ${
-                  isActive
-                    ? "border-blue-600 bg-blue-600 text-white shadow-sm shadow-blue-600/20"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
-                }
-              `}
+              onClick={() => handlePageChange?.(item)}
+              aria-label={`Page ${item}`}
+              aria-current={item === safeCurrentPage ? "page" : undefined}
+              className={`inline-flex h-9 min-w-9 items-center justify-center rounded-xl px-3 text-xs font-bold tabular-nums transition ${
+                item === safeCurrentPage
+                  ? "bg-[#0755E9] text-white shadow-xs"
+                  : "border border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+              }`}
             >
               {item}
             </button>
-          );
-        })}
-      </div>
+          )
+        )}
 
-      {/* Next */}
-      <button
-        type="button"
-        disabled={!hasNextPage}
-        onClick={() => handlePageChange(currentPage + 1)}
-        aria-label="Next page"
-        className={`
-          ${buttonClass}
-          gap-1.5 border-slate-200 bg-white
-          px-3 text-slate-600
-          hover:border-blue-300 hover:text-blue-600
-          sm:px-4
-        `}
-      >
-        <span className="hidden sm:inline">Next</span>
-        <ChevronRight size={16} />
-      </button>
+        <button
+          type="button"
+          onClick={() => !isLast && handlePageChange?.(safeCurrentPage + 1)}
+          disabled={isLast}
+          aria-label="Next page"
+          className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <span className="hidden sm:inline">Next</span>
+          <ChevronRight size={15} />
+        </button>
+      </div>
     </nav>
   );
 }

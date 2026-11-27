@@ -14,15 +14,22 @@ export default function useAdminProducts(initialFilters = {}) {
     hasPrevPage: false,
   });
 
-  const [filters, setFilters] = useState({
-    page: 1,
-    limit: 10,
-    search: "",
-    isActive: "",
-    category: "",
-    brand: "",
-    sort: "newest",
-    ...initialFilters,
+  const [filters, setFilters] = useState(() => {
+    const base = {
+      page: 1,
+      limit: 10,
+      search: "",
+      isActive: "",
+      category: "",
+      brand: "",
+      sort: "newest",
+      ...initialFilters,
+    };
+    if (typeof window !== "undefined") {
+      const urlSearch = new URLSearchParams(window.location.search).get("search");
+      if (urlSearch && !base.search) base.search = urlSearch;
+    }
+    return base;
   });
 
   const [loading, setLoading] = useState(true);
@@ -56,7 +63,13 @@ export default function useAdminProducts(initialFilters = {}) {
   }, [filters]);
 
   useEffect(() => {
-    fetchProducts();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) fetchProducts();
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchProducts]);
 
   const updateFilters = (newFilters) => {

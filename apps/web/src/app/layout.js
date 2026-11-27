@@ -52,8 +52,11 @@ export const metadata = {
     images: [BRAND_ASSETS.ogImage],
   },
   icons: {
-    icon: BRAND_ASSETS.icon,
-    apple: BRAND_ASSETS.icon,
+    icon: [
+      { url: BRAND_ASSETS.icon192, sizes: "192x192", type: "image/png" },
+      { url: BRAND_ASSETS.icon512, sizes: "512x512", type: "image/png" },
+    ],
+    apple: BRAND_ASSETS.icon192,
   },
 };
 

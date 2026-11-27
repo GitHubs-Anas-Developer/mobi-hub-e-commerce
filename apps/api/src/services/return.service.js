@@ -9,6 +9,11 @@ import Payment from "../models/payment.model.js";
 import PaymentRefund from "../models/payment-refund.model.js";
 import razorpay from "../config/razorpay.js";
 import { createNotification } from "./notification.service.js";
+import {
+  createRazorpayRefund,
+  fetchRazorpayRefund,
+  toPaise,
+} from "../utils/razorpayGateway.js";
 
 
 const RETURN_WINDOW_DAYS = 7;
@@ -682,26 +687,7 @@ export const processReturnRefund = async (returnId, adminId, data = {}) => {
     let providerRefund;
 
     try {
-      const response = await fetch(
-        `https://api.razorpay.com/v1/refunds/${previousAttempt.providerRefundId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Basic ${Buffer.from(
-              `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`,
-            ).toString("base64")}`,
-          },
-        },
-      );
-
-      providerRefund = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          providerRefund.error?.description ||
-            "Unable to verify Razorpay refund",
-        );
-      }
+      providerRefund = await fetchRazorpayRefund(previousAttempt.providerRefundId);
     } catch (error) {
       console.error("Previous Razorpay refund verification failed:", error);
 
@@ -1051,9 +1037,9 @@ export const processReturnRefund = async (returnId, adminId, data = {}) => {
         recipient: initialReturn.user,
         title: "Return Refund Completed",
         message: `Your manual refund for return ${initialReturn.returnNumber} has been processed.`,
-        type: "REFUND_SUCCESS",
-        relatedId: initialReturn._id,
-        relatedModel: "Return",
+        type: "REFUND_PROCESSED",
+        relatedId: initialReturn.order,
+        relatedModel: "Order",
       });
     } catch (error) {
       console.error("Manual refund notification error:", error.message);
@@ -1062,52 +1048,33 @@ export const processReturnRefund = async (returnId, adminId, data = {}) => {
     return await Return.findById(returnId).populate("paymentRefund");
   }
 
-  // 8. Submit Razorpay refund.
-  const response = await fetch(
-    `https://api.razorpay.com/v1/payments/${payment.razorpayPaymentId}/refund`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`,
-        ).toString("base64")}`,
-        "Content-Type": "application/json",
-        "X-Refund-Idempotency": paymentRefund.idempotencyKey,
-      },
-      body: JSON.stringify({
-        amount: Math.round(refundAmount * 100),
-        notes: {
-          reason: paymentRefund.reason,
-          orderId: order._id.toString(),
-          returnId: returnId.toString(),
-          attempt: String(attempt),
-        },
-      }),
-    },
-  );
-
+  // 8. Submit Razorpay refund with request timeout.
   let refundData;
 
   try {
-    refundData = await response.json();
-  } catch {
-    throw createError(
-      "Invalid Razorpay response. Check refund status before retrying.",
-      502,
-    );
-  }
-
-  if (!response.ok || !refundData.id) {
+    refundData = await createRazorpayRefund({
+      razorpayPaymentId: payment.razorpayPaymentId,
+      amountPaise: toPaise(refundAmount),
+      receipt: `ret_${String(returnId).slice(-16)}_a${attempt}`,
+      idempotencyKey: paymentRefund.idempotencyKey,
+      notes: {
+        reason: paymentRefund.reason,
+        orderId: order._id.toString(),
+        returnId: returnId.toString(),
+        attempt: String(attempt),
+      },
+    });
+  } catch (error) {
     console.error("Razorpay Return Refund Error:", {
-      status: response.status,
-      description: refundData.error?.description,
-      code: refundData.error?.code,
+      status: error.statusCode,
+      code: error.gatewayCode,
+      message: error.message,
     });
 
     throw createError(
-      refundData.error?.description ||
+      error.message ||
         "Razorpay refund request failed. Check Razorpay before retrying.",
-      response.status || 502,
+      error.statusCode || 502,
     );
   }
 

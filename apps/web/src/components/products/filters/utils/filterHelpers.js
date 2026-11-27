@@ -1,37 +1,51 @@
-export function normalizePrice(value) {
-  if (value === "") return "";
-
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) return "";
-
-  return String(Math.max(0, number));
-}
-
-export function updateMinPrice(value, maxPrice, setMinPrice, setMaxPrice) {
-  const nextMin = normalizePrice(value);
-
-  setMinPrice(nextMin);
-
-  if (nextMin !== "" && maxPrice !== "" && Number(nextMin) > Number(maxPrice)) {
-    setMaxPrice(nextMin);
+export const normalizePrice = (value) => {
+  if (value === "" || value === null || value === undefined) {
+    return "";
   }
-}
 
-export function updateMaxPrice(value, minPrice, setMinPrice, setMaxPrice) {
-  const nextMax = normalizePrice(value);
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? String(parsed) : "";
+};
 
-  setMaxPrice(nextMax);
+export const getActiveFilterCount = ({
+  category = "",
+  brand = "",
+  minPrice = "",
+  maxPrice = "",
+}) => {
+  let count = 0;
 
-  if (nextMax !== "" && minPrice !== "" && Number(nextMax) < Number(minPrice)) {
-    setMinPrice(nextMax);
+  if (category) count += 1;
+  if (brand) count += 1;
+  if (minPrice !== "" || maxPrice !== "") count += 1;
+
+  return count;
+};
+
+export const updateMinPrice = (raw, maxPrice, setMinPrice, setMaxPrice) => {
+  if (raw === "") {
+    setMinPrice("");
+    return;
   }
-}
 
-export function getActiveFilterCount({ category, brand, minPrice, maxPrice }) {
-  return [
-    Boolean(category),
-    Boolean(brand),
-    Boolean(minPrice || maxPrice),
-  ].filter(Boolean).length;
-}
+  const numericValue = Math.max(0, Number(raw) || 0);
+  setMinPrice(String(numericValue));
+
+  if (maxPrice !== "" && numericValue > Number(maxPrice)) {
+    setMaxPrice(String(numericValue));
+  }
+};
+
+export const updateMaxPrice = (raw, minPrice, setMinPrice, setMaxPrice) => {
+  if (raw === "") {
+    setMaxPrice("");
+    return;
+  }
+
+  const numericValue = Math.max(0, Number(raw) || 0);
+  setMaxPrice(String(numericValue));
+
+  if (minPrice !== "" && numericValue < Number(minPrice)) {
+    setMinPrice(String(numericValue));
+  }
+};

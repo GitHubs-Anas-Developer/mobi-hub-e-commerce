@@ -35,24 +35,24 @@ export default function CreateCouponPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-5xl">
         <div className="mb-6">
           <button
             type="button"
             onClick={() => router.push("/admin/coupons")}
-            className="mb-3 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-[#64748B] transition hover:text-[#0755E9]"
           >
             <ArrowLeft size={16} />
             Back to Coupons
           </button>
 
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="text-2xl font-bold tracking-tight text-[#101828]">
             Create Coupon
           </h1>
 
-          <p className="mt-1 text-sm text-slate-500">
-            Create a new discount coupon for ELEZIO customers.
+          <p className="mt-1 text-sm text-[#64748B]">
+            Create a new discount coupon for ELENZO customers.
           </p>
         </div>
 

@@ -1,21 +1,11 @@
-
 "use client";
 
-import { motion } from "framer-motion";
-import {
-  ShoppingBag,
-  Truck,
-  Tag,
-  Receipt,
-  CheckCircle2,
-} from "lucide-react";
+import { ShoppingBag, Truck, Tag, Receipt, CheckCircle2 } from "lucide-react";
 
 const formatPrice = (amount) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  `₹${Number(amount || 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
-  }).format(Number(amount) || 0);
+  })}`;
 
 export default function PriceBreakdown({
   subtotal = 0,
@@ -24,107 +14,68 @@ export default function PriceBreakdown({
   totalAmount = 0,
 }) {
   return (
-    <div className="space-y-4">
-      {/* Subtotal */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <ShoppingBag
-            size={16}
-            className="text-slate-400"
-          />
-          <span className="text-sm text-slate-600">
-            Subtotal
-          </span>
-        </div>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+        <span className="flex items-center gap-2 text-[#64748B]">
+          <ShoppingBag size={14} className="text-[#64748B]" aria-hidden="true" />
+          Subtotal
+        </span>
 
-        <span className="text-sm font-semibold text-[#101828]">
+        <span className="font-semibold text-[#101828] tabular-nums">
           {formatPrice(subtotal)}
         </span>
       </div>
 
-      {/* Shipping */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <Truck
-            size={16}
-            className="text-slate-400"
-          />
-          <span className="text-sm text-slate-600">
-            Shipping Fee
-          </span>
-        </div>
+      <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+        <span className="flex items-center gap-2 text-[#64748B]">
+          <Truck size={14} className="text-[#64748B]" aria-hidden="true" />
+          Shipping Fee
+        </span>
 
         {Number(shippingFee) === 0 ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
-            <CheckCircle2 size={12} />
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700">
+            <CheckCircle2 size={11} aria-hidden="true" />
             Free
           </span>
         ) : (
-          <span className="text-sm font-semibold text-[#101828]">
+          <span className="font-semibold text-[#101828] tabular-nums">
             {formatPrice(shippingFee)}
           </span>
         )}
       </div>
 
-      {/* Discount */}
       {Number(discount) > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-2.5">
-            <Tag
-              size={16}
-              className="text-green-600"
-            />
+        <div className="flex items-center justify-between gap-3 text-xs sm:text-sm">
+          <span className="flex items-center gap-2 text-emerald-700">
+            <Tag size={14} className="text-emerald-600" aria-hidden="true" />
+            Coupon Discount
+          </span>
 
-            <span className="text-sm text-green-700">
-              Discount
-            </span>
-          </div>
-
-          <span className="text-sm font-bold text-green-600">
+          <span className="font-bold text-emerald-600 tabular-nums">
             -{formatPrice(discount)}
           </span>
-        </motion.div>
+        </div>
       )}
 
-      {/* Total */}
-      <div className="border-t border-dashed border-slate-200 pt-4">
-        <div className="flex items-center justify-between gap-3">
+      <div className="border-t border-dashed border-[#E2E8F0] pt-3.5">
+        <div className="flex items-baseline justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-[#101828]">
-              Total Amount
-            </p>
-
-            <p className="mt-1 text-[11px] text-slate-400">
-              Inclusive of applicable charges
+            <p className="text-sm font-bold text-[#101828]">Payable Total</p>
+            <p className="mt-0.5 text-[11px] text-[#64748B]">
+              Final amount validated on order confirmation
             </p>
           </div>
 
-          <motion.p
-            key={totalAmount}
-            initial={{ opacity: 0.7, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-xl font-extrabold tracking-tight text-[#0755E9] sm:text-2xl"
-          >
+          <p className="text-xl font-extrabold tracking-tight text-[#0755E9] tabular-nums sm:text-2xl">
             {formatPrice(totalAmount)}
-          </motion.p>
+          </p>
         </div>
       </div>
 
-      {/* Savings Message */}
       {Number(discount) > 0 && (
-        <div className="flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2.5">
-          <Receipt
-            size={16}
-            className="shrink-0 text-green-600"
-          />
-
-          <p className="text-xs font-semibold text-green-700">
-            You're saving {formatPrice(discount)} on this order!
-          </p>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/75 px-3 py-2 text-xs font-semibold text-emerald-700 tabular-nums">
+          <Receipt size={14} className="shrink-0" aria-hidden="true" />
+          <span>You are saving {formatPrice(discount)} on this order.</span>
         </div>
       )}
     </div>

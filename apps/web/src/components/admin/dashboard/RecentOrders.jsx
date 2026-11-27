@@ -1,152 +1,147 @@
-
 "use client";
 
 import Link from "next/link";
-import { ShoppingCart, ArrowRight } from "lucide-react";
+import { Button, Card, Table, Tag } from "antd";
+import { ArrowRight } from "lucide-react";
 
 const formatCurrency = (amount = 0) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(Number(amount || 0));
 
 const formatDate = (date) =>
-  new Date(date).toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  date
+    ? new Date(date).toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
-const getStatusStyle = (status) => {
-  const styles = {
-    Pending: "bg-amber-50 text-amber-700",
-    Confirmed: "bg-blue-50 text-blue-700",
-    Processing: "bg-indigo-50 text-indigo-700",
-    Shipped: "bg-purple-50 text-purple-700",
-    Delivered: "bg-green-50 text-green-700",
-    Cancelled: "bg-red-50 text-red-700",
-  };
-
-  return styles[status] || "bg-slate-100 text-slate-600";
+const ORDER_STATUS_COLORS = {
+  Pending: "gold",
+  Confirmed: "blue",
+  Processing: "geekblue",
+  Shipped: "purple",
+  Delivered: "green",
+  Cancelled: "red",
 };
 
-export default function RecentOrders({
-  orders = [],
-  loading = false,
-}) {
-  return (
-    <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Recent Orders
-          </h2>
+const PAYMENT_STATUS_COLORS = {
+  Pending: "gold",
+  Paid: "green",
+  Failed: "red",
+  PartiallyRefunded: "orange",
+  Refunded: "default",
+};
 
-          <p className="mt-1 text-sm text-slate-500">
-            Latest customer orders.
-          </p>
-        </div>
-
+export default function RecentOrders({ orders = [], loading = false }) {
+  const columns = [
+    {
+      title: "Order #",
+      dataIndex: "orderNumber",
+      key: "orderNumber",
+      render: (val, record) => (
         <Link
-          href="/admin/orders"
-          className="inline-flex items-center gap-1 text-sm font-medium text-blue-600 transition hover:text-blue-800"
+          href={`/admin/orders/${record._id}`}
+          className="font-bold text-[#0755E9] hover:text-[#082B70] hover:underline"
         >
-          View All
-          <ArrowRight size={16} />
+          {val}
         </Link>
-      </div>
-
-      {/* Loading */}
-      {loading ? (
-        <div className="space-y-4 p-5">
-          {[1, 2, 3, 4].map((item) => (
-            <div
-              key={item}
-              className="h-12 animate-pulse rounded-lg bg-slate-100"
-            />
-          ))}
-        </div>
-      ) : orders.length === 0 ? (
-        /* Empty State */
-        <div className="flex flex-col items-center justify-center px-5 py-12 text-center">
-          <div className="mb-3 rounded-full bg-slate-100 p-4">
-            <ShoppingCart size={24} className="text-slate-400" />
-          </div>
-
-          <p className="text-sm font-semibold text-slate-700">
-            No recent orders
+      ),
+    },
+    {
+      title: "Customer",
+      key: "customer",
+      render: (_, record) => (
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-[#101828]">
+            {record.user?.name || "Customer"}
           </p>
-
-          <p className="mt-1 text-sm text-slate-500">
-            Customer orders will appear here.
+          <p className="truncate text-xs text-[#64748B]">
+            {record.user?.email || "—"}
           </p>
         </div>
-      ) : (
-        /* Orders Table */
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[750px] text-left text-sm">
-            <thead className="bg-slate-50 text-xs text-slate-500">
-              <tr>
-                <th className="px-5 py-3 font-semibold">Order</th>
-                <th className="px-5 py-3 font-semibold">Customer</th>
-                <th className="px-5 py-3 font-semibold">Amount</th>
-                <th className="px-5 py-3 font-semibold">Payment</th>
-                <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Date</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-100">
-              {orders.map((order) => (
-                <tr
-                  key={order._id}
-                  className="transition hover:bg-slate-50"
-                >
-                  <td className="px-5 py-4 font-medium text-blue-700">
-                    {order.orderNumber || order._id}
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <p className="font-medium text-slate-800">
-                      {order.user?.name || "Customer"}
-                    </p>
-
-                    <p className="text-xs text-slate-500">
-                      {order.user?.email || ""}
-                    </p>
-                  </td>
-
-                  <td className="px-5 py-4 font-medium text-slate-800">
-                    {formatCurrency(order.totalAmount)}
-                  </td>
-
-                  <td className="px-5 py-4 text-slate-600">
-                    {order.paymentStatus || "N/A"}
-                  </td>
-
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${getStatusStyle(
-                        order.orderStatus,
-                      )}`}
-                    >
-                      {order.orderStatus || "Pending"}
-                    </span>
-                  </td>
-
-                  <td className="px-5 py-4 text-slate-500">
-                    {order.createdAt
-                      ? formatDate(order.createdAt)
-                      : "N/A"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      ),
+    },
+    {
+      title: "Amount",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      render: (amt) => (
+        <span className="font-bold tabular-nums text-[#101828]">
+          {formatCurrency(amt)}
+        </span>
+      ),
+    },
+    {
+      title: "Payment",
+      key: "payment",
+      render: (_, record) => (
+        <div className="flex flex-col items-start gap-1">
+          <Tag color={PAYMENT_STATUS_COLORS[record.paymentStatus] || "default"}>
+            {record.paymentStatus || "Pending"}
+          </Tag>
+          <span className="text-[11px] text-[#64748B]">
+            {record.paymentMethod}
+          </span>
         </div>
-      )}
-    </section>
+      ),
+    },
+    {
+      title: "Status",
+      dataIndex: "orderStatus",
+      key: "orderStatus",
+      render: (status) => (
+        <Tag color={ORDER_STATUS_COLORS[status] || "default"}>
+          {status || "Pending"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date) => (
+        <span className="text-xs text-[#64748B]">{formatDate(date)}</span>
+      ),
+    },
+  ];
+
+  return (
+    <Card
+      className="!border-[#E2E8F0]"
+      title={
+        <div>
+          <h3 className="!m-0 text-base font-bold text-[#101828]">
+            Recent Orders
+          </h3>
+          <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+            Latest incoming customer orders across ELENZO
+          </p>
+        </div>
+      }
+      extra={
+        <Link href="/admin/orders">
+          <Button type="link" className="!px-0 !text-xs !font-bold">
+            View All Orders
+            <ArrowRight size={14} className="ml-1 inline" />
+          </Button>
+        </Link>
+      }
+      styles={{ body: { padding: 0 } }}
+    >
+      <Table
+        rowKey="_id"
+        columns={columns}
+        dataSource={orders}
+        loading={loading}
+        pagination={false}
+        scroll={{ x: 740 }}
+        locale={{ emptyText: "No recent orders recorded yet" }}
+      />
+    </Card>
   );
 }

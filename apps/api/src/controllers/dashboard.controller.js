@@ -6,6 +6,7 @@ import {
   getLowStockProducts,
   getOrderStats,
   getPaymentStats,
+  getRecentCustomerActivity,
 } from "../services/dashboard.service.js";
 
 export const dashboardOverview = async (req, res, next) => {
@@ -107,6 +108,21 @@ export const paymentStats = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Payment statistics fetched successfully",
+      data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const recentActivity = async (req, res, next) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit) || 8, 1), 25);
+    const data = await getRecentCustomerActivity(limit);
+
+    res.status(200).json({
+      success: true,
+      message: "Recent customer activity fetched successfully",
       data,
     });
   } catch (error) {

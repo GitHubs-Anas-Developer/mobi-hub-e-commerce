@@ -1,60 +1,56 @@
-
 "use client";
 
-import { Loader2, Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
+import SearchSkeleton from "@/components/loading/skeletons/SearchSkeleton";
 
 export default function SearchEmptyState({
-  loading,
-  error,
-  hasQuery,
+  loading = false,
+  error = null,
+  hasQuery = false,
+  query = "",
 }) {
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Loader2 className="mb-3 animate-spin text-blue-600" size={25} />
-
-        <p className="text-sm font-medium text-slate-600">
-          Searching products...
-        </p>
-      </div>
-    );
+    return <SearchSkeleton count={4} />;
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <AlertCircle size={27} className="mb-3 text-red-400" />
-
-        <p className="text-sm font-medium text-slate-700">
-          Unable to search right now
+      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600">
+          <AlertCircle size={20} aria-hidden="true" />
+        </div>
+        <p className="mt-3 text-sm font-bold text-[#101828]">
+          Unable to load suggestions
         </p>
-
-        <p className="mt-1 text-xs text-slate-400">
-          {error}
-        </p>
+        <p className="mt-1 text-xs text-[#64748B]">{error}</p>
       </div>
     );
   }
 
   if (hasQuery) {
     return (
-      <div className="flex flex-col items-center justify-center py-10">
-        <Search size={28} className="mb-3 text-slate-300" />
-
-        <p className="text-sm font-semibold text-slate-700">
-          No results found
+      <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B]">
+          <Search size={20} aria-hidden="true" />
+        </div>
+        <p className="mt-3 text-sm font-bold text-[#101828]">
+          No quick suggestions for &ldquo;{query.trim()}&rdquo;
         </p>
-
-        <p className="mt-1 text-xs text-slate-400">
-          Try another product or brand
+        <p className="mt-1 text-xs text-[#64748B]">
+          Press Enter or click Search to view full catalog matches.
         </p>
       </div>
     );
   }
 
   return (
-    <p className="py-6 text-center text-sm text-slate-400">
-      Start typing to search products
-    </p>
+    <div className="px-4 py-6 text-center">
+      <p className="text-sm font-semibold text-[#101828]">
+        Search ELENZO Catalog
+      </p>
+      <p className="mt-1 text-xs text-[#64748B]">
+        Type at least 2 characters for product, brand, and category suggestions.
+      </p>
+    </div>
   );
 }

@@ -11,7 +11,9 @@ import searchReducer from "./slices/searchSlice";
 import bannerReducer from "./slices/bannerSlice";
 import productVideoReducer from "./slices/productVideoSlice";
 import newsletterReducer from "./slices/newsletterSlice";
-import trackingReducer from "./slices/trackingSlice"
+import trackingReducer from "./slices/trackingSlice";
+import ordersReducer from "./slices/orderSlice";
+import adminReducer from "./slices/adminSlice";
 
 export const store = configureStore({
   reducer: {
@@ -27,5 +29,7 @@ export const store = configureStore({
     productVideos: productVideoReducer,
     newsletter: newsletterReducer,
     tracking: trackingReducer,
+    orders: ordersReducer,
+    admin: adminReducer,
   },
 });

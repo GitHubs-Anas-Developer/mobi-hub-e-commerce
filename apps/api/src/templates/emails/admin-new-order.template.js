@@ -18,6 +18,8 @@ const formatINR = (amount = 0) =>
   }).format(amount);
 
 const adminNewOrderTemplate = (order, customer) => {
+  const brandSiteUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const brandLogoUrl = `${brandSiteUrl}/brand/elenzo-logo.png`;
   const items = order.items
     .map(
       (item) => `
@@ -35,7 +37,10 @@ const adminNewOrderTemplate = (order, customer) => {
 
   return `
     <div style="font-family:Arial,sans-serif;color:#101828;max-width:650px;margin:auto">
-      <h2 style="color:#0755e9">New Order Received - ELEZIO</h2>
+      <div style="margin-bottom:12px;">
+        <img src="${brandLogoUrl}" alt="ELENZO" width="150" style="display:block;max-width:150px;width:100%;height:auto;border:0;" />
+      </div>
+      <h2 style="color:#0755e9">New Order Received - ELENZO</h2>
 
       <p>A new order has been successfully placed.</p>
 
@@ -74,7 +79,7 @@ const adminNewOrderTemplate = (order, customer) => {
       </p>
 
       <hr/>
-      <p style="color:#64748b">ELEZIO Admin Notification</p>
+      <p style="color:#64748b">ELENZO Admin Notification</p>
     </div>
   `;
 };

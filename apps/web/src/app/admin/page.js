@@ -1,101 +1,96 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Alert, Button } from "antd";
+import { Plus, RefreshCw } from "lucide-react";
 
 import useAdminDashboard from "@/hooks/useAdminDashboard";
-
+import AdminPageHeader from "@/components/admin/layout/AdminPageHeader";
 import OverviewCards from "@/components/admin/dashboard/OverviewCards";
 import SalesAnalytics from "@/components/admin/dashboard/SalesAnalytics";
 import RecentOrders from "@/components/admin/dashboard/RecentOrders";
 import TopProducts from "@/components/admin/dashboard/TopProducts";
 import LowStockProducts from "@/components/admin/dashboard/LowStockProducts";
+import RecentCustomerActivity from "@/components/admin/dashboard/RecentCustomerActivity";
 
 export default function AdminDashboardPage() {
   const [period, setPeriod] = useState("7d");
-
   const { data, loading, error, refreshDashboard } = useAdminDashboard(period);
 
   return (
-    <div className="space-y-8">
-      {/* Dashboard Header */}
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">
-            Dashboard Overview
-          </h1>
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Dashboard Overview"
+        subtitle="Monitor ELENZO store revenue, fulfillment status, refunds, and customer activity."
+        badge="Live Metrics"
+        extra={
+          <>
+            <Link href="/admin/products/create">
+              <Button icon={<Plus size={15} />} type="primary">
+                Add Product
+              </Button>
+            </Link>
+            <Button
+              icon={
+                <RefreshCw
+                  size={15}
+                  className={loading ? "animate-spin" : ""}
+                />
+              }
+              onClick={refreshDashboard}
+              disabled={loading}
+            >
+              Refresh
+            </Button>
+          </>
+        }
+      />
 
-          <p className="mt-1 text-sm text-slate-500">
-            Welcome back! Here&apos;s what&apos;s happening with your store.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={refreshDashboard}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-          Refresh
-        </button>
-      </div>
-
-      {/* Error Message */}
       {error && (
-        <div
-          role="alert"
-          className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-start gap-3">
-            <AlertCircle size={20} className="mt-0.5 shrink-0 text-red-600" />
-
-            <div>
-              <p className="text-sm font-semibold text-red-700">
-                Unable to load dashboard
-              </p>
-
-              <p className="mt-1 text-sm text-red-600">{error}</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={refreshDashboard}
-            disabled={loading}
-            className="text-left text-sm font-semibold text-red-700 hover:underline sm:text-right"
-          >
-            Try Again
-          </button>
-        </div>
+        <Alert
+          type="error"
+          showIcon
+          title="Unable to load dashboard metrics"
+          description={error}
+          action={
+            <Button size="small" danger onClick={refreshDashboard}>
+              Retry
+            </Button>
+          }
+        />
       )}
 
-      {/* Overview Cards */}
-      <section>
-        <OverviewCards overview={data.overview} loading={loading} />
-      </section>
+      {/* KPI Metrics */}
+      <OverviewCards
+        overview={data.overview}
+        orderStats={data.orderStats}
+        loading={loading}
+      />
 
-      {/* Sales Analytics */}
-      <section>
-        <SalesAnalytics
-          sales={data.sales}
-          loading={loading}
-          period={period}
-          setPeriod={setPeriod}
-        />
-      </section>
+      {/* Revenue Overview & Monthly Sales Charts */}
+      <SalesAnalytics
+        sales={data.sales}
+        monthlySales={data.monthlySales}
+        loading={loading}
+        period={period}
+        setPeriod={setPeriod}
+      />
 
       {/* Recent Orders */}
-      <section>
-        <RecentOrders orders={data.recentOrders} loading={loading} />
-      </section>
+      <RecentOrders orders={data.recentOrders} loading={loading} />
 
-      {/* Product Analytics */}
-      <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      {/* Product Performance, Low Stock Alerts & Customer Activity */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
         <TopProducts products={data.topProducts} loading={loading} />
-
         <LowStockProducts products={data.lowStockProducts} loading={loading} />
-      </section>
+        <div className="lg:col-span-2 xl:col-span-1">
+          <RecentCustomerActivity
+            customers={data.recentCustomers}
+            loading={loading}
+          />
+        </div>
+      </div>
     </div>
   );
 }

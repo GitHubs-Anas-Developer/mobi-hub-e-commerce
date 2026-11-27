@@ -5,15 +5,25 @@ import {
   getAllNewsletterSubscribers,
   getNewsletterStatistics,
 } from "../controllers/newsletter.controller.js";
+import { authenticate, authorize } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
 
 // Public: Subscribe to newsletter
 router.post("/subscribe", subscribeNewsletter);
 
-// Admin endpoints: Add your existing admin authentication middleware
-// before enabling these routes in production.
-router.get("/subscribers", getAllNewsletterSubscribers);
-router.get("/stats", getNewsletterStatistics);
+// Admin endpoints protected by authentication and admin role check
+router.get(
+  "/subscribers",
+  authenticate,
+  authorize("admin"),
+  getAllNewsletterSubscribers,
+);
+router.get(
+  "/stats",
+  authenticate,
+  authorize("admin"),
+  getNewsletterStatistics,
+);
 
 export default router;

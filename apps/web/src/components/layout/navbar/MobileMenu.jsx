@@ -16,7 +16,7 @@ import {
   X,
   ChevronRight,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import Logo from "./Logo";
 import { BRAND_NAME } from "@/config/brand";
 
 export default function MobileMenu({
@@ -125,25 +125,7 @@ export default function MobileMenu({
     >
       {/* Header */}
       <div className="flex h-[68px] shrink-0 items-center justify-between border-b border-slate-100 bg-white px-4 sm:h-[76px] sm:px-6">
-        <Link
-          href="/"
-          onClick={closeMenu}
-          className="flex items-center gap-3"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0755e9] text-white">
-            <BrandMark className="h-5 w-5" />
-          </span>
-
-          <span>
-            <span className="block text-lg font-extrabold tracking-tight text-slate-900">
-              ELE<span className="text-[#0755e9]">ZIO</span>
-            </span>
-
-            <span className="block text-[10px] font-medium tracking-wide text-slate-400">
-              TECH &amp; ELECTRONICS STORE
-            </span>
-          </span>
-        </Link>
+        <Logo onClick={closeMenu} />
 
         <button
           type="button"

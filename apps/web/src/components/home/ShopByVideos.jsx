@@ -61,7 +61,7 @@ const getVideoDescription = (item) => {
     item?.description ||
     product?.shortDescription ||
     product?.description ||
-    "Discover the latest technology at ELEZIO."
+    "Discover the latest technology at ELENZO."
   );
 };
 
@@ -75,7 +75,7 @@ const getVideoCategory = (item) => {
       ? product.category
       : null);
 
-  return category || "ELEZIO Exclusives";
+  return category || "ELENZO Exclusives";
 };
 
 const getVideoPrice = (item) => {
@@ -212,9 +212,8 @@ function VideoCard({ item, onPlay, autoPreviewEnabled }) {
         {/* VIDEO STATUS */}
         <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/35 px-2.5 py-1.5 text-[10px] font-semibold text-white backdrop-blur-md">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              isPlaying ? "animate-pulse bg-green-400" : "bg-white"
-            }`}
+            className={`h-1.5 w-1.5 rounded-full ${isPlaying ? "animate-pulse bg-green-400" : "bg-white"
+              }`}
           />
           {isPlaying ? "Live Preview" : "Video"}
         </div>
@@ -307,21 +306,16 @@ function VideoSkeleton() {
 function SectionHeader() {
   return (
     <div className="min-w-0">
-      <div className="mb-3 inline-flex items-center gap-2">
-        <span className="h-6 w-1 rounded-full bg-[#0755E9]" />
+      <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#0755E9]">
+        ELENZO Product Stories
+      </span>
 
-        <span className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-[#0755E9]">
-          ELEZIO Product Stories
-        </span>
-      </div>
-
-      <h2 className="text-2xl font-black tracking-tight text-[#101828] sm:text-3xl lg:text-4xl">
-        See It
-        <span className="text-[#0755E9]"> in Action.</span>
+      <h2 className="mt-1 text-xl font-bold tracking-tight text-[#101828] sm:text-2xl">
+        See Gadgets in Action
       </h2>
 
-      <p className="mt-2 max-w-lg text-xs leading-5 text-slate-500 sm:text-sm">
-        Explore our latest gadgets and electronics through real product videos and discover the details that matter.
+      <p className="mt-1 text-xs text-[#64748B] sm:text-sm">
+        Explore our latest electronics and accessories through real product reels.
       </p>
     </div>
   );
@@ -467,7 +461,7 @@ function VideoModal({ item, onClose }) {
               Price
             </p>
 
-           {price || "Explore product"}
+            {price || "Explore product"}
           </div>
 
           <Link
@@ -641,7 +635,7 @@ export default function ShopByVideos() {
         <div className="mx-auto w-full ">
 
           {/* HEADER */}
-          <div className="mb-7 flex items-end justify-between gap-4 sm:mb-9">
+          <div className="mb-5 flex items-end justify-between gap-4 sm:mb-6">
             <SectionHeader />
 
             {/* NAVIGATION */}
@@ -697,7 +691,7 @@ export default function ShopByVideos() {
               }}
               a11y={{
                 enabled: true,
-                containerMessage: "ELEZIO video collection",
+                containerMessage: "ELENZO video collection",
               }}
               className="!overflow-visible !pb-4"
             >
@@ -739,7 +733,7 @@ export default function ShopByVideos() {
               </p>
 
               <p className="mt-1 text-[10px] text-slate-400 sm:text-xs">
-                Discover the complete collection at ELEZIO.
+                Discover the complete collection at ELENZO.
               </p>
             </div>
 

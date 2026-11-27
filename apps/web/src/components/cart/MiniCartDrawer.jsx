@@ -464,7 +464,7 @@ export default function MiniCartDrawer({ isOpen, onClose }) {
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
                                 <p className="text-[10px] font-bold uppercase tracking-wide text-[#0755e9]">
-                                  {product.brand || "ELEZIO"}
+                                  {product.brand || "ELENZO"}
                                 </p>
 
                                 <Link
@@ -621,7 +621,7 @@ export default function MiniCartDrawer({ isOpen, onClose }) {
 
                   <div className="mt-4 flex items-center justify-center gap-2 text-[11px] text-slate-400">
                     <ShieldCheck size={14} />
-                    Secure shopping at ELEZIO
+                    Secure shopping at ELENZO
                   </div>
                 </div>
               </>

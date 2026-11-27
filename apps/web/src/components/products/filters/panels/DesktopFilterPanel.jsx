@@ -1,7 +1,5 @@
-
 "use client";
 
-import { motion, useReducedMotion } from "motion/react";
 import {
   SlidersHorizontal,
   RotateCcw,
@@ -10,14 +8,12 @@ import {
   Tag,
   IndianRupee,
 } from "lucide-react";
+
 import FilterAccordion from "../FilterAccordion";
 import CategoryOptions from "../CategoryOptions";
 import BrandOptions from "../BrandOptions";
 import PriceOptions from "../PriceOptions";
 import { getActiveFilterCount } from "../utils/filterHelpers";
-
-
-
 
 export default function DesktopFilterPanel({
   categories,
@@ -32,9 +28,8 @@ export default function DesktopFilterPanel({
   setMaxPrice,
   onApply,
   onClear,
+  hasPendingChanges = false,
 }) {
-  const shouldReduceMotion = useReducedMotion();
-
   const activeCount = getActiveFilterCount({
     category,
     brand,
@@ -43,38 +38,49 @@ export default function DesktopFilterPanel({
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-white">
+    <div className="flex min-h-0 flex-1 flex-col bg-white">
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-4 py-4">
+      <div className="flex items-center justify-between border-b border-[#E2E8F0] px-4 py-3.5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm shadow-blue-600/20">
-            <SlidersHorizontal size={17} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+            <SlidersHorizontal size={16} aria-hidden="true" />
           </div>
 
           <div>
-            <h2 className="text-sm font-extrabold text-slate-900">
+            <h2 className="text-sm font-bold tracking-tight text-[#101828]">
               Filters
             </h2>
-            <p className="text-[10px] text-slate-400">
-              Refine your products
+            <p className="text-[11px] text-[#64748B]">
+              Refine product catalog
             </p>
           </div>
         </div>
 
-        {activeCount > 0 && (
-          <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">
-            {activeCount} selected
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {activeCount > 0 && (
+            <span className="rounded-full bg-[#EFF6FF] px-2 py-0.5 text-[11px] font-bold text-[#0755E9] tabular-nums">
+              {activeCount}
+            </span>
+          )}
+
+          {activeCount > 0 && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-xs font-semibold text-[#64748B] transition hover:text-red-600"
+            >
+              Reset
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Filter Content */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4">
+      {/* Scrollable Filter Sections */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
         <FilterAccordion
-          title="Categories"
-          subtitle="Browse by category"
+          title="Category"
           icon={Layers3}
-          count={category ? 1 : 0}
+          active={Boolean(category)}
         >
           <CategoryOptions
             categories={categories}
@@ -84,10 +90,9 @@ export default function DesktopFilterPanel({
         </FilterAccordion>
 
         <FilterAccordion
-          title="Brands"
-          subtitle="Select a brand"
+          title="Brand"
           icon={Tag}
-          count={brand ? 1 : 0}
+          active={Boolean(brand)}
         >
           <BrandOptions
             brands={brands}
@@ -98,9 +103,8 @@ export default function DesktopFilterPanel({
 
         <FilterAccordion
           title="Price Range"
-          subtitle="Set your shopping budget"
           icon={IndianRupee}
-          count={minPrice || maxPrice ? 1 : 0}
+          active={minPrice !== "" || maxPrice !== ""}
         >
           <PriceOptions
             minPrice={minPrice}
@@ -111,32 +115,31 @@ export default function DesktopFilterPanel({
         </FilterAccordion>
       </div>
 
-      {/* Footer */}
-      <div className="shrink-0 border-t border-slate-100 bg-white p-3.5">
-        <div className="flex gap-2">
+      {/* Footer Actions */}
+      <div className="border-t border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onClear}
-            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
+            disabled={activeCount === 0}
+            className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#64748B] transition hover:border-slate-300 hover:text-[#101828] disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RotateCcw size={13} />
             Reset
           </button>
 
-          <motion.button
+          <button
             type="button"
             onClick={onApply}
-            whileHover={
-              shouldReduceMotion ? undefined : { scale: 1.02 }
-            }
-            whileTap={
-              shouldReduceMotion ? undefined : { scale: 0.97 }
-            }
-            className="flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-lg bg-blue-600 text-xs font-bold text-white shadow-sm shadow-blue-600/20 transition hover:bg-blue-700"
+            className={`flex h-10 flex-[1.5] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-bold text-white transition active:scale-[0.98] ${
+              hasPendingChanges
+                ? "bg-[#0755E9] shadow-sm shadow-[#0755E9]/25 hover:bg-[#082B70]"
+                : "bg-[#0755E9] hover:bg-[#082B70]"
+            }`}
           >
-            Apply Filters
+            Apply
             <ArrowRight size={14} />
-          </motion.button>
+          </button>
         </div>
       </div>
     </div>

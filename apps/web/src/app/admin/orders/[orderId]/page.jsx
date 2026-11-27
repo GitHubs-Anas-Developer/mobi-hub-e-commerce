@@ -1,26 +1,46 @@
-
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import {
-  ArrowLeft,
-  Loader2,
-  Package,
-  User,
-  MapPin,
-  CreditCard,
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  DatePicker,
+  Descriptions,
+  Input,
+  InputNumber,
+  Select,
+  Space,
+  Spin,
+  Tag,
+  Timeline,
+} from "antd";
+import {
+  AlertCircle,
   CalendarDays,
-  RefreshCw,
-  Truck,
   CheckCircle2,
   Clock,
-  AlertCircle,
+  CreditCard,
+  MapPin,
+  Package,
+  RefreshCw,
+  RotateCcw,
   Save,
+  ShieldAlert,
+  Truck,
+  User,
+  XCircle,
 } from "lucide-react";
 
 import adminOrderService from "@/services/adminOrderService";
+import AdminPageHeader from "@/components/admin/layout/AdminPageHeader";
+import CancelOrderModal from "@/components/orders/CancelOrderModal";
+import {
+  canCancelOrder,
+  getRefundStatusMeta,
+} from "@/components/orders/orderTimelineUtils";
 
 const ORDER_STATUS_FLOW = {
   Pending: ["Confirmed"],
@@ -31,34 +51,32 @@ const ORDER_STATUS_FLOW = {
   Cancelled: [],
 };
 
-const orderStatusStyles = {
-  Pending: "bg-amber-50 text-amber-700 border-amber-200",
-  Confirmed: "bg-blue-50 text-blue-700 border-blue-200",
-  Processing: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  Shipped: "bg-purple-50 text-purple-700 border-purple-200",
-  Delivered: "bg-green-50 text-green-700 border-green-200",
-  Cancelled: "bg-red-50 text-red-700 border-red-200",
+const ORDER_STATUS_COLORS = {
+  Pending: "gold",
+  Confirmed: "blue",
+  Processing: "geekblue",
+  Shipped: "purple",
+  Delivered: "green",
+  Cancelled: "red",
 };
 
-const paymentStatusStyles = {
-  Pending: "bg-amber-50 text-amber-700",
-  Paid: "bg-green-50 text-green-700",
-  Failed: "bg-red-50 text-red-700",
-  PartiallyRefunded: "bg-orange-50 text-orange-700",
-  Refunded: "bg-slate-100 text-slate-700",
+const PAYMENT_STATUS_COLORS = {
+  Pending: "gold",
+  Paid: "green",
+  Failed: "red",
+  PartiallyRefunded: "orange",
+  Refunded: "default",
 };
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat("en-IN", {
+const formatCurrency = (amount) =>
+  new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 2,
   }).format(Number(amount || 0));
-};
 
 const formatDate = (date) => {
   if (!date) return "N/A";
-
   return new Date(date).toLocaleString("en-IN", {
     dateStyle: "medium",
     timeStyle: "short",
@@ -67,35 +85,10 @@ const formatDate = (date) => {
 
 const formatLabel = (value) => {
   if (!value) return "N/A";
-
   return String(value)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/_/g, " ");
 };
-
-function DetailRow({ label, value }) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-0">
-      <span className="text-sm text-slate-500">{label}</span>
-      <span className="text-right text-sm font-medium text-slate-900">
-        {value ?? "N/A"}
-      </span>
-    </div>
-  );
-}
-
-function SectionCard({ title, icon: Icon, children }) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center gap-2 border-b border-slate-100 pb-4">
-        <Icon size={19} className="text-blue-600" />
-        <h2 className="font-semibold text-slate-900">{title}</h2>
-      </div>
-
-      {children}
-    </section>
-  );
-}
 
 export default function AdminOrderDetailsPage() {
   const params = useParams();
@@ -108,6 +101,15 @@ export default function AdminOrderDetailsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [shipmentSaving, setShipmentSaving] = useState(false);
+  const [showAdminCancelModal, setShowAdminCancelModal] = useState(false);
+  const [adminCancelling, setAdminCancelling] = useState(false);
+  const [adminCancelError, setAdminCancelError] = useState("");
+  const [refundProcessing, setRefundProcessing] = useState(false);
+  const [refundSyncing, setRefundSyncing] = useState(false);
+  const [refundAmountInput, setRefundAmountInput] = useState("");
+  const [refundReasonInput, setRefundReasonInput] = useState("");
+  const [manualRefundConfirmed, setManualRefundConfirmed] = useState(false);
+
   const [shipmentForm, setShipmentForm] = useState({
     provider: "OTHER",
     shipmentId: "",
@@ -121,43 +123,55 @@ export default function AdminOrderDetailsPage() {
     location: "",
   });
 
+  const applyLoadedOrder = useCallback((data) => {
+    setOrder(data);
+    setSelectedStatus(ORDER_STATUS_FLOW[data.orderStatus]?.[0] || "");
+
+    const defaultRefundAmt =
+      data.paymentMethod === "Online"
+        ? data.paymentDetails?.remainingRefundableAmount
+        : data.totalAmount;
+    setRefundAmountInput(
+      Number(defaultRefundAmt) > 0 ? String(defaultRefundAmt) : "",
+    );
+    setRefundReasonInput(data.cancellationReason || "");
+    setManualRefundConfirmed(false);
+
+    const shipment = data.shipment || {};
+    const estimatedDate = shipment.estimatedDeliveryDate
+      ? new Date(shipment.estimatedDeliveryDate)
+      : null;
+
+    setShipmentForm({
+      provider: shipment.provider || "OTHER",
+      shipmentId: shipment.shipmentId || "",
+      awbCode: shipment.awbCode || "",
+      courierName: shipment.courierName || "",
+      courierCompanyId: shipment.courierCompanyId ?? "",
+      trackingUrl: shipment.trackingUrl || "",
+      estimatedDeliveryDate:
+        estimatedDate && !Number.isNaN(estimatedDate.getTime())
+          ? estimatedDate.toISOString().slice(0, 10)
+          : "",
+      status: "",
+      description: "",
+      location: shipment.lastLocation || "",
+    });
+  }, []);
+
+  const loadOrderData = useCallback(async () => {
+    const response = await adminOrderService.getOrderById(orderId);
+    const data = response.data?.order;
+    if (!data) throw new Error("Order details not found.");
+    return data;
+  }, [orderId]);
+
   const fetchOrder = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-
-      const response = await adminOrderService.getOrderById(orderId);
-      const data = response.data?.order;
-
-      if (!data) {
-        throw new Error("Order details not found.");
-      }
-
-      setOrder(data);
-      setSelectedStatus(
-        ORDER_STATUS_FLOW[data.orderStatus]?.[0] || "",
-      );
-
-      const shipment = data.shipment || {};
-      const estimatedDate = shipment.estimatedDeliveryDate
-        ? new Date(shipment.estimatedDeliveryDate)
-        : null;
-
-      setShipmentForm({
-        provider: shipment.provider || "OTHER",
-        shipmentId: shipment.shipmentId || "",
-        awbCode: shipment.awbCode || "",
-        courierName: shipment.courierName || "",
-        courierCompanyId: shipment.courierCompanyId ?? "",
-        trackingUrl: shipment.trackingUrl || "",
-        estimatedDeliveryDate:
-          estimatedDate && !Number.isNaN(estimatedDate.getTime())
-            ? estimatedDate.toISOString().slice(0, 10)
-            : "",
-        status: "",
-        description: "",
-        location: shipment.lastLocation || "",
-      });
+      const data = await loadOrderData();
+      applyLoadedOrder(data);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -167,13 +181,34 @@ export default function AdminOrderDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [loadOrderData, applyLoadedOrder]);
 
   useEffect(() => {
-    if (orderId) {
-      fetchOrder();
-    }
-  }, [orderId, fetchOrder]);
+    if (!orderId) return undefined;
+    let active = true;
+
+    loadOrderData()
+      .then((data) => {
+        if (!active) return;
+        applyLoadedOrder(data);
+        setError("");
+      })
+      .catch((err) => {
+        if (!active) return;
+        setError(
+          err.response?.data?.message ||
+            err.message ||
+            "Unable to load order details.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [orderId, loadOrderData, applyLoadedOrder]);
 
   const handleStatusUpdate = async () => {
     if (!selectedStatus || !order) return;
@@ -182,37 +217,102 @@ export default function AdminOrderDetailsPage() {
       setSaving(true);
       setError("");
       setSuccess("");
-
-      await adminOrderService.updateOrderStatus(
-        order._id,
-        selectedStatus,
-      );
-
+      await adminOrderService.updateOrderStatus(order._id, selectedStatus);
       setSuccess("Order status updated successfully.");
-
       await fetchOrder();
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to update order status.",
-      );
+      setError(err.response?.data?.message || "Unable to update order status.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleShipmentChange = (event) => {
-    const { name, value } = event.target;
+  const handleAdminCancelOrder = async ({
+    orderId: targetId,
+    reason,
+    comment,
+  }) => {
+    try {
+      setAdminCancelling(true);
+      setAdminCancelError("");
+      setError("");
+      setSuccess("");
 
-    setShipmentForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+      await adminOrderService.cancelOrder(targetId, { reason, comment });
+      setShowAdminCancelModal(false);
+      setSuccess("Order cancelled and refund status updated.");
+      await fetchOrder();
+    } catch (err) {
+      setAdminCancelError(
+        err.response?.data?.message || err.message || "Unable to cancel order.",
+      );
+    } finally {
+      setAdminCancelling(false);
+    }
+  };
+
+  const handleProcessRefund = async (event) => {
+    event.preventDefault();
+    if (!order?._id || refundProcessing || refundSyncing) return;
+
+    const isCOD = order.paymentMethod === "COD";
+
+    try {
+      setRefundProcessing(true);
+      setError("");
+      setSuccess("");
+
+      const response = await adminOrderService.processOrderRefund({
+        orderId: order._id,
+        paymentId: order.paymentDetails?._id || undefined,
+        reason:
+          refundReasonInput.trim() ||
+          order.cancellationReason ||
+          "Admin processed cancellation refund",
+        amount: refundAmountInput ? Number(refundAmountInput) : undefined,
+        provider: isCOD ? "Manual" : "Razorpay",
+        manualRefundConfirmed: isCOD ? manualRefundConfirmed : undefined,
+      });
+
+      setSuccess(response?.message || "Refund processed successfully.");
+      await fetchOrder();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to process refund.",
+      );
+      await fetchOrder();
+    } finally {
+      setRefundProcessing(false);
+    }
+  };
+
+  const handleSyncRefund = async () => {
+    if (!order?._id || refundSyncing || refundProcessing) return;
+
+    try {
+      setRefundSyncing(true);
+      setError("");
+      setSuccess("");
+
+      const response = await adminOrderService.syncOrderRefund(order._id);
+      setSuccess(response?.message || "Refund synchronized with Razorpay.");
+      await fetchOrder();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Unable to sync refund status with Razorpay.",
+      );
+      await fetchOrder();
+    } finally {
+      setRefundSyncing(false);
+    }
   };
 
   const handleShipmentUpdate = async (event) => {
     event.preventDefault();
-
     if (!order) return;
 
     if (shipmentForm.status && !shipmentForm.description.trim()) {
@@ -221,20 +321,15 @@ export default function AdminOrderDetailsPage() {
       return;
     }
 
-    const trackingData = {
-      provider: shipmentForm.provider,
-    };
-
-    const optionalFields = [
+    const trackingData = { provider: shipmentForm.provider };
+    [
       "shipmentId",
       "awbCode",
       "courierName",
       "trackingUrl",
       "courierCompanyId",
       "location",
-    ];
-
-    optionalFields.forEach((field) => {
+    ].forEach((field) => {
       const value = shipmentForm[field];
       if (value !== "" && value !== null && value !== undefined) {
         trackingData[field] = value;
@@ -245,13 +340,11 @@ export default function AdminOrderDetailsPage() {
       const deliveryDate = new Date(
         `${shipmentForm.estimatedDeliveryDate}T00:00:00`,
       );
-
       if (Number.isNaN(deliveryDate.getTime())) {
         setError("Please enter a valid estimated delivery date.");
         setSuccess("");
         return;
       }
-
       trackingData.estimatedDeliveryDate = deliveryDate.toISOString();
     }
 
@@ -264,12 +357,7 @@ export default function AdminOrderDetailsPage() {
       setShipmentSaving(true);
       setError("");
       setSuccess("");
-
-      await adminOrderService.updateShipmentTracking(
-        order._id,
-        trackingData,
-      );
-
+      await adminOrderService.updateShipmentTracking(order._id, trackingData);
       setSuccess("Shipment tracking updated successfully.");
       await fetchOrder();
     } catch (err) {
@@ -283,694 +371,888 @@ export default function AdminOrderDetailsPage() {
     }
   };
 
-  const address = order?.shippingAddress || {};
-  const customer = order?.user || {};
-  const items = order?.items || [];
-  const shipment = order?.shipment || {};
-  const trackingHistory = shipment.trackingHistory || [];
-
-  const availableStatuses =
-    ORDER_STATUS_FLOW[order?.orderStatus] || [];
-
   if (loading) {
     return (
-      <div className="flex min-h-96 items-center justify-center gap-3 text-slate-500">
-        <Loader2 size={24} className="animate-spin" />
-        Loading order details...
+      <div className="flex min-h-96 flex-col items-center justify-center gap-3">
+        <Spin size="large" />
+        <p className="text-sm text-[#64748B]">Loading order details...</p>
       </div>
     );
   }
 
   if (!order) {
     return (
-      <div className="mx-auto max-w-5xl p-4 sm:p-6">
-        <Link
-          href="/admin/orders"
-          className="mb-5 inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-600"
-        >
-          <ArrowLeft size={16} />
-          Back to Orders
-        </Link>
-
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-          {error || "Order not found."}
-        </div>
+      <div className="space-y-4">
+        <AdminPageHeader
+          title="Order Not Found"
+          backHref="/admin/orders"
+          backLabel="Back to Orders"
+        />
+        <Alert
+          type="error"
+          showIcon
+          title={error || "Order not found."}
+          action={
+            <Button size="small" onClick={fetchOrder}>
+              Retry
+            </Button>
+          }
+        />
       </div>
     );
   }
 
+  const address = order.shippingAddress || {};
+  const customer = order.user || {};
+  const items = order.items || [];
+  const shipment = order.shipment || {};
+  const trackingHistory = shipment.trackingHistory || [];
+  const availableStatuses = ORDER_STATUS_FLOW[order.orderStatus] || [];
+  const refundStatus =
+    order.refundSummary?.status || order.refundStatus || "NOT_REQUIRED";
+  const refundMeta = getRefundStatusMeta(
+    refundStatus,
+    order.paymentStatus,
+    order.paymentMethod,
+  );
+  const isCOD = order.paymentMethod === "COD";
+  const remainingRefundable = Number(
+    order.paymentDetails?.remainingRefundableAmount ?? 0,
+  );
+  const hasActiveAttempt =
+    Array.isArray(order.refundHistory) &&
+    order.refundHistory.some((r) => ["Pending", "Processing"].includes(r.status));
+  const canTriggerRazorpayRefund =
+    order.orderStatus === "Cancelled" &&
+    !isCOD &&
+    order.paymentDetails &&
+    remainingRefundable > 0 &&
+    !hasActiveAttempt &&
+    !order.paymentDetails.refundReconciliationRequired;
+  const canTriggerManualCODRefund =
+    order.orderStatus === "Cancelled" &&
+    isCOD &&
+    order.paymentStatus === "Paid";
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-7xl">
-        {/* Header */}
-        <div className="mb-6">
-          <Link
-            href="/admin/orders"
-            className="mb-4 inline-flex items-center gap-2 text-sm text-slate-500 transition hover:text-blue-600"
-          >
-            <ArrowLeft size={16} />
-            Back to Orders
-          </Link>
-
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Order Details
-              </h1>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Order #{order.orderNumber || order._id}
-              </p>
-            </div>
-
-            <button
-              type="button"
+    <div className="space-y-6">
+      <AdminPageHeader
+        title={`Order ${order.orderNumber}`}
+        subtitle={`Placed on ${formatDate(order.createdAt)}`}
+        backHref="/admin/orders"
+        backLabel="Back to Orders"
+        badge={order.orderStatus}
+        extra={
+          <Space wrap>
+            <Tag color={ORDER_STATUS_COLORS[order.orderStatus]}>
+              Order: {order.orderStatus}
+            </Tag>
+            <Tag color={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
+              Payment: {formatLabel(order.paymentStatus)}
+            </Tag>
+            <Button
+              icon={
+                <RefreshCw
+                  size={14}
+                  className={loading ? "animate-spin" : ""}
+                />
+              }
               onClick={fetchOrder}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
             >
-              <RefreshCw size={16} />
               Refresh
-            </button>
-          </div>
-        </div>
+            </Button>
+          </Space>
+        }
+      />
 
-        {/* Feedback */}
-        {error && (
-          <div className="mb-5 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            <AlertCircle size={18} className="mt-0.5 shrink-0" />
-            {error}
-          </div>
-        )}
+      {error && (
+        <Alert
+          type="error"
+          showIcon
+          closable
+          onClose={() => setError("")}
+          title={error}
+        />
+      )}
+      {success && (
+        <Alert
+          type="success"
+          showIcon
+          closable
+          onClose={() => setSuccess("")}
+          title={success}
+        />
+      )}
 
-        {success && (
-          <div className="mb-5 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-            <CheckCircle2 size={18} />
-            {success}
-          </div>
-        )}
-
-        {/* Order Summary */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-              <Package size={17} />
-              Order Status
-            </div>
-
-            <span
-              className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
-                orderStatusStyles[order.orderStatus] ||
-                "border-slate-200 bg-slate-50 text-slate-700"
-              }`}
-            >
-              {order.orderStatus}
-            </span>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-              <CreditCard size={17} />
-              Payment Status
-            </div>
-
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                paymentStatusStyles[order.paymentStatus] ||
-                "bg-slate-100 text-slate-700"
-              }`}
-            >
-              {formatLabel(order.paymentStatus)}
-            </span>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-              <Package size={17} />
-              Total Items
-            </div>
-
-            <p className="text-2xl font-bold text-slate-900">
-              {items.reduce(
-                (total, item) => total + Number(item.quantity || 0),
-                0,
-              )}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="mb-2 flex items-center gap-2 text-sm text-slate-500">
-              <CreditCard size={17} />
-              Order Total
-            </div>
-
-            <p className="text-2xl font-bold text-slate-900">
-              {formatCurrency(order.totalAmount)}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {/* Main Content */}
-          <div className="space-y-6 lg:col-span-2">
-            {/* Products */}
-            <SectionCard title="Order Items" icon={Package}>
-              <div className="space-y-4">
-                {items.map((item, index) => (
-                  <div
-                    key={item._id || `${item.productName}-${index}`}
-                    className="flex flex-col gap-4 border-b border-slate-100 pb-4 last:border-0 last:pb-0 sm:flex-row sm:items-center"
-                  >
-                    <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                      {item.thumbnail ? (
-                        <img
-                          src={item.thumbnail}
-                          alt={item.productName || "Product"}
-                          className="h-full w-full object-contain"
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center text-slate-400">
-                          <Package size={28} />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-slate-900">
-                        {item.productName}
-                      </h3>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        SKU: {item.sku || "N/A"}
-                      </p>
-
-                      {item.attributes &&
-                        Object.keys(item.attributes).length > 0 && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            {Object.entries(item.attributes)
-                              .map(
-                                ([key, value]) =>
-                                  `${formatLabel(key)}: ${value}`,
-                              )
-                              .join(" · ")}
-                          </p>
-                        )}
-
-                      <p className="mt-2 text-sm text-slate-600">
-                        Qty: {item.quantity}
-                      </p>
-                    </div>
-
-                    <div className="text-left sm:text-right">
-                      <p className="font-semibold text-slate-900">
-                        {formatCurrency(item.subtotal)}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatCurrency(item.sellingPrice)} each
-                      </p>
-
-                      {Number(item.mrp) > Number(item.sellingPrice) && (
-                        <p className="mt-1 text-xs text-slate-400 line-through">
-                          {formatCurrency(item.mrp)}
-                        </p>
-                      )}
-                    </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        {/* Left Main Column */}
+        <div className="space-y-6 xl:col-span-2">
+          {/* Ordered Products */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <Package size={17} className="text-[#0755E9]" />
+                Ordered Products ({items.length})
+              </span>
+            }
+          >
+            <div className="divide-y divide-[#F1F5F9]">
+              {items.map((item, idx) => (
+                <div
+                  key={`${item.product}-${item.variantId}-${idx}`}
+                  className="flex flex-col gap-4 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center"
+                >
+                  <div className="h-18 w-18 shrink-0 overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
+                    {item.thumbnail ? (
+                      <img
+                        src={item.thumbnail}
+                        alt={item.productName}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-[#94A3B8]">
+                        <Package size={24} />
+                      </div>
+                    )}
                   </div>
-                ))}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-[#101828]">
+                      {item.productName}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[#64748B]">
+                      SKU: {item.sku || "N/A"} · Qty: {item.quantity}
+                    </p>
+                  </div>
+
+                  <div className="text-left sm:text-right">
+                    <p className="font-bold text-[#101828]">
+                      {formatCurrency(item.subtotal)}
+                    </p>
+                    <p className="text-xs text-[#64748B]">
+                      {formatCurrency(item.sellingPrice)} each
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Customer & Shipping */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Card
+              className="!border-[#E2E8F0]"
+              title={
+                <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                  <User size={17} className="text-[#0755E9]" />
+                  Customer
+                </span>
+              }
+            >
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Name">
+                  {customer.name || "—"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Email">
+                  {customer.email || "—"}
+                </Descriptions.Item>
+                <Descriptions.Item label="User ID">
+                  <span className="font-mono text-xs">{customer._id}</span>
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+
+            <Card
+              className="!border-[#E2E8F0]"
+              title={
+                <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                  <MapPin size={17} className="text-[#0755E9]" />
+                  Shipping Address
+                </span>
+              }
+            >
+              <Descriptions column={1} size="small">
+                <Descriptions.Item label="Recipient">
+                  {address.fullName || "—"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Phone">
+                  {address.phone || "—"}
+                </Descriptions.Item>
+                <Descriptions.Item label="Address">
+                  {[
+                    address.addressLine1,
+                    address.addressLine2,
+                    address.city,
+                    address.state,
+                    address.pincode,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </Descriptions.Item>
+              </Descriptions>
+            </Card>
+          </div>
+
+          {/* Shipment Management */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <Truck size={17} className="text-[#0755E9]" />
+                Shipment & Tracking Update
+              </span>
+            }
+          >
+            <form onSubmit={handleShipmentUpdate} className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Courier Provider
+                  </label>
+                  <Select
+                    className="w-full"
+                    value={shipmentForm.provider}
+                    disabled={shipmentSaving}
+                    onChange={(value) =>
+                      setShipmentForm((prev) => ({ ...prev, provider: value }))
+                    }
+                    options={[
+                      { value: "SHIPROCKET", label: "Shiprocket" },
+                      { value: "SELF", label: "Self Shipping" },
+                      { value: "OTHER", label: "Other" },
+                    ]}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Courier Name
+                  </label>
+                  <Input
+                    value={shipmentForm.courierName}
+                    onChange={(e) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        courierName: e.target.value,
+                      }))
+                    }
+                    disabled={shipmentSaving}
+                    placeholder="e.g. Delhivery"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Shipment ID
+                  </label>
+                  <Input
+                    value={shipmentForm.shipmentId}
+                    onChange={(e) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        shipmentId: e.target.value,
+                      }))
+                    }
+                    disabled={shipmentSaving}
+                    placeholder="Shipment ID"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    AWB Code
+                  </label>
+                  <Input
+                    value={shipmentForm.awbCode}
+                    onChange={(e) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        awbCode: e.target.value,
+                      }))
+                    }
+                    disabled={shipmentSaving}
+                    placeholder="AWB Tracking #"
+                  />
+                </div>
               </div>
-            </SectionCard>
 
-            {/* Customer */}
-            <SectionCard title="Customer Information" icon={User}>
-              <DetailRow
-                label="Customer Name"
-                value={customer.name}
-              />
-              <DetailRow
-                label="Email Address"
-                value={customer.email}
-              />
-              <DetailRow
-                label="Customer ID"
-                value={customer._id}
-              />
-            </SectionCard>
-
-            {/* Shipping Address */}
-            <SectionCard title="Shipping Address" icon={MapPin}>
-              {Object.entries(address)
-                .filter(
-                  ([key, value]) =>
-                    !["_id", "__v"].includes(key) &&
-                    value !== undefined &&
-                    value !== null &&
-                    value !== "",
-                )
-                .map(([key, value]) => (
-                  <DetailRow
-                    key={key}
-                    label={formatLabel(key)}
-                    value={
-                      typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value)
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Tracking URL
+                  </label>
+                  <Input
+                    value={shipmentForm.trackingUrl}
+                    onChange={(e) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        trackingUrl: e.target.value,
+                      }))
+                    }
+                    disabled={shipmentSaving}
+                    placeholder="https://..."
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Estimated Delivery
+                  </label>
+                  <DatePicker
+                    className="w-full"
+                    disabled={shipmentSaving}
+                    onChange={(d) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        estimatedDeliveryDate: d ? d.format("YYYY-MM-DD") : "",
+                      }))
                     }
                   />
-                ))}
+                </div>
+              </div>
 
-              {Object.keys(address).length === 0 && (
-                <p className="text-sm text-slate-500">
-                  Shipping address is not available.
-                </p>
-              )}
-            </SectionCard>
-
-            {/* Shipment Management */}
-            <SectionCard title="Shipment Management" icon={Truck}>
-              <form onSubmit={handleShipmentUpdate} className="space-y-5">
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 space-y-3">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div>
-                    <label htmlFor="provider" className="mb-2 block text-sm font-medium text-slate-700">
-                      Courier Provider
+                    <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                      Next Tracking Status
                     </label>
-                    <select
-                      id="provider"
-                      name="provider"
-                      value={shipmentForm.provider}
-                      onChange={handleShipmentChange}
+                    <Select
+                      className="w-full"
+                      value={shipmentForm.status}
                       disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="SHIPROCKET">Shiprocket</option>
-                      <option value="SELF">Self Shipping</option>
-                      <option value="OTHER">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label htmlFor="courierName" className="mb-2 block text-sm font-medium text-slate-700">
-                      Courier Name
-                    </label>
-                    <input
-                      id="courierName"
-                      name="courierName"
-                      value={shipmentForm.courierName}
-                      onChange={handleShipmentChange}
-                      placeholder="e.g. Delhivery"
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      onChange={(value) =>
+                        setShipmentForm((p) => ({ ...p, status: value }))
+                      }
+                      options={[
+                        { value: "", label: "Shipment details only" },
+                        { value: "NEW", label: "New" },
+                        { value: "PICKUP SCHEDULED", label: "Pickup Scheduled" },
+                        { value: "PICKED UP", label: "Picked Up" },
+                        { value: "IN TRANSIT", label: "In Transit" },
+                        { value: "OUT FOR DELIVERY", label: "Out for Delivery" },
+                        { value: "DELIVERED", label: "Delivered" },
+                      ]}
                     />
                   </div>
-
                   <div>
-                    <label htmlFor="shipmentId" className="mb-2 block text-sm font-medium text-slate-700">
-                      Shipment ID
+                    <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                      Location
                     </label>
-                    <input
-                      id="shipmentId"
-                      name="shipmentId"
-                      value={shipmentForm.shipmentId}
-                      onChange={handleShipmentChange}
-                      placeholder="Enter shipment ID"
+                    <Input
+                      value={shipmentForm.location}
+                      onChange={(e) =>
+                        setShipmentForm((p) => ({
+                          ...p,
+                          location: e.target.value,
+                        }))
+                      }
                       disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="awbCode" className="mb-2 block text-sm font-medium text-slate-700">
-                      AWB Number
-                    </label>
-                    <input
-                      id="awbCode"
-                      name="awbCode"
-                      value={shipmentForm.awbCode}
-                      onChange={handleShipmentChange}
-                      placeholder="Enter AWB number"
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="courierCompanyId" className="mb-2 block text-sm font-medium text-slate-700">
-                      Courier Company ID
-                    </label>
-                    <input
-                      id="courierCompanyId"
-                      name="courierCompanyId"
-                      value={shipmentForm.courierCompanyId}
-                      onChange={handleShipmentChange}
-                      placeholder="Optional"
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="estimatedDeliveryDate" className="mb-2 block text-sm font-medium text-slate-700">
-                      Estimated Delivery Date
-                    </label>
-                    <input
-                      id="estimatedDeliveryDate"
-                      type="date"
-                      name="estimatedDeliveryDate"
-                      value={shipmentForm.estimatedDeliveryDate}
-                      onChange={handleShipmentChange}
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      placeholder="City / Hub"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label htmlFor="trackingUrl" className="mb-2 block text-sm font-medium text-slate-700">
-                    Tracking URL
+                  <label className="mb-1.5 block text-xs font-bold uppercase text-[#64748B]">
+                    Status Description
                   </label>
-                  <input
-                    id="trackingUrl"
-                    type="url"
-                    name="trackingUrl"
-                    value={shipmentForm.trackingUrl}
-                    onChange={handleShipmentChange}
-                    placeholder="https://..."
+                  <Input.TextArea
+                    rows={2}
+                    value={shipmentForm.description}
+                    onChange={(e) =>
+                      setShipmentForm((p) => ({
+                        ...p,
+                        description: e.target.value,
+                      }))
+                    }
                     disabled={shipmentSaving}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Enter shipment event note..."
                   />
                 </div>
+              </div>
 
-                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="mb-4 font-semibold text-slate-900">
-                    Update Tracking Status
-                  </h3>
+              <Button
+                htmlType="submit"
+                type="primary"
+                loading={shipmentSaving}
+                icon={<Save size={15} />}
+                block
+              >
+                Save Shipment & Tracking Update
+              </Button>
+            </form>
+          </Card>
 
-                  <div>
-                    <label htmlFor="trackingStatus" className="mb-2 block text-sm font-medium text-slate-700">
-                      Tracking Status
-                    </label>
-                    <select
-                      id="trackingStatus"
-                      name="status"
-                      value={shipmentForm.status}
-                      onChange={handleShipmentChange}
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Shipment details only</option>
-                      <option value="NEW">New</option>
-                      <option value="PICKUP SCHEDULED">Pickup Scheduled</option>
-                      <option value="PICKED UP">Picked Up</option>
-                      <option value="IN TRANSIT">In Transit</option>
-                      <option value="OUT FOR DELIVERY">Out for Delivery</option>
-                      <option value="DELIVERED">Delivered</option>
-                    </select>
-                    <p className="mt-1 text-xs text-slate-500">
-                      Select the next valid status in the shipment sequence.
-                    </p>
-                  </div>
-
-                  <div className="mt-4">
-                    <label htmlFor="trackingDescription" className="mb-2 block text-sm font-medium text-slate-700">
-                      Status Description
-                      {shipmentForm.status && <span className="text-red-500"> *</span>}
-                    </label>
-                    <textarea
-                      id="trackingDescription"
-                      name="description"
-                      value={shipmentForm.description}
-                      onChange={handleShipmentChange}
-                      placeholder="Enter tracking update description"
-                      rows={3}
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-
-                  <div className="mt-4">
-                    <label htmlFor="trackingLocation" className="mb-2 block text-sm font-medium text-slate-700">
-                      Current Location
-                    </label>
-                    <input
-                      id="trackingLocation"
-                      name="location"
-                      value={shipmentForm.location}
-                      onChange={handleShipmentChange}
-                      placeholder="e.g. Malappuram, Kerala"
-                      disabled={shipmentSaving}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={shipmentSaving}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {shipmentSaving ? (
-                    <>
-                      <Loader2 size={17} className="animate-spin" />
-                      Updating Shipment...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={17} />
-                      Save Shipment Details
-                    </>
-                  )}
-                </button>
-              </form>
-            </SectionCard>
-
-            {/* Tracking History */}
-            <SectionCard title="Tracking History" icon={Clock}>
-              {trackingHistory.length > 0 ? (
-                <div className="space-y-5">
-                  {trackingHistory.map((event, index) => (
-                    <div
-                      key={event._id || `${event.status}-${index}`}
-                      className="flex gap-3"
-                    >
-                      <div className="flex flex-col items-center">
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                          {event.status === "DELIVERED" ? (
-                            <CheckCircle2 size={17} />
-                          ) : (
-                            <Truck size={17} />
-                          )}
-                        </div>
-                        {index !== trackingHistory.length - 1 && (
-                          <div className="mt-1 min-h-8 w-px flex-1 bg-slate-200" />
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1 pb-3">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {formatLabel(event.status)}
-                        </p>
-                        <p className="mt-1 text-sm text-slate-600">
-                          {event.description || "No description"}
-                        </p>
-                        {event.location && (
-                          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-                            <MapPin size={13} />
-                            {event.location}
-                          </p>
-                        )}
-                        <p className="mt-1 text-xs text-slate-400">
-                          {formatDate(event.timestamp)}
-                        </p>
-                        <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
-                          {event.source || "ADMIN"}
-                        </span>
-                      </div>
+          {/* Tracking History */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <Clock size={17} className="text-[#0755E9]" />
+                Tracking History
+              </span>
+            }
+          >
+            {trackingHistory.length > 0 ? (
+              <Timeline
+                items={trackingHistory.map((ev) => ({
+                  color: ev.status === "DELIVERED" ? "green" : "blue",
+                  content: (
+                    <div>
+                      <p className="font-semibold text-[#101828]">
+                        {formatLabel(ev.status)}
+                      </p>
+                      <p className="text-xs text-[#64748B]">
+                        {ev.description || "No description"}
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-[#94A3B8]">
+                        {ev.location ? `${ev.location} · ` : ""}
+                        {formatDate(ev.timestamp)}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  No tracking history available yet.
-                </p>
-              )}
-            </SectionCard>
-          </div>
+                  ),
+                }))}
+              />
+            ) : (
+              <p className="text-sm text-[#64748B]">
+                No courier tracking events yet.
+              </p>
+            )}
+          </Card>
+        </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Update Status */}
-            <SectionCard title="Update Order Status" icon={Truck}>
-              <div>
-                <p className="mb-2 text-sm text-slate-500">
-                  Current Status
-                </p>
+        {/* Sidebar Column */}
+        <div className="space-y-6">
+          {/* Update Order Status + Admin Cancel */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <Truck size={17} className="text-[#0755E9]" />
+                Fulfillment Control
+              </span>
+            }
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <span className="text-sm text-[#64748B]">Current Status</span>
+              <Tag color={ORDER_STATUS_COLORS[order.orderStatus]}>
+                {order.orderStatus}
+              </Tag>
+            </div>
 
-                <span
-                  className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
-                    orderStatusStyles[order.orderStatus] ||
-                    "border-slate-200 bg-slate-50 text-slate-700"
-                  }`}
+            {availableStatuses.length > 0 ? (
+              <div className="space-y-3">
+                <Select
+                  className="w-full"
+                  value={selectedStatus}
+                  disabled={saving}
+                  onChange={setSelectedStatus}
+                  options={availableStatuses.map((s) => ({ value: s, label: s }))}
+                />
+                <Button
+                  type="primary"
+                  block
+                  loading={saving}
+                  icon={<CheckCircle2 size={15} />}
+                  onClick={handleStatusUpdate}
                 >
-                  {order.orderStatus}
+                  Advance Order Status
+                </Button>
+              </div>
+            ) : (
+              <p className="rounded-lg bg-[#F8FAFC] p-3 text-xs text-[#64748B]">
+                This order has reached its final status.
+              </p>
+            )}
+
+            {canCancelOrder(order) && (
+              <Button
+                danger
+                block
+                className="mt-3"
+                icon={<XCircle size={15} />}
+                disabled={saving || adminCancelling}
+                onClick={() => {
+                  setAdminCancelError("");
+                  setShowAdminCancelModal(true);
+                }}
+              >
+                Cancel Order (Admin)
+              </Button>
+            )}
+          </Card>
+
+          {/* Payment Details */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <CreditCard size={17} className="text-[#0755E9]" />
+                Payment & Gateway
+              </span>
+            }
+          >
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="Method">
+                {order.paymentMethod}
+              </Descriptions.Item>
+              <Descriptions.Item label="Payment Status">
+                <Tag color={PAYMENT_STATUS_COLORS[order.paymentStatus]}>
+                  {formatLabel(order.paymentStatus)}
+                </Tag>
+              </Descriptions.Item>
+              {order.paymentDetails && (
+                <>
+                  <Descriptions.Item label="Gateway">
+                    {formatLabel(order.paymentDetails.status)}
+                  </Descriptions.Item>
+                  {order.paymentDetails.razorpayPaymentId && (
+                    <Descriptions.Item label="Razorpay Pay ID">
+                      <span className="break-all font-mono text-xs">
+                        {order.paymentDetails.razorpayPaymentId}
+                      </span>
+                    </Descriptions.Item>
+                  )}
+                  <Descriptions.Item label="Refunded">
+                    {formatCurrency(order.paymentDetails.refundedAmount)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Reserved Pending">
+                    {formatCurrency(order.paymentDetails.reservedRefundAmount)}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Remaining Refundable">
+                    <strong>
+                      {formatCurrency(
+                        order.paymentDetails.remainingRefundableAmount,
+                      )}
+                    </strong>
+                  </Descriptions.Item>
+                </>
+              )}
+            </Descriptions>
+
+            {order.paymentDetails?.refundReconciliationRequired && (
+              <Alert
+                type="warning"
+                showIcon
+                icon={<ShieldAlert size={16} />}
+                className="mt-3"
+                title="Manual Reconciliation Flagged"
+                description={order.paymentDetails.refundReconciliationReason}
+              />
+            )}
+          </Card>
+
+          {/* Cancellation & Refund Management */}
+          {(order.orderStatus === "Cancelled" ||
+            (Array.isArray(order.refundHistory) &&
+              order.refundHistory.length > 0)) && (
+            <Card
+              className="!border-[#E2E8F0]"
+              title={
+                <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                  <RotateCcw size={17} className="text-[#0755E9]" />
+                  Cancellation & Refund
+                </span>
+              }
+            >
+              <div className="mb-3 flex items-center justify-between">
+                <span className="text-sm text-[#64748B]">Refund Status</span>
+                <span
+                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-bold ${refundMeta.badgeClasses}`}
+                >
+                  {refundMeta.label}
                 </span>
               </div>
 
-              {availableStatuses.length > 0 ? (
-                <>
-                  <div className="mt-5">
-                    <label
-                      htmlFor="orderStatus"
-                      className="mb-2 block text-sm font-medium text-slate-700"
-                    >
-                      Next Status
-                    </label>
-
-                    <select
-                      id="orderStatus"
-                      value={selectedStatus}
-                      onChange={(event) =>
-                        setSelectedStatus(event.target.value)
-                      }
-                      disabled={saving}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      {availableStatuses.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleStatusUpdate}
-                    disabled={saving || !selectedStatus}
-                    className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2
-                          size={17}
-                          className="animate-spin"
-                        />
-                        Updating...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={17} />
-                        Update Status
-                      </>
+              <Descriptions column={1} size="small">
+                {order.orderStatus === "Cancelled" && (
+                  <>
+                    <Descriptions.Item label="Reason">
+                      {order.cancellationReason || "Not specified"}
+                    </Descriptions.Item>
+                    {order.cancellationComment && (
+                      <Descriptions.Item label="Comment">
+                        {order.cancellationComment}
+                      </Descriptions.Item>
                     )}
-                  </button>
-                </>
-              ) : (
-                <p className="mt-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-500">
-                  This order has reached its final status.
-                </p>
-              )}
-            </SectionCard>
+                    {order.cancelledBy && (
+                      <Descriptions.Item label="Cancelled By">
+                        {order.cancelledBy}
+                      </Descriptions.Item>
+                    )}
+                  </>
+                )}
+                {order.refundSummary?.gatewayRefundId && (
+                  <Descriptions.Item label="Gateway Refund ID">
+                    <span className="break-all font-mono text-xs">
+                      {order.refundSummary.gatewayRefundId}
+                    </span>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
 
-            {/* Payment */}
-            <SectionCard title="Payment Information" icon={CreditCard}>
-              <DetailRow
-                label="Payment Method"
-                value={order.paymentMethod}
-              />
-              <DetailRow
-                label="Payment Status"
-                value={formatLabel(order.paymentStatus)}
-              />
-            </SectionCard>
-
-            {/* Price Summary */}
-            <SectionCard title="Price Summary" icon={CreditCard}>
-              <DetailRow
-                label="Subtotal"
-                value={formatCurrency(order.subtotal)}
-              />
-              <DetailRow
-                label="Shipping Fee"
-                value={formatCurrency(order.shippingFee)}
-              />
-              <DetailRow
-                label="Discount"
-                value={`-${formatCurrency(order.discount)}`}
-              />
-
-              {order.coupon?.code && (
-                <DetailRow
-                  label="Coupon"
-                  value={order.coupon.code}
+              {order.refundSummary?.failureReason && (
+                <Alert
+                  type="error"
+                  showIcon
+                  className="mt-3"
+                  title={order.refundSummary.failureReason}
                 />
               )}
 
-              <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-4">
-                <span className="font-semibold text-slate-900">
-                  Grand Total
-                </span>
-                <span className="text-lg font-bold text-blue-600">
-                  {formatCurrency(order.totalAmount)}
-                </span>
-              </div>
-            </SectionCard>
+              {!isCOD &&
+                order.orderStatus === "Cancelled" &&
+                (hasActiveAttempt ||
+                  order.paymentDetails?.refundReconciliationRequired ||
+                  ["PENDING", "PROCESSING", "RECONCILIATION_REQUIRED"].includes(
+                    refundStatus,
+                  )) &&
+                Array.isArray(order.refundHistory) &&
+                order.refundHistory.length > 0 && (
+                  <Button
+                    block
+                    className="mt-4"
+                    icon={
+                      <RefreshCw
+                        size={14}
+                        className={refundSyncing ? "animate-spin" : ""}
+                      />
+                    }
+                    loading={refundSyncing}
+                    disabled={refundProcessing}
+                    onClick={handleSyncRefund}
+                  >
+                    Sync Refund Status with Razorpay
+                  </Button>
+                )}
 
-            {/* Timeline */}
-            <SectionCard title="Order Timeline" icon={CalendarDays}>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Clock
-                    size={17}
-                    className="mt-0.5 text-blue-600"
-                  />
+              {(canTriggerRazorpayRefund || canTriggerManualCODRefund) && (
+                <form
+                  onSubmit={handleProcessRefund}
+                  className="mt-4 space-y-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5"
+                >
+                  <p className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                    {canTriggerManualCODRefund
+                      ? "Record Manual COD Refund"
+                      : "Initiate / Retry Razorpay Refund"}
+                  </p>
+
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
-                      Order Placed
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {formatDate(order.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {order.deliveredAt && (
-                  <div className="flex items-start gap-3">
-                    <CheckCircle2
-                      size={17}
-                      className="mt-0.5 text-green-600"
+                    <label className="mb-1 block text-xs font-medium text-[#64748B]">
+                      Refund Amount (INR)
+                    </label>
+                    <InputNumber
+                      className="!w-full"
+                      min={0.01}
+                      max={
+                        canTriggerRazorpayRefund
+                          ? remainingRefundable
+                          : order.totalAmount
+                      }
+                      step={1}
+                      value={
+                        refundAmountInput ? Number(refundAmountInput) : null
+                      }
+                      onChange={(val) =>
+                        setRefundAmountInput(val !== null ? String(val) : "")
+                      }
+                      disabled={refundProcessing || refundSyncing}
                     />
-                    <div>
-                      <p className="text-sm font-medium text-slate-900">
-                        Delivered
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatDate(order.deliveredAt)}
-                      </p>
-                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-[#64748B]">
+                      Reason
+                    </label>
+                    <Input
+                      value={refundReasonInput}
+                      onChange={(e) => setRefundReasonInput(e.target.value)}
+                      placeholder="Refund note"
+                      disabled={refundProcessing || refundSyncing}
+                    />
+                  </div>
+
+                  {canTriggerManualCODRefund && (
+                    <Checkbox
+                      checked={manualRefundConfirmed}
+                      onChange={(e) =>
+                        setManualRefundConfirmed(e.target.checked)
+                      }
+                    >
+                      <span className="text-xs text-[#101828]">
+                        I confirm manual COD transfer has been sent to the
+                        customer
+                      </span>
+                    </Checkbox>
+                  )}
+
+                  <Button
+                    htmlType="submit"
+                    type="primary"
+                    block
+                    icon={<RotateCcw size={14} />}
+                    loading={refundProcessing}
+                    disabled={
+                      refundSyncing ||
+                      (canTriggerManualCODRefund && !manualRefundConfirmed)
+                    }
+                  >
+                    {canTriggerManualCODRefund
+                      ? "Confirm Manual COD Refund"
+                      : "Process Razorpay Refund"}
+                  </Button>
+                </form>
+              )}
+
+              {Array.isArray(order.refundHistory) &&
+                order.refundHistory.length > 0 && (
+                  <div className="mt-4 space-y-2 border-t border-[#E2E8F0] pt-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-[#64748B]">
+                      Refund Audit Attempts ({order.refundHistory.length})
+                    </p>
+                    {order.refundHistory.map((item) => (
+                      <div
+                        key={item._id}
+                        className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] p-2.5 text-xs"
+                      >
+                        <div className="flex items-center justify-between font-bold text-[#101828]">
+                          <span>
+                            #{item.attempt} · {item.provider} ({item.referenceType})
+                          </span>
+                          <span className="text-[#0755E9]">
+                            {formatCurrency(item.amount)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[#64748B]">
+                          Status: <strong>{item.status}</strong> ·{" "}
+                          {formatDate(item.createdAt)}
+                        </p>
+                        {item.providerRefundId && (
+                          <p className="mt-0.5 break-all font-mono text-[11px]">
+                            ID: {item.providerRefundId}
+                          </p>
+                        )}
+                        {item.failureReason && (
+                          <p className="mt-0.5 text-red-600">
+                            {item.failureReason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
+            </Card>
+          )}
 
-                {order.cancelledAt && (
-                  <div className="flex items-start gap-3">
-                    <AlertCircle
-                      size={17}
-                      className="mt-0.5 text-red-600"
-                    />
+          {/* Price Summary */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <CreditCard size={17} className="text-[#0755E9]" />
+                Price Summary
+              </span>
+            }
+          >
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="Subtotal">
+                {formatCurrency(order.subtotal)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Shipping">
+                {formatCurrency(order.shippingFee)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Discount">
+                -{formatCurrency(order.discount)}
+              </Descriptions.Item>
+              {order.coupon?.code && (
+                <Descriptions.Item label="Coupon">
+                  <Tag color="blue">{order.coupon.code}</Tag>
+                </Descriptions.Item>
+              )}
+              <Descriptions.Item label="Grand Total">
+                <strong className="text-base text-[#0755E9]">
+                  {formatCurrency(order.totalAmount)}
+                </strong>
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          {/* Order Timeline */}
+          <Card
+            className="!border-[#E2E8F0]"
+            title={
+              <span className="inline-flex items-center gap-2 font-bold text-[#101828]">
+                <CalendarDays size={17} className="text-[#0755E9]" />
+                Milestones
+              </span>
+            }
+          >
+            <Timeline
+              items={[
+                {
+                  color: "blue",
+                  content: (
                     <div>
-                      <p className="text-sm font-medium text-slate-900">
-                        Cancelled
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatDate(order.cancelledAt)}
+                      <p className="font-semibold text-[#101828]">Order Placed</p>
+                      <p className="text-xs text-[#64748B]">
+                        {formatDate(order.createdAt)}
                       </p>
                     </div>
-                  </div>
-                )}
-              </div>
-            </SectionCard>
-          </div>
+                  ),
+                },
+                ...(order.deliveredAt
+                  ? [
+                      {
+                        color: "green",
+                        content: (
+                          <div>
+                            <p className="font-semibold text-[#101828]">
+                              Delivered
+                            </p>
+                            <p className="text-xs text-[#64748B]">
+                              {formatDate(order.deliveredAt)}
+                            </p>
+                          </div>
+                        ),
+                      },
+                    ]
+                  : []),
+                ...(order.cancelledAt
+                  ? [
+                      {
+                        color: "red",
+                        icon: <AlertCircle size={14} />,
+                        content: (
+                          <div>
+                            <p className="font-semibold text-[#101828]">
+                              Cancelled
+                            </p>
+                            <p className="text-xs text-[#64748B]">
+                              {formatDate(order.cancelledAt)}
+                            </p>
+                          </div>
+                        ),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </Card>
         </div>
       </div>
+
+      <CancelOrderModal
+        key={order?._id || "admin-cancel-modal"}
+        order={order}
+        open={showAdminCancelModal}
+        loading={adminCancelling}
+        error={adminCancelError}
+        title="Cancel Order (Admin)"
+        submitLabel="Confirm Admin Cancellation"
+        onClose={() => {
+          setShowAdminCancelModal(false);
+          setAdminCancelError("");
+        }}
+        onConfirm={handleAdminCancelOrder}
+      />
     </div>
   );
 }

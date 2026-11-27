@@ -45,6 +45,53 @@ const adminOrderService = {
 
     return response.data;
   },
+
+  cancelOrder: async (orderId, { reason, comment = "" }) => {
+    const response = await axiosInstance.patch(
+      `/orders/admin/${orderId}/cancel`,
+      {
+        reason,
+        ...(comment ? { comment } : {}),
+      },
+    );
+
+    return response.data;
+  },
+
+  getOrderPaymentDetails: async (orderId) => {
+    const response = await axiosInstance.get(`/payments/admin/order/${orderId}`);
+    return response.data;
+  },
+
+  processOrderRefund: async ({
+    orderId,
+    paymentId,
+    reason,
+    amount,
+    provider,
+    manualRefundConfirmed,
+  }) => {
+    const payload = {
+      ...(orderId ? { orderId } : {}),
+      ...(paymentId ? { paymentId } : {}),
+      ...(reason ? { reason } : {}),
+      ...(amount !== undefined && amount !== "" && amount !== null
+        ? { amount: Number(amount) }
+        : {}),
+      ...(provider ? { provider } : {}),
+      ...(manualRefundConfirmed !== undefined ? { manualRefundConfirmed } : {}),
+    };
+
+    const response = await axiosInstance.post("/payments/admin/refund", payload);
+    return response.data;
+  },
+
+  syncOrderRefund: async (orderId) => {
+    const response = await axiosInstance.post("/payments/admin/refund/sync", {
+      orderId,
+    });
+    return response.data;
+  },
 };
 
 export default adminOrderService;

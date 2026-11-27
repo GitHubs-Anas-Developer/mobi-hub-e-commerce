@@ -1,179 +1,191 @@
-
 "use client";
 
+import { useState } from "react";
 import {
-  MapPin,
   Phone,
   CheckCircle2,
   Home,
   Briefcase,
   MapPinned,
+  Pencil,
+  Trash2,
+  LoaderCircle,
 } from "lucide-react";
 
-import { motion } from "framer-motion";
+const getAddressIcon = (type) => {
+  switch (type?.toLowerCase()) {
+    case "home":
+      return Home;
+    case "office":
+    case "work":
+      return Briefcase;
+    default:
+      return MapPinned;
+  }
+};
 
 export default function AddressCard({
   address,
   selected = false,
+  disabled = false,
+  deleting = false,
   onSelect,
+  onEdit,
+  onDelete,
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   if (!address) return null;
 
-  const getAddressIcon = () => {
-    switch (address.addressType?.toLowerCase()) {
-      case "home":
-        return Home;
-      case "office":
-      case "work":
-        return Briefcase;
-      default:
-        return MapPinned;
-    }
-  };
-
-  const AddressIcon = getAddressIcon();
+  const AddressIcon = getAddressIcon(address.addressType);
 
   return (
-    <motion.label
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.99 }}
-      transition={{ duration: 0.2 }}
-      className={`relative flex cursor-pointer gap-4 overflow-hidden rounded-2xl border p-4 transition-all duration-200 sm:p-5 ${
+    <div
+      className={`relative rounded-2xl border p-4 transition-all duration-150 sm:p-5 ${
         selected
-          ? "border-[#0755E9] bg-[#EFF6FF] shadow-sm shadow-blue-500/5"
-          : "border-[#E2E8F0] bg-white hover:border-[#93C5FD] hover:shadow-sm"
-      }`}
+          ? "border-[#0755E9] bg-[#EFF6FF]/65 ring-1 ring-[#0755E9]"
+          : "border-[#E2E8F0] bg-white hover:border-[#0755E9]/45 hover:bg-[#F8FAFC]"
+      } ${disabled ? "opacity-65" : ""}`}
     >
-      {/* Radio Input */}
-      <input
-        type="radio"
-        name="deliveryAddress"
-        value={address._id}
-        checked={selected}
-        onChange={() => onSelect?.(address._id)}
-        className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-[#0755E9]"
-      />
+      <div className="flex items-start gap-3 sm:gap-4">
+        <div className="pt-1">
+          <input
+            type="radio"
+            id={`address-${address._id}`}
+            name="deliveryAddress"
+            value={address._id}
+            checked={selected}
+            disabled={disabled}
+            onChange={() => onSelect?.(address._id)}
+            className="h-4 w-4 cursor-pointer accent-[#0755E9]"
+          />
+        </div>
 
-      {/* Address Content */}
-      <div className="min-w-0 flex-1">
-
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-3">
-
-            {/* Address Icon */}
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-                selected
-                  ? "bg-[#0755E9] text-white"
-                  : "bg-[#EFF6FF] text-[#0755E9]"
-              }`}
-            >
-              <AddressIcon size={19} />
-            </div>
-
-            <div className="min-w-0">
-              <h3 className="break-words font-bold text-[#101828]">
+        <label
+          htmlFor={`address-${address._id}`}
+          className="min-w-0 flex-1 cursor-pointer"
+        >
+          {/* Name & Badges */}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-sm font-bold text-[#101828] sm:text-base">
                 {address.fullName}
               </h3>
 
-              <div className="mt-2 flex flex-wrap items-center gap-2">
+              {address.addressType && (
+                <span className="inline-flex items-center gap-1 rounded-md border border-[#E2E8F0] bg-white px-2 py-0.5 text-[10px] font-bold text-[#64748B]">
+                  <AddressIcon size={11} aria-hidden="true" />
+                  {address.addressType}
+                </span>
+              )}
 
-                {address.addressType && (
-                  <span className="rounded-md bg-white px-2.5 py-1 text-[11px] font-semibold text-[#475569] ring-1 ring-[#E2E8F0]">
-                    {address.addressType}
-                  </span>
-                )}
-
-                {address.isDefault && (
-                  <span className="rounded-md bg-green-50 px-2.5 py-1 text-[11px] font-semibold text-green-700">
-                    Default
-                  </span>
-                )}
-
-              </div>
+              {address.isDefault && (
+                <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                  DEFAULT
+                </span>
+              )}
             </div>
-          </div>
 
-          {/* Selected Indicator */}
-          {selected && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 300,
-                damping: 18,
-              }}
-              className="shrink-0 text-[#0755E9]"
-            >
-              <CheckCircle2 size={22} fill="#0755E9" className="text-white" />
-            </motion.div>
-          )}
-        </div>
-
-        {/* Address Details */}
-        <div className="mt-4 space-y-1.5 border-t border-[#E2E8F0]/80 pt-4 text-sm leading-6 text-[#64748B]">
-
-          {address.addressLine1 && (
-            <p>{address.addressLine1}</p>
-          )}
-
-          {address.addressLine2 && (
-            <p>{address.addressLine2}</p>
-          )}
-
-          {address.landmark && (
-            <p>
-              <span className="font-medium text-[#475569]">
-                Landmark:
-              </span>{" "}
-              {address.landmark}
-            </p>
-          )}
-
-          <p>
-            {[address.city, address.state]
-              .filter(Boolean)
-              .join(", ")}
-
-            {address.pincode && ` - ${address.pincode}`}
-          </p>
-
-          {address.country && (
-            <p>{address.country}</p>
-          )}
-        </div>
-
-        {/* Contact Details */}
-        <div className="mt-4 space-y-2 border-t border-[#E2E8F0]/80 pt-4">
-
-          {address.phone && (
-            <div className="flex items-center gap-2 text-sm text-[#475569]">
-              <Phone size={15} className="shrink-0 text-[#0755E9]" />
-              <span>{address.phone}</span>
-            </div>
-          )}
-
-          {address.alternatePhone && (
-            <div className="flex items-center gap-2 text-sm text-[#64748B]">
-              <Phone size={15} className="shrink-0 text-[#94A3B8]" />
-              <span>
-                Alternate: {address.alternatePhone}
+            {selected && (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-[#0755E9]">
+                <CheckCircle2 size={15} aria-hidden="true" />
+                <span>Selected</span>
               </span>
+            )}
+          </div>
+
+          {/* Street & Location */}
+          <div className="mt-2.5 space-y-1 text-xs leading-5 text-[#64748B] sm:text-sm">
+            {address.addressLine1 && <p>{address.addressLine1}</p>}
+            {address.addressLine2 && <p>{address.addressLine2}</p>}
+            {address.landmark && (
+              <p className="text-xs text-[#64748B]">
+                <span className="font-semibold text-[#101828]">Landmark:</span>{" "}
+                {address.landmark}
+              </p>
+            )}
+            <p className="font-medium text-[#101828]">
+              {[address.city, address.state].filter(Boolean).join(", ")}
+              {address.pincode ? ` – ${address.pincode}` : ""}
+            </p>
+            {address.country && <p className="text-xs">{address.country}</p>}
+          </div>
+
+          {/* Phones */}
+          {(address.phone || address.alternatePhone) && (
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#64748B]">
+              {address.phone && (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-[#101828] tabular-nums">
+                  <Phone size={12} className="text-[#0755E9]" aria-hidden="true" />
+                  {address.phone}
+                </span>
+              )}
+              {address.alternatePhone && (
+                <span className="tabular-nums">
+                  Alt: {address.alternatePhone}
+                </span>
+              )}
             </div>
           )}
-        </div>
-
-        {/* Selected Label */}
-        {selected && (
-          <div className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-1.5 text-[11px] font-semibold text-white">
-            <MapPin size={13} />
-            Selected Delivery Address
-          </div>
-        )}
-
+        </label>
       </div>
-    </motion.label>
+
+      {/* Action Bar: Edit & Delete */}
+      {(onEdit || onDelete) && (
+        <div className="mt-3.5 flex flex-wrap items-center justify-end gap-2 border-t border-[#E2E8F0] pt-3">
+          {onEdit && (
+            <button
+              type="button"
+              disabled={disabled || deleting}
+              onClick={() => onEdit(address)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] disabled:opacity-50"
+            >
+              <Pencil size={12} aria-hidden="true" />
+              <span>Edit</span>
+            </button>
+          )}
+
+          {onDelete && (
+            confirmDelete ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  disabled={disabled || deleting}
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    onDelete(address._id);
+                  }}
+                  className="inline-flex h-8 items-center gap-1 rounded-lg bg-red-600 px-3 text-xs font-bold text-white transition hover:bg-red-700 disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <LoaderCircle size={12} className="animate-spin" />
+                  ) : null}
+                  <span>Confirm Delete</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={disabled || deleting}
+                  onClick={() => setConfirmDelete(false)}
+                  className="inline-flex h-8 items-center rounded-lg border border-[#E2E8F0] bg-white px-2.5 text-xs font-semibold text-[#64748B] hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={disabled || deleting}
+                onClick={() => setConfirmDelete(true)}
+                className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#64748B] transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              >
+                <Trash2 size={12} aria-hidden="true" />
+                <span>Delete</span>
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
   );
 }

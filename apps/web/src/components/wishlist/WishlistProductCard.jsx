@@ -1,380 +1,298 @@
-
 "use client";
 
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "motion/react";
-
 import {
   Heart,
-  ShoppingCart,
+  ShoppingBag,
   Package,
-  Loader2,
+  LoaderCircle,
   Star,
   ArrowUpRight,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
 
-// ========================================
-// HELPERS
-// ========================================
+import { BRAND_NAME } from "@/config/brand";
 
 function formatPrice(price) {
   const value = Number(price);
-
-  return `₹${(
-    Number.isFinite(value) ? value : 0
-  ).toLocaleString("en-IN")}`;
+  return `₹${(Number.isFinite(value) ? value : 0).toLocaleString("en-IN")}`;
 }
 
 function getProductImage(product) {
   return (
     product?.thumbnail?.url ||
     product?.thumbnail?.secure_url ||
+    (typeof product?.thumbnail === "string" ? product.thumbnail : "") ||
     product?.images?.[0]?.url ||
     product?.images?.[0]?.secure_url ||
     null
   );
 }
 
-// ========================================
-// WISHLIST PRODUCT CARD
-// ========================================
-
 export default function WishlistProductCard({
   product,
   isMutating = false,
   isRemoving = false,
   isAdding = false,
-  shouldReduceMotion = false,
   onRemove,
   onAddToCart,
 }) {
   if (!product) return null;
 
-  // ========================================
-  // PRODUCT DETAILS
-  // ========================================
-
   const productId = product._id || product.id;
   const productSlug = product.slug || productId;
+  const productLink = productSlug
+    ? `/products/${encodeURIComponent(productSlug)}`
+    : "/products";
   const productImage = getProductImage(product);
 
-  // ========================================
-  // ACTIVE VARIANTS
-  // ========================================
-
   const activeVariants = Array.isArray(product.variants)
-    ? product.variants.filter(
-        (variant) => variant?.isActive !== false
-      )
+    ? product.variants.filter((variant) => variant?.isActive !== false)
     : [];
 
   const selectedVariant =
-    activeVariants.find(
-      (variant) => variant?.isDefault === true
-    ) || activeVariants[0];
+    activeVariants.find((variant) => variant?.isDefault === true) ||
+    activeVariants[0];
 
-  // ========================================
-  // PRICE
-  // ========================================
-
-  const sellingPrice = Number(
-    selectedVariant?.sellingPrice ??
-      product.sellingPrice ??
-      product.basePrice ??
-      0
+  const sellingPrice = Math.max(
+    0,
+    Number(
+      selectedVariant?.sellingPrice ??
+        product.sellingPrice ??
+        product.basePrice ??
+        product.price ??
+        0
+    ) || 0
   );
 
-  const mrp = Number(selectedVariant?.mrp ?? 0);
-
-  // ========================================
-  // DISCOUNT
-  // ========================================
+  const mrp = Math.max(
+    sellingPrice,
+    Number(selectedVariant?.mrp ?? product.mrp ?? sellingPrice) || sellingPrice
+  );
 
   const discount =
-    Number.isFinite(mrp) &&
-    Number.isFinite(sellingPrice) &&
-    mrp > sellingPrice &&
-    sellingPrice >= 0
+    mrp > sellingPrice && mrp > 0
       ? Math.round(((mrp - sellingPrice) / mrp) * 100)
       : 0;
 
-  // ========================================
-  // STOCK
-  // ========================================
-
   const stock = Number(
-    selectedVariant?.stock ?? product.stock ?? 0
+    selectedVariant?.stock ?? product.totalStock ?? product.stock ?? 0
   );
 
   const isOutOfStock =
+    product.isActive === false ||
     !selectedVariant ||
     !Number.isFinite(stock) ||
     stock < 1;
 
-  const isLowStock =
-    !isOutOfStock && stock <= 5;
+  const isLowStock = !isOutOfStock && stock <= 5;
 
-  // ========================================
-  // RATINGS
-  // ========================================
-
-  const rating = Number(product.ratings?.average ?? 0);
-  const reviewCount = Number(product.ratings?.count ?? 0);
-
+  const rating = Number(
+    product.rating?.average ??
+      product.ratings?.average ??
+      product.averageRating ??
+      0
+  );
+  const reviewCount = Number(
+    product.rating?.count ??
+      product.ratings?.count ??
+      product.reviewCount ??
+      0
+  );
   const hasRating =
-    Number.isFinite(rating) &&
-    rating > 0 &&
-    reviewCount > 0;
+    Number.isFinite(rating) && rating > 0 && reviewCount > 0;
 
-  // ========================================
-  // BUTTON STATES
-  // ========================================
-
-  const isRemoveDisabled =
-    isMutating || isRemoving || !productId;
-
+  const isRemoveDisabled = isMutating || isRemoving || !productId;
   const isAddDisabled =
-    isMutating ||
-    isAdding ||
-    isOutOfStock ||
-    !productId;
+    isMutating || isAdding || isOutOfStock || !productId;
 
-  const motionEnabled = !shouldReduceMotion;
-
-  // ========================================
-  // RENDER
-  // ========================================
+  const brandLabel = product.brand || BRAND_NAME;
 
   return (
-    <motion.article
-      layout={motionEnabled}
-      initial={
-        shouldReduceMotion
-          ? false
-          : { opacity: 0, y: 15 }
-      }
-      animate={{
-        opacity: 1,
-        y: 0,
-      }}
-      exit={
-        shouldReduceMotion
-          ? undefined
-          : { opacity: 0, scale: 0.96 }
-      }
-      whileHover={
-        motionEnabled
-          ? { y: -4 }
-          : undefined
-      }
-      transition={{
-        duration: 0.25,
-      }}
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5"
+    <article
+      className={`group relative flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0755E9]/35 hover:shadow-md ${
+        isRemoving ? "opacity-60" : "opacity-100"
+      }`}
     >
-      {/* ================================= */}
-      {/* PRODUCT IMAGE */}
-      {/* ================================= */}
-
-      <div className="relative aspect-square overflow-hidden bg-[#f7f9fc]">
+      {/* Product Image */}
+      <div className="relative w-full overflow-hidden border-b border-[#F1F5F9] bg-[#F8FAFC]">
         <Link
-          href={`/products/${encodeURIComponent(productSlug)}`}
+          href={productLink}
           aria-label={`View ${product.name || "product"}`}
-          className="absolute inset-0 flex items-center justify-center"
+          className="relative flex aspect-square w-full items-center justify-center overflow-hidden p-3 sm:p-4 lg:p-5"
         >
           {productImage ? (
             <Image
               src={productImage}
               alt={product.name || "Product"}
               fill
-              sizes="(max-width: 640px) 50vw, (max-width: 1280px) 33vw, 25vw"
-              className="object-contain p-4 transition-transform duration-500 group-hover:scale-105 sm:p-6"
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              className="object-contain p-2.5 transition-transform duration-500 ease-out group-hover:scale-105"
               unoptimized
             />
           ) : (
             <Package
-              size={50}
-              strokeWidth={1.3}
+              size={44}
+              strokeWidth={1.2}
               className="text-slate-300"
               aria-hidden="true"
             />
           )}
         </Link>
 
-        {/* DISCOUNT BADGE */}
-
         {discount > 0 && (
-          <span className="absolute left-3 top-3 z-10 rounded-lg bg-red-500 px-2.5 py-1.5 text-[10px] font-bold text-white shadow-sm sm:text-xs">
+          <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center rounded-lg border border-red-100 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">
             {discount}% OFF
           </span>
         )}
 
-        {/* REMOVE WISHLIST BUTTON */}
-
+        {/* Remove from Wishlist Button */}
         <button
           type="button"
           aria-label={`Remove ${product.name || "product"} from wishlist`}
+          title="Remove from wishlist"
           aria-busy={isRemoving}
+          disabled={isRemoveDisabled}
           onClick={() => {
             if (!isRemoveDisabled) {
               onRemove?.(productId);
             }
           }}
-          disabled={isRemoveDisabled}
-          className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-slate-100 bg-white text-red-500 shadow-md transition-all hover:scale-105 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10"
+          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-500 shadow-xs backdrop-blur-xs transition-all duration-200 hover:scale-105 hover:bg-red-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:right-3 sm:top-3 sm:h-9 sm:w-9"
         >
           {isRemoving ? (
-            <Loader2
-              size={17}
-              className="animate-spin"
-              aria-hidden="true"
-            />
+            <LoaderCircle size={15} className="animate-spin" aria-hidden="true" />
           ) : (
-            <Heart
-              size={18}
-              fill="currentColor"
-              aria-hidden="true"
-            />
+            <Heart size={16} strokeWidth={1.9} fill="currentColor" aria-hidden="true" />
           )}
         </button>
 
-        {/* STOCK STATUS */}
-
-        <div className="absolute bottom-3 left-3 z-10">
-          {isOutOfStock ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-red-100 bg-white px-2.5 py-1.5 text-[10px] font-bold text-red-600 shadow-sm sm:text-xs">
-              <AlertCircle size={12} />
-              Out of Stock
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-white px-2.5 py-1.5 text-[10px] font-bold text-green-700 shadow-sm sm:text-xs">
-              <CheckCircle2 size={12} />
-              {isLowStock
-                ? `Only ${stock} left`
-                : "In Stock"}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* ================================= */}
-      {/* PRODUCT INFORMATION */}
-      {/* ================================= */}
-
-      <div className="flex flex-1 flex-col p-3.5 sm:p-4">
-        {/* BRAND */}
-
-        <p className="mb-1.5 truncate text-[10px] font-bold uppercase tracking-[0.13em] text-[#0755e9] sm:text-xs">
-          {product.brand || "ELEZIO"}
-        </p>
-
-        {/* PRODUCT NAME */}
-
-        <Link
-          href={`/products/${encodeURIComponent(productSlug)}`}
-          className="block"
-        >
-          <h3 className="line-clamp-2 min-h-10 text-xs font-bold leading-5 text-[#101828] transition-colors hover:text-[#0755e9] sm:min-h-12 sm:text-sm sm:leading-6">
-            {product.name || "Unnamed Product"}
-          </h3>
-        </Link>
-
-        {/* RATING */}
-
-        {hasRating && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <Star
-              size={14}
-              fill="#f59e0b"
-              className="text-amber-500"
-              aria-hidden="true"
-            />
-
-            <span className="text-xs font-bold text-[#101828]">
-              {rating.toFixed(1)}
-            </span>
-
-            <span className="text-[11px] text-slate-400">
-              ({reviewCount}{" "}
-              {reviewCount === 1 ? "review" : "reviews"})
+        {isOutOfStock && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/80 backdrop-blur-[2px]">
+            <span className="rounded-lg bg-[#101828] px-3 py-1.5 text-[10px] font-bold tracking-wider text-white sm:text-xs">
+              OUT OF STOCK
             </span>
           </div>
         )}
 
-        {/* PRICE SECTION */}
+        <Link
+          href={productLink}
+          aria-label={`View details of ${product.name || "product"}`}
+          className="absolute bottom-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[#E2E8F0] bg-white/95 text-[#64748B] shadow-xs transition-all hover:border-[#0755E9] hover:bg-[#0755E9] hover:text-white sm:bottom-3 sm:right-3"
+        >
+          <ArrowUpRight size={15} aria-hidden="true" />
+        </Link>
+      </div>
 
-        <div className="mt-3 border-t border-slate-100 pt-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {/* SELLING PRICE */}
+      {/* Product Information */}
+      <div className="flex min-w-0 flex-1 flex-col p-3 sm:p-4">
+        <div className="mb-1.5 flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+            {brandLabel}
+          </span>
 
-            <span className="text-lg font-extrabold tracking-tight text-[#101828] sm:text-xl">
+          {hasRating && (
+            <div className="flex shrink-0 items-center gap-1 rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-1.5 py-0.5">
+              <Star
+                size={11}
+                fill="currentColor"
+                className="text-amber-400"
+                aria-hidden="true"
+              />
+              <span className="text-[11px] font-bold text-[#101828] tabular-nums">
+                {rating.toFixed(1)}
+              </span>
+              <span className="text-[10px] text-[#64748B] tabular-nums">
+                ({reviewCount.toLocaleString("en-IN")})
+              </span>
+            </div>
+          )}
+        </div>
+
+        <Link href={productLink} className="block">
+          <h3 className="line-clamp-2 min-h-[2.35rem] text-xs font-bold leading-snug text-[#101828] transition-colors duration-200 group-hover:text-[#0755E9] sm:min-h-[2.6rem] sm:text-sm">
+            {product.name || "Unnamed Product"}
+          </h3>
+        </Link>
+
+        {/* Price & Stock */}
+        <div className="mt-auto pt-3">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span className="text-base font-extrabold tracking-tight text-[#101828] tabular-nums sm:text-lg">
               {formatPrice(sellingPrice)}
             </span>
 
-            {/* MRP */}
-
-            {discount > 0 && (
-              <span className="text-xs font-medium text-slate-400 line-through">
+            {mrp > sellingPrice && (
+              <span className="text-[11px] font-medium text-slate-400 line-through tabular-nums sm:text-xs">
                 {formatPrice(mrp)}
               </span>
             )}
           </div>
 
-          {/* SAVINGS */}
-
           {discount > 0 && (
-            <p className="mt-1 text-[11px] font-semibold text-green-600">
+            <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 tabular-nums sm:text-[11px]">
               You save {formatPrice(mrp - sellingPrice)}
             </p>
           )}
+
+          <div className="mt-2 flex items-center gap-1.5">
+            <span
+              className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                isOutOfStock
+                  ? "bg-red-500"
+                  : isLowStock
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+              }`}
+            />
+            <span
+              className={`text-[11px] font-semibold ${
+                isOutOfStock
+                  ? "text-red-600"
+                  : isLowStock
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+              }`}
+            >
+              {isOutOfStock
+                ? "Out of Stock"
+                : isLowStock
+                  ? `Only ${stock} left`
+                  : "In Stock"}
+            </span>
+          </div>
         </div>
 
-        {/* ADD TO CART */}
-
+        {/* Add to Cart Button */}
         <button
           type="button"
           disabled={isAddDisabled}
           aria-busy={isAdding}
+          aria-label={
+            isAdding
+              ? "Adding product to cart"
+              : `Add ${product.name || "product"} to cart`
+          }
           onClick={() => {
             if (!isAddDisabled) {
               onAddToCart?.(product);
             }
           }}
-          className="mt-auto flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#0755e9] px-3 py-3 text-xs font-bold text-white shadow-sm transition-all hover:bg-[#0645c4] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755e9] focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none sm:mt-4 sm:text-sm"
+          className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-3 py-2.5 text-xs font-bold text-white shadow-xs transition-all duration-200 hover:bg-[#082B70] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none sm:gap-2"
         >
           {isAdding ? (
-            <Loader2
-              size={16}
-              className="animate-spin"
-              aria-hidden="true"
-            />
+            <>
+              <LoaderCircle size={15} className="animate-spin" aria-hidden="true" />
+              <span>Adding...</span>
+            </>
           ) : (
-            <ShoppingCart
-              size={16}
-              aria-hidden="true"
-            />
-          )}
-
-          <span>
-            {isOutOfStock
-              ? "Unavailable"
-              : isAdding
-                ? "Adding..."
-                : "Add to Cart"}
-          </span>
-
-          {!isOutOfStock && !isAdding && (
-            <ArrowUpRight
-              size={15}
-              className="hidden sm:block"
-              aria-hidden="true"
-            />
+            <>
+              <ShoppingBag size={15} strokeWidth={2} aria-hidden="true" />
+              <span>{isOutOfStock ? "Out of Stock" : "Add to Cart"}</span>
+            </>
           )}
         </button>
       </div>
-    </motion.article>
+    </article>
   );
 }

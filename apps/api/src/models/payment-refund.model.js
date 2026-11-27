@@ -103,6 +103,23 @@ const paymentRefundSchema = new mongoose.Schema(
       default: null,
     },
 
+    uncertainState: {
+      type: Boolean,
+      default: false,
+    },
+
+    initiatedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    initiatedByRole: {
+      type: String,
+      enum: ["USER", "ADMIN", "SYSTEM", null],
+      default: null,
+    },
+
     processedAt: {
       type: Date,
       default: null,

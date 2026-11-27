@@ -17,7 +17,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import Logo from "@/components/layout/navbar/Logo";
 
 import { useAuth } from "@/hooks/useAuth";
 import { loginUser } from "@/store/thunks/authThunks";
@@ -165,21 +165,9 @@ function LoginPageContent() {
             xl:px-12
           "
         >
-          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
-
-          <Link
-            href="/"
-            className="relative z-10 flex items-center gap-2.5"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-xl font-bold tracking-tight">
-              ELE<span className="text-blue-300">ZIO</span>
-            </span>
-          </Link>
+          <div className="relative z-10">
+            <Logo variant="white" />
+          </div>
 
           <div className="relative z-10 max-w-md">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
@@ -197,7 +185,7 @@ function LoginPageContent() {
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
               Discover quality gadgets and electronics, explore
               your favourite brands and enjoy a seamless
-              shopping experience with ELEZIO.
+              shopping experience with ELENZO.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -246,7 +234,7 @@ function LoginPageContent() {
           </div>
 
           <p className="relative z-10 text-[11px] text-blue-100/60">
-            © {new Date().getFullYear()} ELEZIO. All rights reserved.
+            © {new Date().getFullYear()} ELENZO. All rights reserved.
           </p>
         </motion.section>
 
@@ -263,18 +251,9 @@ function LoginPageContent() {
           <div className="w-full max-w-[400px]">
 
             {/* MOBILE BRAND */}
-            <Link
-              href="/"
-              className="mb-6 flex items-center justify-center gap-2 lg:hidden"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <BrandMark className="h-5 w-5" />
-              </span>
-
-              <span className="text-lg font-bold text-slate-900">
-                ELE<span className="text-blue-600">ZIO</span>
-              </span>
-            </Link>
+            <div className="mb-6 flex justify-center lg:hidden">
+              <Logo />
+            </div>
 
             {/* HEADING */}
             <div className="mb-5">
@@ -288,7 +267,7 @@ function LoginPageContent() {
 
               <p className="mt-1.5 text-sm leading-5 text-slate-500">
                 Enter your account details to continue shopping
-                with ELEZIO.
+                with ELENZO.
               </p>
             </div>
 
@@ -559,7 +538,7 @@ function LoginPageContent() {
             {/* REGISTER LINK */}
             <div className="mt-5 text-center">
               <p className="text-xs text-slate-500">
-                New to ELEZIO?{" "}
+                New to ELENZO?{" "}
                 <Link
                   href="/register"
                   className="font-bold text-blue-600 hover:text-blue-700"
@@ -580,7 +559,7 @@ function LoginPageContent() {
               </div>
 
               <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">
-                By signing in, you agree to ELEZIO's{" "}
+                By signing in, you agree to ELENZO's{" "}
                 <Link
                   href="/terms"
                   className="text-blue-600 hover:underline"

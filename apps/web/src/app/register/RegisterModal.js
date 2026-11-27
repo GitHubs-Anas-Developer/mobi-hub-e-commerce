@@ -16,7 +16,7 @@ import {
   Loader2,
   CheckCircle2,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import { BRAND_ASSETS, BRAND_NAME, BRAND_TAGLINE } from "@/config/brand";
 
 import { useAuth } from "@/hooks/useAuth";
 import { registerUser } from "@/store/thunks/authThunks";
@@ -231,14 +231,12 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 
         <div className="px-4 py-5 sm:px-6 sm:py-6">
           {/* BRAND */}
-          <div className="mb-4 flex items-center justify-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-lg font-extrabold text-slate-900">
-              ELE<span className="text-blue-600">ZIO</span>
-            </span>
+          <div className="mb-4 flex items-center justify-center">
+            <img
+              src={BRAND_ASSETS.logo}
+              alt={`${BRAND_NAME} - ${BRAND_TAGLINE}`}
+              className="h-9 w-auto object-contain"
+            />
           </div>
 
           {/* HEADING */}
@@ -254,8 +252,8 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 
             <p className="mt-1 text-sm text-slate-500">
               {registrationComplete
-                ? "One more step to activate your ELEZIO account."
-                : "Join ELEZIO and discover amazing tech & electronics."}
+                ? "One more step to activate your ELENZO account."
+                : "Join ELENZO and discover amazing tech & electronics."}
             </p>
           </div>
 
@@ -291,7 +289,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
 
                 <p className="mt-3 text-xs leading-5 text-slate-500">
                   Please open the email and click the verification link to
-                  activate your ELEZIO account. You cannot log in until your
+                  activate your ELENZO account. You cannot log in until your
                   email is verified.
                 </p>
               </div>

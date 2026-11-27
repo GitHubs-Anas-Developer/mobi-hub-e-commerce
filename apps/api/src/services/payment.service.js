@@ -9,6 +9,14 @@ import WebhookEvent from "../models/webhook-event.model.js";
 import { createNotification } from "./notification.service.js";
 import PaymentRefund from "../models/payment-refund.model.js";
 import Return from "../models/return.model.js";
+import User from "../models/user.model.js";
+import {
+  createRazorpayRefund,
+  fetchRazorpayPaymentRefunds,
+  fetchRazorpayRefund,
+  fromPaise,
+  toPaise,
+} from "../utils/razorpayGateway.js";
 
 const createError = (message, statusCode = 400) => {
   const error = new Error(message);
@@ -16,33 +24,97 @@ const createError = (message, statusCode = 400) => {
   return error;
 };
 
-const fetchRazorpayRefund = async (refundId) => {
-  const response = await fetch(
-    `https://api.razorpay.com/v1/refunds/${refundId}`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`,
-        ).toString("base64")}`,
-      },
-    },
-  );
+const buildCancellationReceipt = (orderId, attempt) =>
+  `oc_${String(orderId).slice(-16)}_a${attempt}`.slice(0, 40);
 
-  const refundData = await response.json();
+export const sanitizePaymentForCustomer = (payment) => {
+  if (!payment) return null;
+  const doc = typeof payment.toObject === "function" ? payment.toObject() : payment;
 
-  if (!response.ok) {
-    throw createError("Unable to verify current Razorpay refund status", 502);
-  }
+  return {
+    _id: doc._id,
+    order: doc.order,
+    provider: doc.provider,
+    razorpayOrderId: doc.razorpayOrderId || null,
+    razorpayPaymentId: doc.razorpayPaymentId || null,
+    amount: doc.amount,
+    currency: doc.currency || "INR",
+    status: doc.status,
+    paymentMethod: doc.paymentMethod || null,
+    verifiedAt: doc.verifiedAt || null,
+    refundedAmount: Number(doc.refundedAmount || 0),
+    createdAt: doc.createdAt || null,
+  };
+};
 
+export const sanitizeRefundForCustomer = (refund) => {
+  if (!refund) return null;
+  const doc = typeof refund.toObject === "function" ? refund.toObject() : refund;
+
+  return {
+    _id: doc._id,
+    referenceType: doc.referenceType,
+    attempt: doc.attempt,
+    provider: doc.provider,
+    amount: doc.amount,
+    currency: doc.currency || "INR",
+    status: doc.status,
+    providerRefundId: doc.providerRefundId || null,
+    reason: doc.reason || "",
+    failureReason: doc.status === "Failed" ? doc.failureReason || null : null,
+    processedAt: doc.processedAt || null,
+    createdAt: doc.createdAt || null,
+  };
+};
+
+export const buildRefundSummary = ({ order, payment = null, refunds = [] } = {}) => {
+  const latestRefund = refunds[0] || null;
+  const isCOD = order?.paymentMethod === "COD";
+
+  let status = order?.refundStatus || "NOT_REQUIRED";
   if (
-    !refundData.id ||
-    !["pending", "processed", "failed"].includes(refundData.status)
+    (!order?.refundStatus || order.refundStatus === "NOT_REQUIRED") &&
+    order?.orderStatus === "Cancelled"
   ) {
-    throw createError("Invalid Razorpay refund response", 502);
+    if (latestRefund) {
+      if (latestRefund.status === "Processed") status = "SUCCESS";
+      else if (latestRefund.uncertainState) status = "RECONCILIATION_REQUIRED";
+      else if (latestRefund.status === "Processing") status = "PROCESSING";
+      else if (latestRefund.status === "Failed") status = "FAILED";
+      else status = "PENDING";
+    } else if (order?.paymentStatus === "Refunded") {
+      status = "SUCCESS";
+    } else if (order?.paymentStatus === "Paid" && !isCOD) {
+      status = "PENDING";
+    } else {
+      status = "NOT_REQUIRED";
+    }
   }
 
-  return refundData;
+  return {
+    status,
+    amount:
+      Number(order?.refundAmount) > 0
+        ? Number(order.refundAmount)
+        : Number(latestRefund?.amount || 0),
+    currency: latestRefund?.currency || payment?.currency || "INR",
+    method:
+      latestRefund?.provider ||
+      (order?.paymentMethod === "Online" ? "Razorpay" : "Manual"),
+    gatewayRefundId:
+      latestRefund?.providerRefundId || payment?.refundId || null,
+    requestedAt: order?.refundRequestedAt || latestRefund?.createdAt || null,
+    processedAt:
+      order?.refundCompletedAt ||
+      latestRefund?.processedAt ||
+      payment?.refundedAt ||
+      null,
+    failureReason:
+      status === "FAILED" || status === "RECONCILIATION_REQUIRED"
+        ? order?.refundFailureReason || latestRefund?.failureReason || null
+        : null,
+    refunds: refunds.map(sanitizeRefundForCustomer),
+  };
 };
 
 const sendPaymentNotification = async ({ payment, type, title, message }) => {
@@ -304,6 +376,16 @@ export const verifyPayment = async (userId, paymentData) => {
       ) {
         order.paymentStatus = "Paid";
         await order.save({ session });
+      } else if (
+        order.orderStatus === "Cancelled" &&
+        order.refundStatus !== "SUCCESS"
+      ) {
+        order.refundStatus = "RECONCILIATION_REQUIRED";
+        order.refundAmount = order.refundAmount || currentPayment.amount;
+        order.refundRequestedAt = order.refundRequestedAt || new Date();
+        order.refundFailureReason =
+          "Payment was captured after order cancellation. Admin review required.";
+        await order.save({ session });
       }
 
       notificationRequired =
@@ -512,6 +594,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           // Fallback lookup using Razorpay refund notes.
           if (!refundRecord) {
             const returnId = providerRefund.notes?.returnId;
+            const noteOrderId = providerRefund.notes?.orderId;
             const attempt = Number(providerRefund.notes?.attempt);
 
             if (returnId && Number.isInteger(attempt) && attempt > 0) {
@@ -521,11 +604,18 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 attempt,
                 provider: "Razorpay",
               }).session(session);
+            } else if (noteOrderId && Number.isInteger(attempt) && attempt > 0) {
+              refundRecord = await PaymentRefund.findOne({
+                referenceType: "OrderCancellation",
+                referenceId: noteOrderId,
+                attempt,
+                provider: "Razorpay",
+              }).session(session);
             }
           }
 
           // ------------------------------------
-          // RETURN REFUND FLOW
+          // UNIFIED REFUND RECORD FLOW (Return & OrderCancellation)
           // ------------------------------------
           if (refundRecord) {
             if (!refundRecord.payment) {
@@ -544,7 +634,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             }
 
             if (
-              providerRefund.amount !== Math.round(refundRecord.amount * 100)
+              providerRefund.amount !== toPaise(refundRecord.amount)
             ) {
               throw createError("Refund amount mismatch", 409);
             }
@@ -569,11 +659,15 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
               }
             }
 
+            const cancellationOrder =
+              refundRecord.referenceType === "OrderCancellation"
+                ? await Order.findById(refundRecord.order).session(session)
+                : null;
+
             // ------------------------------------
             // PROVIDER REFUND PENDING
             // ------------------------------------
             if (providerRefund.status === "pending") {
-              // Never downgrade terminal refund states.
               if (
                 previousStatus === "Processed" ||
                 previousStatus === "Failed"
@@ -584,12 +678,22 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
               } else {
                 refundRecord.status = "Processing";
                 refundRecord.providerStatus = "pending";
+                refundRecord.uncertainState = false;
                 refundRecord.providerStatusCheckedAt = new Date();
               }
 
               refundRecord.providerRefundId = providerRefund.id;
 
               await refundRecord.save({ session });
+
+              if (
+                cancellationOrder &&
+                cancellationOrder.refundStatus !== "SUCCESS"
+              ) {
+                cancellationOrder.refundStatus = "PROCESSING";
+                cancellationOrder.refundFailureReason = null;
+                await cancellationOrder.save({ session });
+              }
 
               if (reconciliationReasons.length > 0) {
                 payment.refundReconciliationRequired = true;
@@ -613,7 +717,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
             // PROVIDER REFUND FAILED
             // ------------------------------------
             if (providerRefund.status === "failed") {
-              // A processed refund must never be downgraded.
               if (previousStatus === "Processed") {
                 reconciliationReasons.push(
                   `Razorpay reported failed for an already processed refund attempt ${refundRecord.attempt}.`,
@@ -621,16 +724,72 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
               } else {
                 refundRecord.status = "Failed";
                 refundRecord.providerStatus = "failed";
+                refundRecord.uncertainState = false;
                 refundRecord.failureReason =
                   providerRefund.error_description ||
                   "Razorpay confirmed refund failure";
-
                 refundRecord.providerStatusCheckedAt = new Date();
+
+                if (!refundRecord.reservationReleasedAt) {
+                  const releasedPayment = await Payment.findOneAndUpdate(
+                    {
+                      _id: payment._id,
+                      reservedRefundAmount: {
+                        $gte: refundRecord.amount,
+                      },
+                    },
+                    {
+                      $inc: {
+                        reservedRefundAmount: -refundRecord.amount,
+                      },
+                    },
+                    {
+                      new: true,
+                      session,
+                    },
+                  );
+
+                  if (releasedPayment) {
+                    refundRecord.reservationReleasedAt = new Date();
+
+                    const activePendingRefunds = await PaymentRefund.countDocuments({
+                      payment: payment._id,
+                      _id: { $ne: refundRecord._id },
+                      status: { $in: ["Pending", "Processing"] },
+                    }).session(session);
+
+                    if (
+                      activePendingRefunds === 0 &&
+                      releasedPayment.status === "RefundPending"
+                    ) {
+                      releasedPayment.status =
+                        toPaise(releasedPayment.refundedAmount) > 0
+                          ? "PartiallyRefunded"
+                          : "Paid";
+                      await releasedPayment.save({ session });
+                    }
+                  } else {
+                    reconciliationReasons.push(
+                      `Unable to release reservation for failed refund attempt ${refundRecord.attempt}.`,
+                    );
+                  }
+                }
               }
 
               refundRecord.providerRefundId = providerRefund.id;
 
               await refundRecord.save({ session });
+
+              if (
+                cancellationOrder &&
+                cancellationOrder.refundStatus !== "SUCCESS"
+              ) {
+                cancellationOrder.refundStatus = "FAILED";
+                cancellationOrder.refundFailureReason =
+                  refundRecord.failureReason ||
+                  "Razorpay confirmed refund failure";
+                await cancellationOrder.save({ session });
+              }
 
               if (reconciliationReasons.length > 0) {
                 payment.refundReconciliationRequired = true;
@@ -658,19 +817,24 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 previousStatus === "Failed" &&
                 Boolean(refundRecord.reservationReleasedAt);
 
-              if (wasPreviouslyFailedAndReleased || !isCurrentReturnAttempt) {
+              if (
+                wasPreviouslyFailedAndReleased ||
+                (refundRecord.referenceType === "Return" &&
+                  !isCurrentReturnAttempt)
+              ) {
                 reconciliationReasons.push(
-                  `Late processed refund detected for return ${refundRecord.referenceId}, attempt ${refundRecord.attempt}. Manual reconciliation is required.`,
+                  `Late processed refund detected for ${refundRecord.referenceType} ${refundRecord.referenceId}, attempt ${refundRecord.attempt}. Manual reconciliation is required.`,
                 );
               }
 
               refundRecord.providerRefundId = providerRefund.id;
               refundRecord.status = "Processed";
               refundRecord.providerStatus = "processed";
+              refundRecord.uncertainState = false;
+              refundRecord.failureReason = null;
               refundRecord.processedAt = refundRecord.processedAt || new Date();
               refundRecord.providerStatusCheckedAt = new Date();
 
-              // Release reservation exactly once.
               if (!refundRecord.reservationReleasedAt) {
                 const releasedPayment = await Payment.findOneAndUpdate(
                   {
@@ -701,7 +865,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
               await refundRecord.save({ session });
 
-              // Update Return only if this attempt is still current.
               if (
                 refundRecord.referenceType === "Return" &&
                 returnRequest &&
@@ -718,23 +881,22 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                   recipient: returnRequest.user,
                   title: "Return Refund Completed",
                   message: `Your refund for return ${returnRequest.returnNumber} has been processed.`,
-                  type: "REFUND_SUCCESS",
-                  relatedId: returnRequest._id,
-                  relatedModel: "Return",
+                  type: "REFUND_PROCESSED",
+                  relatedId: returnRequest.order,
+                  relatedModel: "Order",
                 };
               }
 
-              // Recalculate refunded amount from processed records.
               const processedRefunds = await PaymentRefund.find({
                 payment: payment._id,
                 status: "Processed",
               }).session(session);
 
-              const totalRefunded = Number(
-                processedRefunds
-                  .reduce((sum, item) => sum + item.amount, 0)
-                  .toFixed(2),
+              const totalRefundedPaise = processedRefunds.reduce(
+                (sum, item) => sum + toPaise(item.amount),
+                0,
               );
+              const totalRefunded = fromPaise(totalRefundedPaise);
 
               const latestPayment = await Payment.findById(payment._id).session(
                 session,
@@ -744,14 +906,10 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 throw createError("Payment record not found", 404);
               }
 
-              const reservedAmount = Number(
-                (latestPayment.reservedRefundAmount || 0).toFixed(2),
-              );
+              const paymentAmountPaise = toPaise(latestPayment.amount);
+              const reservedPaise = toPaise(latestPayment.reservedRefundAmount);
 
-              if (
-                Number((totalRefunded + reservedAmount).toFixed(2)) >
-                latestPayment.amount
-              ) {
+              if (totalRefundedPaise + reservedPaise > paymentAmountPaise) {
                 reconciliationReasons.push(
                   "Processed refunds plus reserved refunds exceed the captured payment amount.",
                 );
@@ -759,13 +917,15 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
               latestPayment.refundedAmount = totalRefunded;
 
-              if (totalRefunded >= latestPayment.amount) {
+              if (totalRefundedPaise >= paymentAmountPaise) {
                 latestPayment.status = "Refunded";
-              } else if (totalRefunded > 0) {
+                latestPayment.refundId = providerRefund.id;
+                latestPayment.refundedAt =
+                  latestPayment.refundedAt || refundRecord.processedAt;
+              } else if (totalRefundedPaise > 0) {
                 latestPayment.status = "PartiallyRefunded";
               }
 
-              // Never automatically clear this flag.
               if (reconciliationReasons.length > 0) {
                 latestPayment.refundReconciliationRequired = true;
 
@@ -781,7 +941,6 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
               await latestPayment.save({ session });
 
-              // Update order payment status.
               const order = await Order.findById(latestPayment.order).session(
                 session,
               );
@@ -791,6 +950,25 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                   order.paymentStatus = "Refunded";
                 } else if (latestPayment.status === "PartiallyRefunded") {
                   order.paymentStatus = "PartiallyRefunded";
+                }
+
+                if (refundRecord.referenceType === "OrderCancellation") {
+                  order.refundStatus =
+                    reconciliationReasons.length > 0
+                      ? "RECONCILIATION_REQUIRED"
+                      : "SUCCESS";
+                  order.refundCompletedAt =
+                    order.refundCompletedAt || refundRecord.processedAt;
+                  order.refundFailureReason = null;
+
+                  refundNotification = {
+                    recipient: order.user,
+                    title: "Refund Completed",
+                    message: `Your refund of ₹${Number(refundRecord.amount).toFixed(2)} for cancelled order ${order.orderNumber} has been processed.`,
+                    type: "REFUND_PROCESSED",
+                    relatedId: order._id,
+                    relatedModel: "Order",
+                  };
                 }
 
                 await order.save({ session });
@@ -810,6 +988,7 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
 
             if (providerRefund.status === "processed") {
               payment.status = "Refunded";
+              payment.refundedAmount = payment.amount;
               payment.refundedAt = new Date();
               payment.refundId = providerRefund.id;
 
@@ -820,16 +999,20 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 {
                   $set: {
                     paymentStatus: "Refunded",
+                    refundStatus: "SUCCESS",
+                    refundCompletedAt: payment.refundedAt,
+                    refundFailureReason: null,
                   },
                 },
                 { session },
               );
             } else if (providerRefund.status === "failed") {
+              const failureReason =
+                providerRefund.error_description || "Razorpay refund failed";
               payment.status = "Paid";
               payment.refundId = null;
               payment.refundIdempotencyKey = null;
-              payment.failureReason =
-                providerRefund.error_description || "Razorpay refund failed";
+              payment.failureReason = failureReason;
 
               await payment.save({ session });
 
@@ -838,6 +1021,8 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
                 {
                   $set: {
                     paymentStatus: "Paid",
+                    refundStatus: "FAILED",
+                    refundFailureReason: failureReason,
                   },
                 },
                 { session },
@@ -1030,6 +1215,15 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
           // Cancelled orders must retain their cancelled status.
           // Automatic refund is handled after this transaction.
           if (order.orderStatus === "Cancelled") {
+            if (order.paymentStatus === "Pending") {
+              order.paymentStatus = "Paid";
+            }
+            if (!order.refundStatus || order.refundStatus === "NOT_REQUIRED") {
+              order.refundStatus = "PENDING";
+              order.refundAmount = order.refundAmount || payment.amount;
+              order.refundRequestedAt = order.refundRequestedAt || new Date();
+            }
+            await order.save({ session });
             return;
           }
 
@@ -1134,10 +1328,20 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
         const order = await Order.findById(payment.order);
 
         if (order?.orderStatus === "Cancelled") {
-          await refundPayment(
-            payment._id,
-            "Automatic refund for cancelled order",
-          );
+          try {
+            await initiateOrderCancellationRefund({
+              orderId: order._id,
+              paymentId: payment._id,
+              reason: "Automatic refund for cancelled order",
+              initiatedByRole: "SYSTEM",
+              swallowGatewayError: true,
+            });
+          } catch (autoRefundError) {
+            console.error(
+              "Automatic cancellation refund failed:",
+              autoRefundError.message,
+            );
+          }
         }
       }
     }
@@ -1159,214 +1363,1341 @@ export const handleRazorpayWebhook = async (rawBody, signature, eventId) => {
   }
 };
 
-export const refundPayment = async (paymentId, reason = "Customer refund") => {
-  let payment = await Payment.findById(paymentId);
+const TIMEOUT_RECONCILIATION_MARKER =
+  "Cancellation refund gateway timeout/uncertain response";
 
-  if (!payment) {
-    throw createError("Payment not found", 404);
+const clearTimeoutReconciliationIfSoleCause = (payment) => {
+  if (!payment?.refundReconciliationRequired) return;
+
+  const parts = String(payment.refundReconciliationReason || "")
+    .split(" | ")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const remainingReasons = parts.filter(
+    (part) => !part.startsWith(TIMEOUT_RECONCILIATION_MARKER),
+  );
+
+  if (remainingReasons.length === 0) {
+    payment.refundReconciliationRequired = false;
+    payment.refundReconciliationReason = null;
+    payment.refundReconciliationAt = null;
+  }
+};
+
+export const reserveCancellationRefundInSession = async ({
+  order,
+  payment,
+  userId = null,
+  initiatedByRole = "USER",
+  reason = "Order cancellation refund",
+  amount = null,
+  session,
+}) => {
+  if (!order || order.orderStatus !== "Cancelled") {
+    throw createError("Cancel the order before processing a refund", 400);
   }
 
-  if (payment.status === "Refunded") {
-    return payment;
+  if (!payment || payment.order.toString() !== order._id.toString()) {
+    throw createError("Captured payment not found for this order", 404);
   }
 
-  if (!["Paid", "RefundPending"].includes(payment.status)) {
-    throw createError("Only paid payments can be refunded");
+  if (!["Paid", "PartiallyRefunded"].includes(payment.status)) {
+    throw createError("Only paid payments can be refunded", 400);
   }
 
   if (!payment.razorpayPaymentId) {
-    throw createError("Razorpay payment ID not found");
+    throw createError("Razorpay payment ID not found", 400);
   }
 
-  const order = await Order.findById(payment.order);
+  if (payment.refundReconciliationRequired) {
+    throw createError(
+      "Payment requires manual reconciliation before issuing another refund",
+      409,
+    );
+  }
+
+  const activeRefund = await PaymentRefund.findOne({
+    referenceType: "OrderCancellation",
+    referenceId: order._id,
+    status: { $in: ["Pending", "Processing"] },
+  }).session(session);
+
+  if (activeRefund) {
+    const err = createError(
+      activeRefund.uncertainState
+        ? "Previous refund attempt had a gateway timeout. Sync refund status before retrying."
+        : "A cancellation refund attempt is already in progress",
+      409,
+    );
+    err.code = "REFUND_IN_PROGRESS";
+    err.existingRefund = activeRefund;
+    throw err;
+  }
+
+  const paymentAmountPaise = toPaise(payment.amount);
+  const refundedPaise = toPaise(payment.refundedAmount);
+  const reservedPaise = toPaise(payment.reservedRefundAmount);
+  const remainingPaise = paymentAmountPaise - refundedPaise - reservedPaise;
+
+  if (remainingPaise <= 0) {
+    return {
+      alreadyFullyRefunded: true,
+      paymentRefund: null,
+      payment,
+      order,
+    };
+  }
+
+  let requestedPaise;
+  if (amount !== null && amount !== undefined) {
+    requestedPaise = toPaise(amount);
+    if (!Number.isInteger(requestedPaise) || requestedPaise <= 0) {
+      throw createError("Refund amount must be greater than zero", 400);
+    }
+    if (requestedPaise > remainingPaise) {
+      throw createError(
+        `Refund amount exceeds remaining refundable balance (₹${fromPaise(remainingPaise).toFixed(2)})`,
+        409,
+      );
+    }
+  } else {
+    requestedPaise = Math.min(toPaise(order.totalAmount), remainingPaise);
+    if (requestedPaise <= 0) {
+      return {
+        alreadyFullyRefunded: true,
+        paymentRefund: null,
+        payment,
+        order,
+      };
+    }
+  }
+
+  const refundAmount = fromPaise(requestedPaise);
+
+  const latestAttempt = await PaymentRefund.findOne({
+    referenceType: "OrderCancellation",
+    referenceId: order._id,
+  })
+    .sort({ attempt: -1 })
+    .session(session);
+
+  if (
+    latestAttempt &&
+    latestAttempt.status === "Failed" &&
+    !latestAttempt.reservationReleasedAt
+  ) {
+    throw createError(
+      "Previous failed refund reservation has not been released safely",
+      409,
+    );
+  }
+
+  const attempt = latestAttempt ? latestAttempt.attempt + 1 : 1;
+
+  const reservedPayment = await Payment.findOneAndUpdate(
+    {
+      _id: payment._id,
+      status: { $in: ["Paid", "PartiallyRefunded"] },
+      refundReconciliationRequired: { $ne: true },
+      $expr: {
+        $lte: [
+          {
+            $add: [
+              { $ifNull: ["$refundedAmount", 0] },
+              { $ifNull: ["$reservedRefundAmount", 0] },
+              refundAmount,
+            ],
+          },
+          { $add: ["$amount", 0.001] },
+        ],
+      },
+    },
+    {
+      $inc: {
+        reservedRefundAmount: refundAmount,
+      },
+    },
+    { new: true, session },
+  );
+
+  if (!reservedPayment) {
+    throw createError(
+      "Refund amount exceeds the remaining refundable payment balance or reconciliation is required",
+      409,
+    );
+  }
+
+  const sanitizedReason = String(
+    reason || order.cancellationReason || "Order cancellation refund",
+  )
+    .trim()
+    .slice(0, 500);
+
+  const paymentRefund = new PaymentRefund({
+    payment: reservedPayment._id,
+    order: order._id,
+    user: order.user,
+    referenceType: "OrderCancellation",
+    referenceId: order._id,
+    attempt,
+    provider: "Razorpay",
+    amount: refundAmount,
+    currency: reservedPayment.currency || "INR",
+    status: "Pending",
+    idempotencyKey: `order-cancel-${order._id}-attempt-${attempt}`,
+    reason: sanitizedReason,
+    initiatedBy: userId || null,
+    initiatedByRole,
+  });
+
+  await paymentRefund.save({ session });
+
+  const requestedAt = order.refundRequestedAt || new Date();
+  order.refundStatus = "PENDING";
+  order.refundAmount = fromPaise(
+    Math.min(
+      paymentAmountPaise,
+      refundedPaise + reservedPaise + requestedPaise,
+    ),
+  );
+  order.refundRequestedAt = requestedAt;
+  order.refundFailureReason = null;
+  await order.save({ session });
+
+  return {
+    alreadyFullyRefunded: false,
+    paymentRefund,
+    payment: reservedPayment,
+    order,
+  };
+};
+
+const applyGatewayRefundOutcome = async ({
+  paymentRefundId,
+  providerRefund = null,
+  gatewayError = null,
+  clearTimeoutReconciliation = false,
+}) => {
+  const session = await mongoose.startSession();
+  let result = {};
+  let notificationPayload = null;
+
+  try {
+    await session.withTransaction(async () => {
+      const refundRecord = await PaymentRefund.findById(paymentRefundId).session(
+        session,
+      );
+
+      if (!refundRecord) {
+        throw createError("Refund record not found", 404);
+      }
+
+      const payment = await Payment.findById(refundRecord.payment).session(
+        session,
+      );
+      const order = await Order.findById(refundRecord.order).session(session);
+
+      if (!payment || !order) {
+        throw createError("Associated payment or order not found", 404);
+      }
+
+      if (refundRecord.status === "Processed") {
+        result = { paymentRefund: refundRecord, payment, order };
+        return;
+      }
+
+      const now = new Date();
+
+      if (gatewayError) {
+        if (gatewayError.isUncertain) {
+          refundRecord.uncertainState = true;
+          refundRecord.failureReason = gatewayError.message;
+          await refundRecord.save({ session });
+
+          payment.refundReconciliationRequired = true;
+          payment.refundReconciliationReason = [
+            payment.refundReconciliationReason,
+            `${TIMEOUT_RECONCILIATION_MARKER} (attempt ${refundRecord.attempt})`,
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          payment.refundReconciliationAt = now;
+          await payment.save({ session });
+
+          order.refundStatus = "RECONCILIATION_REQUIRED";
+          order.refundFailureReason = gatewayError.message;
+          await order.save({ session });
+
+          result = { paymentRefund: refundRecord, payment, order };
+          return;
+        }
+
+        // Deterministic gateway rejection before creating a refund.
+        if (!refundRecord.reservationReleasedAt) {
+          const released = await Payment.findOneAndUpdate(
+            {
+              _id: payment._id,
+              reservedRefundAmount: { $gte: refundRecord.amount },
+            },
+            { $inc: { reservedRefundAmount: -refundRecord.amount } },
+            { new: true, session },
+          );
+
+          if (released) {
+            refundRecord.reservationReleasedAt = now;
+          } else {
+            payment.refundReconciliationRequired = true;
+            payment.refundReconciliationReason = [
+              payment.refundReconciliationReason,
+              `Failed to release reserved refund amount for attempt ${refundRecord.attempt}`,
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            payment.refundReconciliationAt = now;
+            await payment.save({ session });
+          }
+        }
+
+        refundRecord.status = "Failed";
+        refundRecord.uncertainState = false;
+        refundRecord.failureReason = gatewayError.message || "Refund failed";
+        await refundRecord.save({ session });
+
+        const latestPayment = await Payment.findById(payment._id).session(
+          session,
+        );
+        const remainingActive = await PaymentRefund.countDocuments({
+          payment: payment._id,
+          _id: { $ne: refundRecord._id },
+          status: { $in: ["Pending", "Processing"] },
+        }).session(session);
+
+        if (
+          latestPayment &&
+          remainingActive === 0 &&
+          latestPayment.status === "RefundPending"
+        ) {
+          latestPayment.status =
+            toPaise(latestPayment.refundedAmount) > 0
+              ? "PartiallyRefunded"
+              : "Paid";
+          await latestPayment.save({ session });
+        }
+
+        order.refundStatus = "FAILED";
+        order.refundFailureReason = refundRecord.failureReason;
+        await order.save({ session });
+
+        result = {
+          paymentRefund: refundRecord,
+          payment: latestPayment || payment,
+          order,
+        };
+        return;
+      }
+
+      if (!providerRefund?.id || !providerRefund?.status) {
+        throw createError("Invalid gateway refund outcome", 502);
+      }
+
+      refundRecord.providerRefundId = providerRefund.id;
+      refundRecord.providerStatus = providerRefund.status;
+      refundRecord.providerStatusCheckedAt = now;
+      refundRecord.uncertainState = false;
+
+      if (clearTimeoutReconciliation) {
+        clearTimeoutReconciliationIfSoleCause(payment);
+      }
+
+      if (providerRefund.status === "pending") {
+        refundRecord.status = "Processing";
+        refundRecord.failureReason = null;
+        await refundRecord.save({ session });
+
+        if (toPaise(payment.refundedAmount) === 0 && payment.status === "Paid") {
+          payment.status = "RefundPending";
+        }
+        payment.refundId = providerRefund.id;
+        payment.refundReason = refundRecord.reason;
+        await payment.save({ session });
+
+        order.refundStatus = "PROCESSING";
+        order.refundFailureReason = null;
+        await order.save({ session });
+
+        result = { paymentRefund: refundRecord, payment, order };
+        return;
+      }
+
+      if (providerRefund.status === "failed") {
+        if (!refundRecord.reservationReleasedAt) {
+          const released = await Payment.findOneAndUpdate(
+            {
+              _id: payment._id,
+              reservedRefundAmount: { $gte: refundRecord.amount },
+            },
+            { $inc: { reservedRefundAmount: -refundRecord.amount } },
+            { new: true, session },
+          );
+
+          if (released) {
+            refundRecord.reservationReleasedAt = now;
+          } else {
+            payment.refundReconciliationRequired = true;
+            payment.refundReconciliationReason = [
+              payment.refundReconciliationReason,
+              `Failed to release reserved refund amount for gateway-failed attempt ${refundRecord.attempt}`,
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            payment.refundReconciliationAt = now;
+            await payment.save({ session });
+          }
+        }
+
+        refundRecord.status = "Failed";
+        refundRecord.failureReason =
+          providerRefund.error_description || "Razorpay refund failed";
+        await refundRecord.save({ session });
+
+        const latestPayment = await Payment.findById(payment._id).session(
+          session,
+        );
+        const remainingActive = await PaymentRefund.countDocuments({
+          payment: payment._id,
+          _id: { $ne: refundRecord._id },
+          status: { $in: ["Pending", "Processing"] },
+        }).session(session);
+
+        if (
+          latestPayment &&
+          remainingActive === 0 &&
+          latestPayment.status === "RefundPending"
+        ) {
+          latestPayment.status =
+            toPaise(latestPayment.refundedAmount) > 0
+              ? "PartiallyRefunded"
+              : "Paid";
+        }
+        if (latestPayment && clearTimeoutReconciliation) {
+          clearTimeoutReconciliationIfSoleCause(latestPayment);
+        }
+        if (latestPayment) {
+          await latestPayment.save({ session });
+        }
+
+        order.refundStatus = "FAILED";
+        order.refundFailureReason = refundRecord.failureReason;
+        await order.save({ session });
+
+        result = {
+          paymentRefund: refundRecord,
+          payment: latestPayment || payment,
+          order,
+        };
+        return;
+      }
+
+      if (providerRefund.status === "processed") {
+        if (!refundRecord.reservationReleasedAt) {
+          const released = await Payment.findOneAndUpdate(
+            {
+              _id: payment._id,
+              reservedRefundAmount: { $gte: refundRecord.amount },
+            },
+            { $inc: { reservedRefundAmount: -refundRecord.amount } },
+            { new: true, session },
+          );
+
+          if (released) {
+            refundRecord.reservationReleasedAt = now;
+          } else {
+            payment.refundReconciliationRequired = true;
+            payment.refundReconciliationReason = [
+              payment.refundReconciliationReason,
+              `Unable to release reservation for processed refund attempt ${refundRecord.attempt}`,
+            ]
+              .filter(Boolean)
+              .join(" | ");
+            payment.refundReconciliationAt = now;
+            await payment.save({ session });
+          }
+        }
+
+        refundRecord.status = "Processed";
+        refundRecord.processedAt = refundRecord.processedAt || now;
+        refundRecord.failureReason = null;
+        await refundRecord.save({ session });
+
+        const processedRefunds = await PaymentRefund.find({
+          payment: payment._id,
+          status: "Processed",
+        }).session(session);
+
+        const totalRefundedPaise = processedRefunds.reduce(
+          (sum, item) => sum + toPaise(item.amount),
+          0,
+        );
+        const totalRefunded = fromPaise(totalRefundedPaise);
+
+        const latestPayment = await Payment.findById(payment._id).session(
+          session,
+        );
+        const paymentAmountPaise = toPaise(latestPayment.amount);
+
+        if (
+          totalRefundedPaise + toPaise(latestPayment.reservedRefundAmount) >
+          paymentAmountPaise
+        ) {
+          latestPayment.refundReconciliationRequired = true;
+          latestPayment.refundReconciliationReason = [
+            latestPayment.refundReconciliationReason,
+            "Processed plus reserved refunds exceed captured payment amount",
+          ]
+            .filter(Boolean)
+            .join(" | ");
+          latestPayment.refundReconciliationAt = now;
+        } else if (clearTimeoutReconciliation) {
+          clearTimeoutReconciliationIfSoleCause(latestPayment);
+        }
+
+        latestPayment.refundedAmount = totalRefunded;
+        latestPayment.refundId = providerRefund.id;
+        latestPayment.refundReason = refundRecord.reason;
+        latestPayment.refundedAt =
+          latestPayment.refundedAt || refundRecord.processedAt;
+        latestPayment.status =
+          totalRefundedPaise >= paymentAmountPaise
+            ? "Refunded"
+            : "PartiallyRefunded";
+
+        await latestPayment.save({ session });
+
+        order.paymentStatus =
+          latestPayment.status === "Refunded" ? "Refunded" : "PartiallyRefunded";
+        order.refundStatus = latestPayment.refundReconciliationRequired
+          ? "RECONCILIATION_REQUIRED"
+          : "SUCCESS";
+        order.refundAmount = totalRefunded;
+        order.refundCompletedAt = refundRecord.processedAt;
+        order.refundFailureReason = null;
+        await order.save({ session });
+
+        notificationPayload = {
+          recipient: order.user,
+          title: "Refund Completed",
+          message: `Your refund of ₹${Number(refundRecord.amount).toFixed(2)} for cancelled order ${order.orderNumber} has been processed.`,
+          type: "REFUND_PROCESSED",
+          relatedId: order._id,
+          relatedModel: "Order",
+        };
+
+        result = { paymentRefund: refundRecord, payment: latestPayment, order };
+      }
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  if (notificationPayload) {
+    try {
+      await createNotification(notificationPayload);
+    } catch (error) {
+      console.error("Refund notification error:", error.message);
+    }
+  }
+
+  return result;
+};
+
+export const executeReservedRazorpayRefund = async ({
+  paymentRefund,
+  payment,
+  order,
+  swallowGatewayError = false,
+}) => {
+  try {
+    const providerRefund = await createRazorpayRefund({
+      razorpayPaymentId: payment.razorpayPaymentId,
+      amountPaise: toPaise(paymentRefund.amount),
+      receipt: buildCancellationReceipt(order._id, paymentRefund.attempt),
+      idempotencyKey: paymentRefund.idempotencyKey,
+      notes: {
+        referenceType: "OrderCancellation",
+        orderId: order._id.toString(),
+        orderNumber: order.orderNumber || "",
+        attempt: String(paymentRefund.attempt),
+        idempotencyKey: paymentRefund.idempotencyKey,
+        reason: paymentRefund.reason || "Order cancelled",
+      },
+    });
+
+    return await applyGatewayRefundOutcome({
+      paymentRefundId: paymentRefund._id,
+      providerRefund,
+    });
+  } catch (gatewayError) {
+    console.error("Razorpay Cancellation Refund Error:", {
+      orderId: order._id?.toString(),
+      attempt: paymentRefund.attempt,
+      statusCode: gatewayError.statusCode,
+      code: gatewayError.gatewayCode,
+      isUncertain: Boolean(gatewayError.isUncertain),
+      message: gatewayError.message,
+    });
+
+    const outcome = await applyGatewayRefundOutcome({
+      paymentRefundId: paymentRefund._id,
+      gatewayError,
+    });
+
+    if (swallowGatewayError) {
+      return outcome;
+    }
+
+    throw gatewayError;
+  }
+};
+
+export const syncOrderCancellationRefund = async (orderId, { adminId = null } = {}) => {
+  const order = await Order.findById(orderId);
+  if (!order) {
+    throw createError("Order not found", 404);
+  }
+
+  const latestRefund = await PaymentRefund.findOne({
+    referenceType: "OrderCancellation",
+    referenceId: order._id,
+  }).sort({ attempt: -1 });
+
+  if (!latestRefund) {
+    throw createError(
+      "No cancellation refund attempt found for this order",
+      404,
+    );
+  }
+
+  const payment = latestRefund.payment
+    ? await Payment.findById(latestRefund.payment)
+    : null;
+
+  if (latestRefund.provider === "Manual") {
+    return {
+      refund: latestRefund,
+      payment: sanitizePaymentForCustomer(payment),
+      order,
+      refundSummary: buildRefundSummary({
+        order,
+        payment,
+        refunds: [latestRefund],
+      }),
+    };
+  }
+
+  if (!payment || !payment.razorpayPaymentId) {
+    throw createError("Razorpay payment record not found for refund sync", 404);
+  }
+
+  if (latestRefund.status === "Processed") {
+    return {
+      refund: latestRefund,
+      payment: sanitizePaymentForCustomer(payment),
+      order,
+      refundSummary: buildRefundSummary({
+        order,
+        payment,
+        refunds: [latestRefund],
+      }),
+    };
+  }
+
+  let matchedGatewayRefund = null;
+
+  if (latestRefund.providerRefundId) {
+    matchedGatewayRefund = await fetchRazorpayRefund(
+      latestRefund.providerRefundId,
+    );
+  } else {
+    const paymentRefunds = await fetchRazorpayPaymentRefunds(
+      payment.razorpayPaymentId,
+    );
+    const expectedReceipt = buildCancellationReceipt(
+      order._id,
+      latestRefund.attempt,
+    );
+
+    matchedGatewayRefund =
+      paymentRefunds.find((item) => {
+        if (item?.notes?.idempotencyKey === latestRefund.idempotencyKey) {
+          return true;
+        }
+        if (
+          String(item?.notes?.orderId || "") === order._id.toString() &&
+          Number(item?.notes?.attempt) === latestRefund.attempt
+        ) {
+          return true;
+        }
+        if (item?.receipt && item.receipt === expectedReceipt) {
+          return true;
+        }
+        return false;
+      }) || null;
+  }
+
+  if (matchedGatewayRefund) {
+    if (
+      matchedGatewayRefund.payment_id &&
+      matchedGatewayRefund.payment_id !== payment.razorpayPaymentId
+    ) {
+      throw createError("Razorpay refund payment ID mismatch", 409);
+    }
+
+    if (
+      Number.isFinite(matchedGatewayRefund.amount) &&
+      matchedGatewayRefund.amount !== toPaise(latestRefund.amount)
+    ) {
+      throw createError("Razorpay refund amount mismatch", 409);
+    }
+
+    const updated = await applyGatewayRefundOutcome({
+      paymentRefundId: latestRefund._id,
+      providerRefund: matchedGatewayRefund,
+      clearTimeoutReconciliation: true,
+    });
+
+    const allRefunds = await PaymentRefund.find({ order: order._id }).sort({
+      createdAt: -1,
+    });
+
+    return {
+      syncedBy: adminId,
+      refund: updated.paymentRefund,
+      payment: sanitizePaymentForCustomer(updated.payment),
+      order: updated.order,
+      refundSummary: buildRefundSummary({
+        order: updated.order,
+        payment: updated.payment,
+        refunds: allRefunds,
+      }),
+    };
+  }
+
+  // Confirmed absent on gateway (after an earlier timeout/uncertain POST).
+  const session = await mongoose.startSession();
+  let updatedRefund;
+  let updatedPayment;
+  let updatedOrder;
+
+  try {
+    await session.withTransaction(async () => {
+      const refundDoc = await PaymentRefund.findById(latestRefund._id).session(
+        session,
+      );
+      const paymentDoc = await Payment.findById(payment._id).session(session);
+      const orderDoc = await Order.findById(order._id).session(session);
+
+      if (!refundDoc || !paymentDoc || !orderDoc) {
+        throw createError("Refund reconciliation entities not found", 404);
+      }
+
+      if (!refundDoc.reservationReleasedAt) {
+        const released = await Payment.findOneAndUpdate(
+          {
+            _id: paymentDoc._id,
+            reservedRefundAmount: { $gte: refundDoc.amount },
+          },
+          { $inc: { reservedRefundAmount: -refundDoc.amount } },
+          { new: true, session },
+        );
+
+        if (released) {
+          refundDoc.reservationReleasedAt = new Date();
+        }
+      }
+
+      refundDoc.status = "Failed";
+      refundDoc.uncertainState = false;
+      refundDoc.providerStatusCheckedAt = new Date();
+      refundDoc.failureReason =
+        "Gateway sync confirmed no refund was created for this timed-out attempt";
+      await refundDoc.save({ session });
+
+      const freshPayment = await Payment.findById(paymentDoc._id).session(
+        session,
+      );
+      if (freshPayment) {
+        clearTimeoutReconciliationIfSoleCause(freshPayment);
+        if (freshPayment.status === "RefundPending") {
+          freshPayment.status =
+            toPaise(freshPayment.refundedAmount) > 0
+              ? "PartiallyRefunded"
+              : "Paid";
+        }
+        await freshPayment.save({ session });
+      }
+
+      orderDoc.refundStatus = "FAILED";
+      orderDoc.refundFailureReason =
+        "Previous gateway timeout was resolved with Razorpay. Safe to retry refund.";
+      await orderDoc.save({ session });
+
+      updatedRefund = refundDoc;
+      updatedPayment = freshPayment || paymentDoc;
+      updatedOrder = orderDoc;
+    });
+  } finally {
+    await session.endSession();
+  }
+
+  const allRefunds = await PaymentRefund.find({ order: order._id }).sort({
+    createdAt: -1,
+  });
+
+  return {
+    syncedBy: adminId,
+    refund: updatedRefund,
+    payment: sanitizePaymentForCustomer(updatedPayment),
+    order: updatedOrder,
+    refundSummary: buildRefundSummary({
+      order: updatedOrder,
+      payment: updatedPayment,
+      refunds: allRefunds,
+    }),
+  };
+};
+
+export const initiateOrderCancellationRefund = async ({
+  orderId = null,
+  paymentId = null,
+  adminId = null,
+  reason = null,
+  amount = null,
+  provider = null,
+  manualRefundConfirmed = false,
+  initiatedByRole = "ADMIN",
+  swallowGatewayError = false,
+} = {}) => {
+  let payment = null;
+  let order = null;
+
+  if (paymentId) {
+    payment = await Payment.findById(paymentId);
+    if (!payment) {
+      throw createError("Payment not found", 404);
+    }
+    order = await Order.findById(orderId || payment.order);
+  } else if (orderId) {
+    order = await Order.findById(orderId);
+  }
 
   if (!order) {
     throw createError("Order not found", 404);
   }
 
   if (order.orderStatus !== "Cancelled") {
-    throw createError("Cancel the order before processing a refund");
+    throw createError("Cancel the order before processing a refund", 400);
   }
 
-  // Atomically claim the refund operation.
-  if (payment.status === "Paid") {
-    const idempotencyKey = crypto.randomUUID();
+  // Cash on Delivery orders follow strict manual COD refund rules.
+  if (order.paymentMethod === "COD") {
+    if (provider === "Razorpay") {
+      throw createError(
+        "Razorpay refund cannot be issued for Cash on Delivery orders",
+        400,
+      );
+    }
 
-    const claimedPayment = await Payment.findOneAndUpdate(
-      {
-        _id: payment._id,
-        status: "Paid",
-        refundIdempotencyKey: null,
-      },
-      {
-        $set: {
-          status: "RefundPending",
-          refundIdempotencyKey: idempotencyKey,
-          refundReason: reason,
-        },
-      },
-      { new: true },
+    if (order.paymentStatus === "Refunded" && order.refundStatus === "SUCCESS") {
+      const existingManual = await PaymentRefund.findOne({
+        referenceType: "OrderCancellation",
+        referenceId: order._id,
+        status: "Processed",
+      }).sort({ attempt: -1 });
+
+      return {
+        alreadyProcessed: true,
+        refund: existingManual,
+        payment: null,
+        order,
+      };
+    }
+
+    if (order.paymentStatus !== "Paid") {
+      throw createError(
+        "Refund is not required for unpaid Cash on Delivery orders",
+        400,
+      );
+    }
+
+    if (manualRefundConfirmed !== true) {
+      throw createError(
+        "Confirm that the manual refund has been transferred to the customer",
+        400,
+      );
+    }
+
+    const refundAmount =
+      amount !== null && amount !== undefined
+        ? fromPaise(toPaise(amount))
+        : order.totalAmount;
+
+    if (!Number.isFinite(refundAmount) || refundAmount <= 0) {
+      throw createError("Refund amount must be greater than zero", 400);
+    }
+
+    if (toPaise(refundAmount) > toPaise(order.totalAmount)) {
+      throw createError("Refund amount cannot exceed total order amount", 400);
+    }
+
+    const session = await mongoose.startSession();
+    let createdRefund;
+    let updatedOrder;
+
+    try {
+      await session.withTransaction(async () => {
+        const orderDoc = await Order.findOne({
+          _id: order._id,
+          orderStatus: "Cancelled",
+          paymentStatus: "Paid",
+        }).session(session);
+
+        if (!orderDoc) {
+          throw createError(
+            "Order is no longer eligible for manual COD refund",
+            409,
+          );
+        }
+
+        const latestAttempt = await PaymentRefund.findOne({
+          referenceType: "OrderCancellation",
+          referenceId: orderDoc._id,
+        })
+          .sort({ attempt: -1 })
+          .session(session);
+
+        if (latestAttempt?.status === "Processed") {
+          createdRefund = latestAttempt;
+          updatedOrder = orderDoc;
+          return;
+        }
+
+        const attempt = latestAttempt ? latestAttempt.attempt + 1 : 1;
+        const now = new Date();
+
+        createdRefund = new PaymentRefund({
+          payment: null,
+          order: orderDoc._id,
+          user: orderDoc.user,
+          referenceType: "OrderCancellation",
+          referenceId: orderDoc._id,
+          attempt,
+          provider: "Manual",
+          amount: refundAmount,
+          currency: "INR",
+          status: "Processed",
+          idempotencyKey: `order-cancel-${orderDoc._id}-attempt-${attempt}`,
+          reason:
+            reason ||
+            orderDoc.cancellationReason ||
+            "Manual COD cancellation refund",
+          initiatedBy: adminId,
+          initiatedByRole,
+          processedAt: now,
+        });
+
+        await createdRefund.save({ session });
+
+        orderDoc.paymentStatus =
+          toPaise(refundAmount) >= toPaise(orderDoc.totalAmount)
+            ? "Refunded"
+            : "PartiallyRefunded";
+        orderDoc.refundStatus = "SUCCESS";
+        orderDoc.refundAmount = refundAmount;
+        orderDoc.refundRequestedAt = orderDoc.refundRequestedAt || now;
+        orderDoc.refundCompletedAt = now;
+        orderDoc.refundFailureReason = null;
+
+        await orderDoc.save({ session });
+        updatedOrder = orderDoc;
+      });
+    } finally {
+      await session.endSession();
+    }
+
+    try {
+      await createNotification({
+        recipient: updatedOrder.user,
+        title: "Refund Completed",
+        message: `Your manual refund of ₹${Number(createdRefund.amount).toFixed(2)} for cancelled order ${updatedOrder.orderNumber} has been completed.`,
+        type: "REFUND_PROCESSED",
+        relatedId: updatedOrder._id,
+        relatedModel: "Order",
+      });
+    } catch (notifyErr) {
+      console.error("Manual refund notification error:", notifyErr.message);
+    }
+
+    return {
+      alreadyProcessed: false,
+      refund: createdRefund,
+      payment: null,
+      order: updatedOrder,
+    };
+  }
+
+  // Online payment flow via Razorpay.
+  if (provider === "Manual") {
+    throw createError(
+      "Online Razorpay orders must be refunded through Razorpay",
+      400,
     );
-
-    payment = claimedPayment || (await Payment.findById(paymentId));
   }
 
   if (!payment) {
-    throw createError("Payment not found", 404);
-  }
-
-  if (payment.status === "Refunded") {
-    return payment;
-  }
-
-  if (payment.status !== "RefundPending" || !payment.refundIdempotencyKey) {
-    throw createError("Refund is not available for processing");
-  }
-
-  // Preserve the original reason for retry requests.
-  if (!payment.refundReason) {
-    payment =
-      (await Payment.findOneAndUpdate(
-        {
-          _id: payment._id,
-          status: "RefundPending",
-          refundIdempotencyKey: payment.refundIdempotencyKey,
-          refundReason: null,
-        },
-        {
-          $set: {
-            refundReason: reason,
-          },
-        },
-        { new: true },
-      )) || (await Payment.findById(paymentId));
+    payment = await Payment.findOne({
+      order: order._id,
+      status: {
+        $in: ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"],
+      },
+    }).sort({ createdAt: -1 });
   }
 
   if (!payment) {
-    throw createError("Payment not found", 404);
+    throw createError("Captured online payment not found for this order", 404);
   }
 
-  if (payment.status === "Refunded") {
-    return payment;
+  if (payment.status === "Refunded" && toPaise(payment.refundedAmount) >= toPaise(payment.amount)) {
+    const existingProcessed = await PaymentRefund.findOne({
+      referenceType: "OrderCancellation",
+      referenceId: order._id,
+      status: "Processed",
+    }).sort({ attempt: -1 });
+
+    if (order.paymentStatus !== "Refunded" || order.refundStatus !== "SUCCESS") {
+      order.paymentStatus = "Refunded";
+      order.refundStatus = "SUCCESS";
+      order.refundAmount = payment.refundedAmount || payment.amount;
+      order.refundCompletedAt = order.refundCompletedAt || payment.refundedAt || new Date();
+      await order.save();
+    }
+
+    return {
+      alreadyProcessed: true,
+      refund: existingProcessed,
+      payment: sanitizePaymentForCustomer(payment),
+      order,
+    };
   }
 
-  if (payment.refundId) {
-    return payment;
-  }
+  // If a prior attempt is Processing / Pending / Uncertain, reconcile with Razorpay first.
+  const latestRefund = await PaymentRefund.findOne({
+    referenceType: "OrderCancellation",
+    referenceId: order._id,
+  }).sort({ attempt: -1 });
 
   if (
-    payment.status !== "RefundPending" ||
-    !payment.refundIdempotencyKey ||
-    !payment.refundReason
+    latestRefund &&
+    ["Pending", "Processing"].includes(latestRefund.status)
   ) {
-    throw createError("Refund is not available for processing");
+    const synced = await syncOrderCancellationRefund(order._id, { adminId });
+
+    if (synced.refund?.status === "Processed") {
+      return {
+        alreadyProcessed: true,
+        refund: synced.refund,
+        payment: synced.payment,
+        order: synced.order,
+      };
+    }
+
+    if (synced.refund?.status === "Processing") {
+      throw createError(
+        "Refund is currently processing with Razorpay. Please wait for gateway confirmation.",
+        409,
+      );
+    }
+
+    // Reload payment/order after confirmed failure/absent resolution so we can create attempt + 1 cleanly.
+    payment = await Payment.findById(payment._id);
+    order = await Order.findById(order._id);
   }
 
-  const idempotencyKey = payment.refundIdempotencyKey;
-
-  // Use the same idempotency key and request body for retries.
-  const response = await fetch(
-    `https://api.razorpay.com/v1/payments/${payment.razorpayPaymentId}/refund`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`,
-        ).toString("base64")}`,
-        "Content-Type": "application/json",
-        "X-Refund-Idempotency": idempotencyKey,
-      },
-      body: JSON.stringify({
-        amount: Math.round(payment.amount * 100),
-        notes: {
-          reason: payment.refundReason,
-          orderId: order._id.toString(),
-        },
-      }),
-    },
-  );
-
-  let refundData;
+  const session = await mongoose.startSession();
+  let reservationResult;
 
   try {
-    refundData = await response.json();
-  } catch {
-    throw createError("Invalid response received from Razorpay", 502);
-  }
+    await session.withTransaction(async () => {
+      const txOrder = await Order.findById(order._id).session(session);
+      const txPayment = await Payment.findById(payment._id).session(session);
 
-  if (!response.ok) {
-    console.error("Razorpay Refund Error:", {
-      status: response.status,
-      code: refundData.error?.code,
-      description: refundData.error?.description,
-      source: refundData.error?.source,
-      step: refundData.error?.step,
-      reason: refundData.error?.reason,
-      metadata: refundData.error?.metadata,
+      reservationResult = await reserveCancellationRefundInSession({
+        order: txOrder,
+        payment: txPayment,
+        userId: adminId,
+        initiatedByRole,
+        reason:
+          reason || txOrder.cancellationReason || "Order cancellation refund",
+        amount,
+        session,
+      });
     });
-
-    throw createError(
-      refundData.error?.description || "Refund request failed",
-      response.status,
-    );
+  } finally {
+    await session.endSession();
   }
 
-  if (!refundData.id || !refundData.status) {
-    throw createError("Invalid refund response from Razorpay", 502);
+  if (reservationResult?.alreadyFullyRefunded) {
+    return {
+      alreadyProcessed: true,
+      refund: latestRefund,
+      payment: sanitizePaymentForCustomer(reservationResult.payment),
+      order: reservationResult.order,
+    };
   }
 
-  const updateFields = {
-    refundId: refundData.id,
+  const executed = await executeReservedRazorpayRefund({
+    paymentRefund: reservationResult.paymentRefund,
+    payment: reservationResult.payment,
+    order: reservationResult.order,
+    swallowGatewayError,
+  });
+
+  return {
+    alreadyProcessed: false,
+    refund: executed.paymentRefund,
+    payment: sanitizePaymentForCustomer(executed.payment),
+    order: executed.order,
   };
+};
 
-  if (refundData.status === "processed") {
-    updateFields.status = "Refunded";
-    updateFields.refundedAt = new Date();
-  } else if (refundData.status === "failed") {
-    updateFields.status = "Paid";
-    updateFields.refundId = null;
-    updateFields.refundIdempotencyKey = null;
-    updateFields.failureReason = "Razorpay refund failed";
+export const refundPayment = async (
+  paymentId = null,
+  reason = "Customer refund",
+  options = {},
+) => {
+  return initiateOrderCancellationRefund({
+    orderId: options.orderId || null,
+    paymentId,
+    adminId: options.adminId || null,
+    reason,
+    amount: options.amount ?? null,
+    provider: options.provider || null,
+    manualRefundConfirmed: Boolean(options.manualRefundConfirmed),
+    initiatedByRole: options.initiatedByRole || "ADMIN",
+    swallowGatewayError: Boolean(options.swallowGatewayError),
+  });
+};
+
+export const getAdminOrderPaymentDetails = async (orderId) => {
+  const order = await Order.findById(orderId).lean();
+
+  if (!order) {
+    throw createError("Order not found", 404);
   }
 
-  // Update only if the webhook has not already changed the status.
-  const updatedPayment = await Payment.findOneAndUpdate(
-    {
-      _id: payment._id,
-      status: "RefundPending",
-      refundIdempotencyKey: idempotencyKey,
+  const payments = await Payment.find({ order: order._id })
+    .select("-signature -__v")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const primaryPayment =
+    payments.find((p) =>
+      ["Paid", "RefundPending", "PartiallyRefunded", "Refunded"].includes(
+        p.status,
+      ),
+    ) ||
+    payments[0] ||
+    null;
+
+  const refundHistory = await PaymentRefund.find({ order: order._id })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  const refundSummary = buildRefundSummary({
+    order,
+    payment: primaryPayment,
+    refunds: refundHistory,
+  });
+
+  const paymentDetails = primaryPayment
+    ? {
+        _id: primaryPayment._id,
+        provider: primaryPayment.provider,
+        razorpayOrderId: primaryPayment.razorpayOrderId || null,
+        razorpayPaymentId: primaryPayment.razorpayPaymentId || null,
+        amount: primaryPayment.amount,
+        currency: primaryPayment.currency,
+        status: primaryPayment.status,
+        paymentMethod: primaryPayment.paymentMethod || null,
+        verifiedAt: primaryPayment.verifiedAt || null,
+        failureReason: primaryPayment.failureReason || null,
+        refundedAmount: Number(primaryPayment.refundedAmount || 0),
+        reservedRefundAmount: Number(primaryPayment.reservedRefundAmount || 0),
+        remainingRefundableAmount: fromPaise(
+          Math.max(
+            0,
+            toPaise(primaryPayment.amount) -
+              toPaise(primaryPayment.refundedAmount) -
+              toPaise(primaryPayment.reservedRefundAmount),
+          ),
+        ),
+        refundReconciliationRequired: Boolean(
+          primaryPayment.refundReconciliationRequired,
+        ),
+        refundReconciliationReason:
+          primaryPayment.refundReconciliationReason || null,
+        refundReconciliationAt: primaryPayment.refundReconciliationAt || null,
+        refundId: primaryPayment.refundId || null,
+        refundedAt: primaryPayment.refundedAt || null,
+        createdAt: primaryPayment.createdAt,
+      }
+    : null;
+
+  return {
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    orderStatus: order.orderStatus,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    totalAmount: order.totalAmount,
+    cancellationReason: order.cancellationReason || null,
+    cancellationComment: order.cancellationComment || null,
+    cancelledBy: order.cancelledBy || null,
+    cancelledAt: order.cancelledAt || null,
+    paymentDetails,
+    refundSummary,
+    refundHistory,
+  };
+};
+
+export const getAdminPaymentsList = async ({
+  page = 1,
+  limit = 10,
+  status = "",
+  search = "",
+} = {}) => {
+  const currentPage = Math.max(1, Number(page) || 1);
+  const perPage = Math.min(50, Math.max(1, Number(limit) || 10));
+  const skip = (currentPage - 1) * perPage;
+
+  const filter = {};
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+
+  if (search && String(search).trim()) {
+    const escaped = String(search)
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = { $regex: escaped, $options: "i" };
+
+    const [matchingOrders, matchingUsers] = await Promise.all([
+      Order.find({ orderNumber: regex }).distinct("_id"),
+      User.find({ $or: [{ name: regex }, { email: regex }] }).distinct("_id"),
+    ]);
+
+    filter.$or = [
+      { razorpayPaymentId: regex },
+      { razorpayOrderId: regex },
+      { refundId: regex },
+      { order: { $in: matchingOrders } },
+      { user: { $in: matchingUsers } },
+    ];
+  }
+
+  const [payments, total] = await Promise.all([
+    Payment.find(filter)
+      .select("-signature -refundIdempotencyKey -__v")
+      .populate("user", "name email")
+      .populate(
+        "order",
+        "orderNumber orderStatus paymentMethod paymentStatus totalAmount refundStatus",
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean(),
+    Payment.countDocuments(filter),
+  ]);
+
+  return {
+    payments,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: perPage,
+      totalPages: Math.ceil(total / perPage),
     },
-    {
-      $set: updateFields,
+  };
+};
+
+export const getAdminRefundsList = async ({
+  page = 1,
+  limit = 10,
+  status = "",
+  provider = "",
+  referenceType = "",
+  search = "",
+} = {}) => {
+  const currentPage = Math.max(1, Number(page) || 1);
+  const perPage = Math.min(50, Math.max(1, Number(limit) || 10));
+  const skip = (currentPage - 1) * perPage;
+
+  const filter = {};
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+  if (provider && provider !== "all") {
+    filter.provider = provider;
+  }
+  if (referenceType && referenceType !== "all") {
+    filter.referenceType = referenceType;
+  }
+
+  if (search && String(search).trim()) {
+    const escaped = String(search)
+      .trim()
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = { $regex: escaped, $options: "i" };
+
+    const [matchingOrders, matchingUsers] = await Promise.all([
+      Order.find({ orderNumber: regex }).distinct("_id"),
+      User.find({ $or: [{ name: regex }, { email: regex }] }).distinct("_id"),
+    ]);
+
+    filter.$or = [
+      { providerRefundId: regex },
+      { reason: regex },
+      { order: { $in: matchingOrders } },
+      { user: { $in: matchingUsers } },
+    ];
+  }
+
+  const [refunds, total] = await Promise.all([
+    PaymentRefund.find(filter)
+      .populate("user", "name email")
+      .populate(
+        "order",
+        "orderNumber orderStatus paymentMethod paymentStatus refundStatus totalAmount cancellationReason cancelledAt",
+      )
+      .populate(
+        "payment",
+        "razorpayPaymentId razorpayOrderId status refundReconciliationRequired refundReconciliationReason",
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage)
+      .lean(),
+    PaymentRefund.countDocuments(filter),
+  ]);
+
+  return {
+    refunds,
+    pagination: {
+      total,
+      page: currentPage,
+      limit: perPage,
+      totalPages: Math.ceil(total / perPage),
     },
-    { new: true },
-  );
-
-  const latestPayment = updatedPayment || (await Payment.findById(paymentId));
-
-  if (!latestPayment) {
-    throw createError("Payment not found", 404);
-  }
-
-  if (latestPayment.status === "Refunded") {
-    await Order.updateOne(
-      { _id: order._id },
-      {
-        $set: {
-          paymentStatus: "Refunded",
-        },
-      },
-    );
-  } else if (latestPayment.status === "Paid") {
-    await Order.updateOne(
-      { _id: order._id },
-      {
-        $set: {
-          paymentStatus: "Paid",
-        },
-      },
-    );
-  }
-
-  return latestPayment;
+  };
 };

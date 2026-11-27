@@ -1,111 +1,51 @@
-
 "use client";
 
-import { useId, useMemo } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { useMemo } from "react";
+import { Check } from "lucide-react";
 
 export default function SubCategoryTabs({
   subCategories = [],
   selectedSubCategory = "",
   onSelect,
 }) {
-  const shouldReduceMotion = useReducedMotion();
-  const activeLayoutId = useId();
-
-  // Prepare tabs
   const tabs = useMemo(
     () => [
-      {
-        _id: "",
-        name: "All",
-      },
-      ...subCategories.filter((item) => item?._id),
+      { _id: "", name: "All Subcategories" },
+      ...(Array.isArray(subCategories) ? subCategories : []).filter(
+        (item) => item?._id
+      ),
     ],
     [subCategories]
   );
 
-  // No subcategories available
-  if (!subCategories.length) return null;
+  if (!Array.isArray(subCategories) || subCategories.length === 0) {
+    return null;
+  }
 
   return (
     <section
-      className="mb-6 w-full min-w-0"
+      className="mb-5 w-full min-w-0"
       aria-label="Filter by subcategory"
     >
-      {/* Subcategory Navigation */}
-      <div
-        className="
-          flex w-full items-center gap-2
-          overflow-x-auto overscroll-x-contain
-          scroll-smooth px-1 py-1
-          [scrollbar-width:none]
-          [&::-webkit-scrollbar]:hidden
-          sm:gap-2.5
-        "
-      >
+      <div className="flex w-full items-center gap-2 overflow-x-auto pb-1 overscroll-x-contain scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
         {tabs.map((item) => {
-          const isSelected =
-            selectedSubCategory === item._id;
+          const isSelected = String(selectedSubCategory || "") === String(item._id || "");
 
           return (
-            <motion.button
-              key={item._id || "all"}
+            <button
+              key={item._id || "all-subcategories"}
               type="button"
               onClick={() => onSelect?.(item._id)}
               aria-pressed={isSelected}
-              initial={false}
-              whileHover={
-                shouldReduceMotion
-                  ? undefined
-                  : { y: -2 }
-              }
-              whileTap={
-                shouldReduceMotion
-                  ? undefined
-                  : { scale: 0.96 }
-              }
-              transition={{
-                duration: shouldReduceMotion ? 0 : 0.2,
-              }}
-              className={`
-                relative flex min-h-9 shrink-0
-                items-center justify-center overflow-hidden
-                rounded-full border px-4 py-2
-                text-xs font-semibold outline-none
-                transition-colors duration-200
-                focus-visible:ring-2
-                focus-visible:ring-blue-500
-                focus-visible:ring-offset-2
-                sm:min-h-10 sm:px-5 sm:text-[13px]
-                ${
-                  isSelected
-                    ? "border-blue-600 text-white"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600"
-                }
-              `}
+              className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-4 text-xs font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 sm:h-10 sm:text-[13px] ${
+                isSelected
+                  ? "border-[#0755E9] bg-[#0755E9] text-white shadow-xs"
+                  : "border-[#E2E8F0] bg-white text-[#64748B] hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+              }`}
             >
-              {/* Animated Active Background */}
-              {isSelected && (
-                <motion.span
-                  layoutId={activeLayoutId}
-                  className="absolute inset-0 rounded-full bg-blue-600"
-                  transition={
-                    shouldReduceMotion
-                      ? { duration: 0 }
-                      : {
-                          type: "spring",
-                          stiffness: 450,
-                          damping: 35,
-                        }
-                  }
-                />
-              )}
-
-              {/* Tab Label */}
-              <span className="relative z-10 whitespace-nowrap">
-                {item.name || "Subcategory"}
-              </span>
-            </motion.button>
+              {isSelected && <Check size={13} strokeWidth={2.5} aria-hidden="true" />}
+              <span>{item.name}</span>
+            </button>
           );
         })}
       </div>

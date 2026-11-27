@@ -37,11 +37,13 @@ export default function BottomNavigation() {
 
   const { isAuthenticated, isInitialized } = useAuth();
 
-  // Hide bottom navigation on product detail pages.
+  // Hide bottom navigation on product detail and checkout pages.
   const isProductDetailPage =
     /^\/products\/[^/]+\/?$/.test(pathname);
+  const isCheckoutPage =
+    pathname === "/checkout" || pathname.startsWith("/checkout/");
 
-  if (isProductDetailPage) {
+  if (isProductDetailPage || isCheckoutPage) {
     return null;
   }
 

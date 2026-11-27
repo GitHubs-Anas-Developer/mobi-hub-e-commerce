@@ -373,6 +373,68 @@ const orderSchema = new mongoose.Schema(
       default: null,
     },
 
+    cancellationReason: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+
+    cancellationComment: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+
+    cancelledBy: {
+      type: String,
+      enum: ["USER", "ADMIN", "SYSTEM", null],
+      default: null,
+    },
+
+    cancelledByUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    refundStatus: {
+      type: String,
+      enum: [
+        "NOT_REQUIRED",
+        "PENDING",
+        "PROCESSING",
+        "SUCCESS",
+        "FAILED",
+        "RECONCILIATION_REQUIRED",
+      ],
+      default: "NOT_REQUIRED",
+    },
+
+    refundAmount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    refundRequestedAt: {
+      type: Date,
+      default: null,
+    },
+
+    refundCompletedAt: {
+      type: Date,
+      default: null,
+    },
+
+    refundFailureReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+
     deliveredAt: {
       type: Date,
       default: null,

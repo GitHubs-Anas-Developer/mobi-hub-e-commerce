@@ -8,6 +8,7 @@ import {
   lowStockProducts,
   orderStats,
   paymentStats,
+  recentActivity,
 } from "../controllers/dashboard.controller.js";
 
 import { authenticate, authorize } from "../middlewares/auth.middleware.js";
@@ -24,5 +25,6 @@ router.get("/top-products", topProducts);
 router.get("/low-stock", lowStockProducts);
 router.get("/order-stats", orderStats);
 router.get("/payment-stats", paymentStats);
+router.get("/recent-activity", recentActivity);
 
 export default router;

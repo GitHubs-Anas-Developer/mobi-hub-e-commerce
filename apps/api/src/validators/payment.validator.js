@@ -24,7 +24,26 @@ export const verifyPaymentSchema = z
 
 export const refundPaymentSchema = z
   .object({
-    paymentId: objectIdSchema,
-    reason: z.string().trim().max(500).optional(),
+    paymentId: objectIdSchema.optional(),
+    orderId: objectIdSchema.optional(),
+    reason: z.string().trim().min(1).max(500).optional(),
+    amount: z.coerce.number().positive("Refund amount must be greater than zero").optional(),
+    provider: z.enum(["Razorpay", "Manual"]).optional(),
+    manualRefundConfirmed: z.boolean().optional(),
+  })
+  .strict()
+  .superRefine((data, ctx) => {
+    if (!data.paymentId && !data.orderId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Either paymentId or orderId is required",
+        path: ["orderId"],
+      });
+    }
+  });
+
+export const syncOrderRefundSchema = z
+  .object({
+    orderId: objectIdSchema,
   })
   .strict();

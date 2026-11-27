@@ -11,7 +11,7 @@ import {
   XCircle,
   ArrowRight,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import { BRAND_ASSETS, BRAND_NAME, BRAND_TAGLINE } from "@/config/brand";
 import authService from "@/services/authService";
 
 export default function VerifyEmailPage() {
@@ -65,7 +65,7 @@ export default function VerifyEmailPage() {
         transition={{ duration: 0.35, ease: "easeOut" }}
         className="w-full max-w-[400px] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-xl shadow-slate-900/5"
       >
-        <div className="h-1 w-full bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400" />
+        <div className="h-1 w-full bg-[#0755E9]" />
 
         <div className="px-6 py-7 text-center sm:px-8 sm:py-8">
           {/* BRAND */}
@@ -73,19 +73,13 @@ export default function VerifyEmailPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08, duration: 0.3 }}
-            className="mb-7 flex items-center justify-center gap-2.5"
+            className="mb-7 flex items-center justify-center"
           >
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
-              <BrandMark className="h-5 w-5" />
-            </span>
-            <span className="text-left">
-              <span className="block text-lg font-extrabold tracking-tight text-slate-900">
-                ELE<span className="text-blue-600">ZIO</span>
-              </span>
-              <span className="block text-[9px] font-semibold tracking-[1.2px] text-slate-400">
-                TECH &amp; ELECTRONICS STORE
-              </span>
-            </span>
+            <img
+              src={BRAND_ASSETS.logo}
+              alt={`${BRAND_NAME} - ${BRAND_TAGLINE}`}
+              className="h-10 w-auto object-contain"
+            />
           </motion.div>
 
           <AnimatePresence mode="wait">

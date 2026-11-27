@@ -1,7 +1,4 @@
-
 "use client";
-
-import { motion } from "framer-motion";
 
 import {
   CreditCard,
@@ -15,9 +12,9 @@ import {
 const paymentMethods = [
   {
     id: "razorpay",
-    name: "Online Payment",
+    name: "Online Payment (Razorpay)",
     description:
-      "Pay securely using UPI, Cards, Net Banking and more.",
+      "Instant checkout via UPI, Credit/Debit Cards, and Net Banking.",
     badge: "Recommended",
     icon: CreditCard,
     features: [
@@ -28,8 +25,9 @@ const paymentMethods = [
   },
   {
     id: "cod",
-    name: "Cash on Delivery",
-    description: "Pay when your order is delivered.",
+    name: "Cash on Delivery (COD)",
+    description:
+      "Pay in cash or UPI upon delivery of your order at your doorstep.",
     badge: null,
     icon: Banknote,
     features: [],
@@ -42,96 +40,85 @@ export default function PaymentMethod({
   disabled = false,
 }) {
   return (
-    <section className="rounded-2xl bg-white">
-      {/* Heading */}
-      <div className="mb-5">
-        <h2 className="text-base font-bold text-[#101828] sm:text-lg">
-          Payment Method
-        </h2>
+    <section
+      aria-labelledby="checkout-payment-heading"
+      className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+    >
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+          <CreditCard size={19} aria-hidden="true" />
+        </div>
 
-        <p className="mt-1 text-sm text-slate-500">
-          Choose how you would like to pay for your order.
-        </p>
+        <div>
+          <h2
+            id="checkout-payment-heading"
+            className="text-base font-bold text-[#101828] sm:text-lg"
+          >
+            Payment Method
+          </h2>
+          <p className="text-xs text-[#64748B]">
+            Choose how you would like to complete your payment
+          </p>
+        </div>
       </div>
 
-      {/* Payment Options */}
       <div className="space-y-3">
-        {paymentMethods.map((method, index) => {
-          const selected =
-            selectedPaymentMethod === method.id;
-
+        {paymentMethods.map((method) => {
+          const selected = selectedPaymentMethod === method.id;
           const Icon = method.icon;
 
           return (
-            <motion.label
+            <label
               key={method.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.25,
-                delay: index * 0.06,
-              }}
-              className={`relative flex gap-3 overflow-hidden rounded-xl border p-4 transition-all duration-200 sm:gap-4 sm:p-5 ${
+              className={`relative flex items-start gap-3 rounded-2xl border p-4 transition-all duration-150 sm:gap-4 sm:p-5 ${
                 disabled
                   ? "cursor-not-allowed opacity-60"
                   : "cursor-pointer"
               } ${
                 selected
-                  ? "border-[#0755E9] bg-blue-50/50 shadow-sm shadow-blue-100"
-                  : "border-slate-200 bg-white hover:border-blue-200 hover:bg-slate-50/50"
+                  ? "border-[#0755E9] bg-[#EFF6FF]/65 ring-1 ring-[#0755E9]"
+                  : "border-[#E2E8F0] bg-white hover:border-[#0755E9]/45 hover:bg-[#F8FAFC]"
               }`}
             >
-              {/* Radio */}
               <div className="pt-1">
                 <input
                   type="radio"
                   name="paymentMethod"
                   value={method.id}
                   checked={selected}
-                  onChange={() =>
-                    onSelectPaymentMethod?.(method.id)
-                  }
                   disabled={disabled}
-                  className="h-[18px] w-[18px] cursor-pointer accent-[#0755E9]"
+                  onChange={() => onSelectPaymentMethod?.(method.id)}
+                  className="h-4 w-4 cursor-pointer accent-[#0755E9]"
                 />
               </div>
 
-              {/* Icon */}
               <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                   selected
-                    ? "bg-blue-100 text-[#0755E9]"
-                    : "bg-slate-100 text-slate-500"
+                    ? "bg-[#0755E9] text-white"
+                    : "border border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B]"
                 }`}
               >
-                <Icon size={21} />
+                <Icon size={19} aria-hidden="true" />
               </div>
 
-              {/* Content */}
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 pr-6">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-sm font-bold text-[#101828] sm:text-base">
                     {method.name}
                   </h3>
 
                   {method.badge && (
-                    <span className="rounded-md bg-green-50 px-2 py-1 text-[10px] font-bold text-green-700">
+                    <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                       {method.badge}
-                    </span>
-                  )}
-
-                  {selected && (
-                    <span className="rounded-md bg-blue-100 px-2 py-1 text-[10px] font-bold text-[#0755E9]">
-                      Selected
                     </span>
                   )}
                 </div>
 
-                <p className="mt-1.5 text-xs leading-5 text-slate-500 sm:text-sm">
+                <p className="mt-1 text-xs leading-relaxed text-[#64748B] sm:text-sm">
                   {method.description}
                 </p>
 
-                {/* Payment Features */}
                 {method.features.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     {method.features.map((feature) => {
@@ -140,11 +127,12 @@ export default function PaymentMethod({
                       return (
                         <span
                           key={feature.label}
-                          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-medium text-slate-600"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#101828]"
                         >
                           <FeatureIcon
                             size={12}
                             className="text-[#0755E9]"
+                            aria-hidden="true"
                           />
                           {feature.label}
                         </span>
@@ -154,26 +142,20 @@ export default function PaymentMethod({
                 )}
               </div>
 
-              {/* Selected Indicator */}
               {selected && (
-                <div className="absolute right-3 top-3 text-[#0755E9]">
-                  <CheckCircle2 size={19} />
+                <div className="absolute right-4 top-4 text-[#0755E9]">
+                  <CheckCircle2 size={18} aria-hidden="true" />
                 </div>
               )}
-            </motion.label>
+            </label>
           );
         })}
       </div>
 
-      {/* Security Notice */}
-      <div className="mt-4 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-3">
-        <ShieldCheck
-          size={17}
-          className="shrink-0 text-[#0755E9]"
-        />
-
-        <p className="text-xs leading-5 text-slate-600">
-          Your payment information is handled securely.
+      <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5">
+        <ShieldCheck size={16} className="shrink-0 text-[#0755E9]" aria-hidden="true" />
+        <p className="text-xs text-[#64748B]">
+          Online payments are verified securely through Razorpay before marking an order as paid.
         </p>
       </div>
     </section>

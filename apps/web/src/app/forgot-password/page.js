@@ -14,7 +14,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import Logo from "@/components/layout/navbar/Logo";
 
 import axiosInstance from "@/lib/axios";
 
@@ -77,18 +77,9 @@ export default function ForgotPasswordPage() {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="relative hidden overflow-hidden bg-[#082b70] px-8 py-8 text-white lg:flex lg:flex-col lg:justify-between xl:px-14"
         >
-          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
-
-          <Link href="/" className="relative z-10 flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-xl font-extrabold tracking-tight">
-              ELE<span className="text-blue-300">ZIO</span>
-            </span>
-          </Link>
+          <div className="relative z-10">
+            <Logo variant="white" />
+          </div>
 
           <div className="relative z-10 max-w-md">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
@@ -105,7 +96,7 @@ export default function ForgotPasswordPage() {
 
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
               Forgot your password? Don't worry. We'll help you securely
-              regain access to your ELEZIO account.
+              regain access to your ELENZO account.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -148,7 +139,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           <p className="relative z-10 text-xs text-blue-100/60">
-            © {currentYear} ELEZIO. All rights reserved.
+            © {currentYear} ELENZO. All rights reserved.
           </p>
         </motion.section>
 
@@ -162,18 +153,9 @@ export default function ForgotPasswordPage() {
           <div className="w-full max-w-[400px]">
 
             {/* MOBILE BRAND */}
-            <Link
-              href="/"
-              className="mb-7 flex items-center justify-center gap-2 lg:hidden"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <BrandMark className="h-5 w-5" />
-              </span>
-
-              <span className="text-lg font-extrabold text-slate-900">
-                ELE<span className="text-blue-600">ZIO</span>
-              </span>
-            </Link>
+            <div className="mb-7 flex justify-center lg:hidden">
+              <Logo />
+            </div>
 
             {!submitted ? (
               <>

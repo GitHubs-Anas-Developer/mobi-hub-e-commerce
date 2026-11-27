@@ -1,91 +1,51 @@
-
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
-import {
-  AnimatePresence,
-  motion,
-  useReducedMotion,
-} from "motion/react";
 import DesktopFilterPanel from "./filters/panels/DesktopFilterPanel";
 import MobileFilterPanel from "./filters/panels/MobileFilterPanel";
-
-
+import { normalizePrice } from "./filters/utils/filterHelpers";
 
 export default function ProductFilters({
   categories = [],
   brands = [],
-
   category = "",
   brand = "",
-
   minPrice = "",
   maxPrice = "",
-
   onApply,
-
+  onClear,
   showFilters = false,
   onClose,
 }) {
   const shouldReduceMotion = useReducedMotion();
 
-  // Draft filter state
-  const [draftCategory, setDraftCategory] = useState(category);
-  const [draftBrand, setDraftBrand] = useState(brand);
-  const [draftMinPrice, setDraftMinPrice] = useState(minPrice);
-  const [draftMaxPrice, setDraftMaxPrice] = useState(maxPrice);
+  const [draftCategory, setDraftCategory] = useState(category || "");
+  const [draftBrand, setDraftBrand] = useState(brand || "");
+  const [draftMinPrice, setDraftMinPrice] = useState(normalizePrice(minPrice));
+  const [draftMaxPrice, setDraftMaxPrice] = useState(normalizePrice(maxPrice));
 
-  // Normalize incoming categories
-  const safeCategories = useMemo(
-    () =>
-      Array.isArray(categories)
-        ? categories.filter((item) => item?._id)
-        : [],
-    [categories]
-  );
-
-  // Normalize incoming brands
-  const safeBrands = useMemo(
-    () =>
-      Array.isArray(brands)
-        ? [
-            ...new Set(
-              brands
-                .map((item) =>
-                  typeof item === "string" ? item : item?.name
-                )
-                .filter(Boolean)
-            ),
-          ]
-        : [],
-    [brands]
-  );
-
-  // Sync draft state when applied filters change
   useEffect(() => {
     setDraftCategory(category || "");
+  }, [category]);
+
+  useEffect(() => {
     setDraftBrand(brand || "");
+  }, [brand]);
 
-    setDraftMinPrice(
-      minPrice === null || minPrice === undefined
-        ? ""
-        : String(minPrice)
-    );
+  useEffect(() => {
+    setDraftMinPrice(normalizePrice(minPrice));
+  }, [minPrice]);
 
-    setDraftMaxPrice(
-      maxPrice === null || maxPrice === undefined
-        ? ""
-        : String(maxPrice)
-    );
-  }, [category, brand, minPrice, maxPrice]);
+  useEffect(() => {
+    setDraftMaxPrice(normalizePrice(maxPrice));
+  }, [maxPrice]);
 
-  // Lock background scrolling when mobile drawer is open
   useEffect(() => {
     if (!showFilters) return;
 
     const previousOverflow = document.body.style.overflow;
-
     document.body.style.overflow = "hidden";
 
     const handleKeyDown = (event) => {
@@ -102,78 +62,84 @@ export default function ProductFilters({
     };
   }, [showFilters, onClose]);
 
-  // Apply selected filters
+  const safeCategories = useMemo(
+    () => (Array.isArray(categories) ? categories.filter((c) => c?._id) : []),
+    [categories]
+  );
+
+  const safeBrands = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (Array.isArray(brands) ? brands : [])
+            .map((item) => String(item || "").trim())
+            .filter(Boolean)
+        )
+      ),
+    [brands]
+  );
+
+  const hasPendingChanges =
+    draftCategory !== (category || "") ||
+    draftBrand !== (brand || "") ||
+    draftMinPrice !== normalizePrice(minPrice) ||
+    draftMaxPrice !== normalizePrice(maxPrice);
+
   const handleApply = () => {
+    let min = normalizePrice(draftMinPrice);
+    let max = normalizePrice(draftMaxPrice);
+
+    if (min !== "" && max !== "" && Number(min) > Number(max)) {
+      const temp = min;
+      min = max;
+      max = temp;
+      setDraftMinPrice(min);
+      setDraftMaxPrice(max);
+    }
+
     onApply?.({
       category: draftCategory,
       brand: draftBrand,
-      minPrice: draftMinPrice,
-      maxPrice: draftMaxPrice,
+      minPrice: min,
+      maxPrice: max,
     });
 
     onClose?.();
   };
 
-  // Reset draft filters
   const handleReset = () => {
     setDraftCategory("");
     setDraftBrand("");
     setDraftMinPrice("");
     setDraftMaxPrice("");
+    onClear?.();
   };
 
-  // Shared props for desktop and mobile panels
   const panelProps = {
     categories: safeCategories,
     brands: safeBrands,
-
     category: draftCategory,
     setCategory: setDraftCategory,
-
     brand: draftBrand,
     setBrand: setDraftBrand,
-
     minPrice: draftMinPrice,
     setMinPrice: setDraftMinPrice,
-
     maxPrice: draftMaxPrice,
     setMaxPrice: setDraftMaxPrice,
-
     onApply: handleApply,
     onClear: handleReset,
     onClose,
+    hasPendingChanges,
   };
 
   return (
     <>
-      {/* Desktop Sidebar */}
-      <motion.aside
-        initial={
-          shouldReduceMotion
-            ? false
-            : { opacity: 0, x: -14 }
-        }
-        whileInView={{
-          opacity: 1,
-          x: 0,
-        }}
-        viewport={{ once: true }}
-        transition={{
-          duration: shouldReduceMotion ? 0 : 0.4,
-          ease: "easeOut",
-        }}
-        className="
-          hidden min-w-0 overflow-hidden
-          rounded-2xl border border-slate-200
-          bg-white shadow-sm
-          lg:sticky lg:top-24 lg:flex
-          lg:max-h-[calc(100vh-7rem)] lg:flex-col
-        "
-      >
+      {/* Desktop Sticky Sidebar */}
+      <aside className="hidden min-w-0 overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white lg:sticky lg:top-24 lg:flex lg:max-h-[calc(100vh-7rem)] lg:flex-col">
         <DesktopFilterPanel {...panelProps} />
-      </motion.aside>
+      </aside>
 
-      {/* Mobile Bottom Sheet */}
+      {/* Mobile Bottom Sheet Drawer */}
       <AnimatePresence>
         {showFilters && (
           <motion.div
@@ -181,12 +147,9 @@ export default function ProductFilters({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{
-              duration: shouldReduceMotion ? 0 : 0.2,
-            }}
+            transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
             className="fixed inset-0 z-[100] lg:hidden"
           >
-            {/* Backdrop */}
             <motion.button
               type="button"
               aria-label="Close filters"
@@ -197,30 +160,18 @@ export default function ProductFilters({
               className="absolute inset-0 h-full w-full bg-slate-950/45 backdrop-blur-[2px]"
             />
 
-            {/* Bottom Sheet */}
             <motion.aside
               role="dialog"
               aria-modal="true"
               aria-label="Product filters"
-              initial={
-                shouldReduceMotion
-                  ? false
-                  : { y: "100%" }
-              }
+              initial={shouldReduceMotion ? false : { y: "100%" }}
               animate={{ y: 0 }}
-              exit={{
-                y: shouldReduceMotion ? 0 : "100%",
-              }}
+              exit={{ y: shouldReduceMotion ? 0 : "100%" }}
               transition={{
-                duration: shouldReduceMotion ? 0 : 0.4,
+                duration: shouldReduceMotion ? 0 : 0.35,
                 ease: [0.22, 1, 0.36, 1],
               }}
-              className="
-                absolute inset-x-0 bottom-0
-                flex max-h-[94dvh] min-h-[70dvh]
-                flex-col overflow-hidden
-                rounded-t-[28px] bg-white shadow-2xl
-              "
+              className="absolute inset-x-0 bottom-0 flex max-h-[90dvh] min-h-[65dvh] flex-col rounded-t-[24px] bg-white shadow-2xl"
             >
               <MobileFilterPanel {...panelProps} />
             </motion.aside>

@@ -1,7 +1,5 @@
-
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import {
   SlidersHorizontal,
   X,
@@ -11,13 +9,12 @@ import {
   Tag,
   IndianRupee,
 } from "lucide-react";
+
 import CategoryOptions from "../CategoryOptions";
 import MobileSection from "../MobileSection";
 import BrandOptions from "../BrandOptions";
 import PriceOptions from "../PriceOptions";
 import { getActiveFilterCount } from "../utils/filterHelpers";
-
-
 
 export default function MobileFilterPanel({
   categories,
@@ -42,30 +39,30 @@ export default function MobileFilterPanel({
   });
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-t-[28px] bg-slate-50">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-t-[24px] bg-[#F8FAFC]">
       {/* Header */}
-      <div className="shrink-0 rounded-t-[28px] border-b border-slate-100 bg-white px-5 pb-4 pt-3">
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-300" />
+      <div className="shrink-0 rounded-t-[24px] border-b border-[#E2E8F0] bg-white px-5 pb-4 pt-3">
+        <div className="mx-auto mb-3.5 h-1 w-10 rounded-full bg-slate-300" />
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-              <SlidersHorizontal size={21} />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
+              <SlidersHorizontal size={19} aria-hidden="true" />
             </div>
 
             <div>
-              <h2 className="text-lg font-extrabold tracking-tight text-slate-900">
-                Filters
+              <h2 className="text-base font-bold tracking-tight text-[#101828]">
+                Filter Products
               </h2>
-              <p className="text-[11px] text-slate-500">
-                Find your perfect product
+              <p className="text-xs text-[#64748B]">
+                Narrow down devices and gadgets
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             {activeCount > 0 && (
-              <span className="rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold text-blue-600">
+              <span className="rounded-full bg-[#EFF6FF] px-2.5 py-1 text-[11px] font-bold text-[#0755E9] tabular-nums">
                 {activeCount} active
               </span>
             )}
@@ -74,50 +71,21 @@ export default function MobileFilterPanel({
               type="button"
               onClick={onClose}
               aria-label="Close filters"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#64748B] transition hover:bg-slate-100 hover:text-[#101828]"
             >
               <X size={18} />
             </button>
           </div>
         </div>
-
-        <AnimatePresence>
-          {activeCount > 0 && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="overflow-hidden"
-            >
-              <div className="mt-3 flex items-center justify-between rounded-xl bg-blue-50 px-3 py-2.5">
-                <span className="text-[11px] font-semibold text-blue-700">
-                  {activeCount} filter sections selected
-                </span>
-
-                <button
-                  type="button"
-                  onClick={onClear}
-                  className="text-[10px] font-bold text-blue-700 underline underline-offset-2"
-                >
-                  Clear
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </div>
 
-      {/* Scrollable Content */}
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
+      {/* Scrollable Sections */}
+      <div className="min-h-0 flex-1 space-y-3.5 overflow-y-auto overscroll-contain px-4 py-4">
         <MobileSection
-          title="Categories"
-          subtitle="Select your category"
+          title="Category"
+          subtitle="Select a device category"
           icon={Layers3}
         >
-          <div className="mb-3 text-right text-[10px] font-semibold text-slate-400">
-            {categories.length} available
-          </div>
-
           <CategoryOptions
             categories={categories}
             category={category}
@@ -127,18 +95,10 @@ export default function MobileFilterPanel({
         </MobileSection>
 
         <MobileSection
-          title="Brands"
-          subtitle="Choose your favorite"
+          title="Brand"
+          subtitle="Choose your preferred brand"
           icon={Tag}
         >
-          {brand && (
-            <div className="mb-3 flex justify-end">
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-600">
-                Selected
-              </span>
-            </div>
-          )}
-
           <BrandOptions
             brands={brands}
             brand={brand}
@@ -149,7 +109,7 @@ export default function MobileFilterPanel({
 
         <MobileSection
           title="Price Range"
-          subtitle="Set your shopping budget"
+          subtitle="Filter within your budget"
           icon={IndianRupee}
         >
           <PriceOptions
@@ -162,31 +122,27 @@ export default function MobileFilterPanel({
         </MobileSection>
       </div>
 
-      {/* Fixed Footer */}
-      <div className="shrink-0 border-t border-slate-200 bg-white px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-3">
+      {/* Sticky Footer */}
+      <div className="shrink-0 border-t border-[#E2E8F0] bg-white px-4 pb-[calc(14px+env(safe-area-inset-bottom))] pt-3">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onClear}
-            className="flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 transition hover:bg-slate-50 active:scale-[0.98]"
+            className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white text-xs font-bold text-[#64748B] transition hover:bg-slate-50 active:scale-[0.98]"
           >
-            <RotateCcw size={15} />
+            <RotateCcw size={14} />
             Reset
           </button>
 
-          <motion.button
+          <button
             type="button"
             onClick={onApply}
-            className="flex h-12 flex-[1.5] items-center justify-center gap-2 rounded-xl bg-blue-600 text-xs font-bold text-white shadow-lg shadow-blue-600/20 transition hover:bg-blue-700"
+            className="flex h-11 flex-[1.5] items-center justify-center gap-2 rounded-xl bg-[#0755E9] text-xs font-bold text-white shadow-sm shadow-[#0755E9]/25 transition hover:bg-[#082B70] active:scale-[0.98]"
           >
             Show Products
-            <ArrowRight size={16} />
-          </motion.button>
+            <ArrowRight size={15} />
+          </button>
         </div>
-
-        <p className="mt-2 text-center text-[10px] text-slate-400">
-          Apply your preferences to discover products
-        </p>
       </div>
     </div>
   );

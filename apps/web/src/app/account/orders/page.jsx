@@ -1,24 +1,15 @@
-
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  AnimatePresence,
-  motion,
-} from "framer-motion";
-
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import orderService from "@/services/orderService";
-
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "sonner";
 import {
   Package,
   ArrowLeft,
   ArrowRight,
   ShoppingBag,
   CalendarDays,
-  CreditCard,
-  Boxes,
   ChevronRight,
   RefreshCw,
   Search,
@@ -28,7 +19,25 @@ import {
   Clock3,
   XCircle,
 } from "lucide-react";
+
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AccountShell from "@/components/account/AccountShell";
 import OrdersSkeleton from "@/components/loading/skeletons/OrdersSkeleton";
+import CancelOrderModal from "@/components/orders/CancelOrderModal";
+import {
+  canCancelOrder,
+  formatCurrencyINR,
+  getRefundStatusMeta,
+} from "@/components/orders/orderTimelineUtils";
+import {
+  clearCancelError,
+  selectCancellingOrderId,
+  selectOrderCancelError,
+  selectOrdersListError,
+  selectOrdersListLoading,
+  selectUserOrders,
+} from "@/store/slices/orderSlice";
+import { cancelUserOrder, fetchUserOrders } from "@/store/thunks/orderThunks";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -43,20 +52,15 @@ const ORDER_FILTERS = [
 ];
 
 const formatPrice = (amount) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  `₹${Number(amount || 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
-  }).format(Number(amount) || 0);
+  })}`;
 
 const formatDate = (date) => {
   if (!date) return "N/A";
-
-  const parsedDate = new Date(date);
-
-  if (Number.isNaN(parsedDate.getTime())) return "N/A";
-
-  return parsedDate.toLocaleDateString("en-IN", {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return "N/A";
+  return parsed.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -73,7 +77,6 @@ const getOrderItemName = (item) =>
 
 const getOrderItemImage = (item) => {
   const thumbnail = item?.thumbnail;
-
   if (typeof thumbnail === "string") return thumbnail;
   if (thumbnail && typeof thumbnail === "object" && thumbnail.url) {
     return thumbnail.url;
@@ -87,13 +90,14 @@ const getOrderItemImage = (item) => {
     item?.image ||
     "";
 
-  return typeof productImage === "string" ? productImage : productImage?.url || "";
+  return typeof productImage === "string"
+    ? productImage
+    : productImage?.url || "";
 };
 
 const getOrderItemQuantity = (item) =>
   Number(item?.quantity ?? item?.qty ?? 1) || 1;
 
-// Prefer the saved line subtotal; otherwise calculate it from the unit price.
 const getOrderItemPrice = (item) => {
   const quantity = getOrderItemQuantity(item);
   const unitPrice =
@@ -111,151 +115,59 @@ const getStatusStyle = (status) => {
   const value = String(status || "").toLowerCase();
 
   if (["paid", "delivered", "completed"].includes(value)) {
-    return "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15";
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
-
   if (["cancelled", "failed", "refunded"].includes(value)) {
-    return "bg-red-50 text-red-700 ring-1 ring-red-600/15";
+    return "border-red-200 bg-red-50 text-red-700";
   }
-
-  if (["shipped", "processing"].includes(value)) {
-    return "bg-blue-50 text-blue-700 ring-1 ring-blue-600/15";
+  if (["shipped", "processing", "confirmed"].includes(value)) {
+    return "border-[#0755E9]/25 bg-[#EFF6FF] text-[#0755E9]";
   }
-
-  return "bg-amber-50 text-amber-700 ring-1 ring-amber-600/15";
+  return "border-amber-200 bg-amber-50 text-amber-700";
 };
 
 const getStatusIcon = (status) => {
   const value = String(status || "").toLowerCase();
-
-  if (["delivered", "completed", "paid"].includes(value)) {
-    return CheckCircle2;
-  }
-
-  if (["cancelled", "failed", "refunded"].includes(value)) {
-    return XCircle;
-  }
-
-  if (["shipped", "processing"].includes(value)) {
-    return Truck;
-  }
-
+  if (["delivered", "completed", "paid"].includes(value)) return CheckCircle2;
+  if (["cancelled", "failed", "refunded"].includes(value)) return XCircle;
+  if (["shipped", "processing"].includes(value)) return Truck;
   return Clock3;
 };
 
-const revealTransition = {
-  duration: 0.65,
-  ease: [0.22, 1, 0.36, 1],
-};
-
-const revealFromBottom = {
-  hidden: {
-    opacity: 0,
-    y: 55,
-    scale: 0.98,
-  },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: revealTransition,
-  },
-};
-
 function OrdersContent() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const dispatch = useDispatch();
+  const orders = useSelector(selectUserOrders);
+  const loading = useSelector(selectOrdersListLoading);
+  const error = useSelector(selectOrdersListError);
+  const cancellingOrderId = useSelector(selectCancellingOrderId);
+  const cancelError = useSelector(selectOrderCancelError);
+
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
-
-  // Order cancellation
   const [cancelOrderTarget, setCancelOrderTarget] = useState(null);
-  const [cancellingOrderId, setCancellingOrderId] = useState("");
-  const [cancelError, setCancelError] = useState("");
-  const [cancelSuccess, setCancelSuccess] = useState("");
 
-  // Fetch Orders
-  const loadOrders = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const response = await orderService.getOrders();
-
-      const orderList =
-        response?.data?.orders ||
-        response?.data?.data ||
-        response?.data ||
-        response?.orders ||
-        response?.data?.items ||
-        [];
-
-      setOrders(Array.isArray(orderList) ? orderList : []);
-    } catch (err) {
-      setError(
-        err.response?.data?.message || "Failed to load your orders."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loadOrders = useCallback(() => {
+    dispatch(fetchUserOrders({ limit: 50 }));
+  }, [dispatch]);
 
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
 
-  // Only Pending and Confirmed orders can be cancelled by the customer.
-  const canCancelOrder = (status) =>
-    ["Pending", "Confirmed"].includes(status);
-
-  const handleConfirmCancellation = async () => {
-    if (!cancelOrderTarget) return;
-
-    const targetOrderId = cancelOrderTarget._id || cancelOrderTarget.id;
-    if (!targetOrderId) {
-      setCancelError("Invalid order. Please refresh and try again.");
-      return;
-    }
-
+  const handleConfirmCancellation = async ({ orderId, reason, comment }) => {
     try {
-      setCancellingOrderId(targetOrderId);
-      setCancelError("");
-      setCancelSuccess("");
+      await dispatch(cancelUserOrder({ orderId, reason, comment })).unwrap();
 
-      // The backend cancellation service currently accepts orderId and userId.
-      await orderService.cancelOrder(targetOrderId);
-
-      setOrders((previousOrders) =>
-        previousOrders.map((order) => {
-          const currentId = order._id || order.id;
-
-          return currentId === targetOrderId
-            ? {
-                ...order,
-                orderStatus: "Cancelled",
-                cancelledAt: new Date().toISOString(),
-              }
-            : order;
-        }),
-      );
-
-      setCancelSuccess(
-        `Order ${cancelOrderTarget.orderNumber || targetOrderId} cancelled successfully.`,
+      toast.success(
+        `Order ${cancelOrderTarget?.orderNumber || orderId} cancelled.`,
       );
       setCancelOrderTarget(null);
-    } catch (err) {
-      setCancelError(
-        err.response?.data?.message ||
-          err.message ||
-          "Unable to cancel this order. Please try again.",
-      );
-    } finally {
-      setCancellingOrderId("");
+      dispatch(clearCancelError());
+    } catch {
+      // Redux cancelError displays directly inside the modal
     }
   };
 
-  // Filter Counts
   const filterCounts = useMemo(() => {
     const counts = {
       All: orders.length,
@@ -269,24 +181,17 @@ function OrdersContent() {
 
     orders.forEach((order) => {
       const status = String(order.orderStatus || "Pending").toLowerCase();
-
-      const matchingFilter = ORDER_FILTERS.find(
-        (filter) =>
-          filter !== "All" && filter.toLowerCase() === status
+      const matching = ORDER_FILTERS.find(
+        (f) => f !== "All" && f.toLowerCase() === status
       );
-
-      if (matchingFilter) {
-        counts[matchingFilter] += 1;
-      }
+      if (matching) counts[matching] += 1;
     });
 
     return counts;
   }, [orders]);
 
-  // Filter Orders
   const filteredOrders = useMemo(() => {
     if (activeFilter === "All") return orders;
-
     return orders.filter(
       (order) =>
         String(order.orderStatus || "Pending").toLowerCase() ===
@@ -294,762 +199,452 @@ function OrdersContent() {
     );
   }, [orders, activeFilter]);
 
-  // Pagination
-  const totalPages = Math.ceil(
-    filteredOrders.length / ORDERS_PER_PAGE
-  );
+  const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
 
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * ORDERS_PER_PAGE;
-
-    return filteredOrders.slice(
-      startIndex,
-      startIndex + ORDERS_PER_PAGE
-    );
+    return filteredOrders.slice(startIndex, startIndex + ORDERS_PER_PAGE);
   }, [filteredOrders, currentPage]);
 
-  // Filter Change
   const handleFilterChange = (filter) => {
     setActiveFilter(filter);
     setCurrentPage(1);
   };
 
-  // Pagination with smooth scroll to top
   const handlePagination = (nextPage) => {
     if (nextPage < 1 || nextPage > totalPages) return;
-
     setCurrentPage(nextPage);
-
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const summaryCards = [
-    {
-      label: "Total Orders",
-      count: orders.length,
-      icon: ClipboardList,
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-    },
-    {
-      label: "Processing",
-      count: filterCounts.Processing,
-      icon: Clock3,
-      color: "text-amber-600",
-      bg: "bg-amber-50",
-    },
-    {
-      label: "Shipped",
-      count: filterCounts.Shipped,
-      icon: Truck,
-      color: "text-indigo-600",
-      bg: "bg-indigo-50",
-    },
-    {
-      label: "Delivered",
-      count: filterCounts.Delivered,
-      icon: CheckCircle2,
-      color: "text-emerald-600",
-      bg: "bg-emerald-50",
-    },
+    { label: "Total Orders", count: orders.length, icon: ClipboardList },
+    { label: "Processing", count: filterCounts.Processing, icon: Clock3 },
+    { label: "Shipped", count: filterCounts.Shipped, icon: Truck },
+    { label: "Delivered", count: filterCounts.Delivered, icon: CheckCircle2 },
   ];
 
   return (
-    <main className="min-h-screen bg-white px-4 py-8 sm:px-6 lg:px-8">
-
-      <div className="mx-auto w-full">
-
-        {/* Page Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 25 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease: "easeOut" }}
-          className="mb-8"
-        >
-          <Link
-            href="/account"
-            className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#0755E9]"
+    <>
+      <AccountShell
+        activeSection="orders"
+        breadcrumbLabel="My Orders"
+        title="My Orders"
+        description="Track deliveries, view order invoices, or manage pending orders."
+        headerRight={
+          !loading && !error && orders.length > 0 ? (
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-white px-3.5 py-1.5 text-xs font-bold text-[#101828] tabular-nums">
+              <Package size={15} className="text-[#0755E9]" aria-hidden="true" />
+              {orders.length} Total {orders.length === 1 ? "Order" : "Orders"}
+            </span>
+          ) : null
+        }
+      >
+        {loading ? (
+          <OrdersSkeleton />
+        ) : error ? (
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-white px-6 py-14 text-center"
           >
-            <ArrowLeft size={16} />
-            Back to My Account
-          </Link>
-
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <div className="mb-3 flex items-center gap-2">
-                <span className="h-1.5 w-6 rounded-full bg-[#0755E9]" />
-                <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#0755E9]">
-                  ELEZIO
-                </span>
-              </div>
-
-              <h1 className="text-2xl font-bold tracking-tight text-[#101828] sm:text-3xl">
-                My Orders
-              </h1>
-
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                View your purchases and track your order progress.
-              </p>
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-500">
+              <RefreshCw size={24} />
             </div>
-
-            {!loading && !error && orders.length > 0 && (
-              <motion.div
-                whileHover={{ y: -3 }}
-                className="flex items-center gap-2 self-start rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm sm:self-auto"
-              >
-                <Package size={18} className="text-[#0755E9]" />
-                <span className="text-sm font-semibold text-slate-700">
-                  {orders.length} Total Orders
-                </span>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-
-        {cancelSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-5 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-          >
-            <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
-            <span>{cancelSuccess}</span>
-            <button
-              type="button"
-              onClick={() => setCancelSuccess("")}
-              className="ml-auto text-emerald-700 hover:text-emerald-900"
-              aria-label="Dismiss cancellation message"
-            >
-              ×
-            </button>
-          </motion.div>
-        )}
-
-        {/* Loading State */}
-      {/* Loading State */}
-{loading ? (
-  <OrdersSkeleton />
-) : error ? (
-
-          /* Error State */
-          <motion.div
-            key="error"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-red-100 bg-white px-6 py-16 text-center shadow-sm"
-          >
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600">
-              <RefreshCw size={25} />
-            </div>
-
-            <h2 className="mt-5 text-lg font-bold text-[#101828]">
+            <h2 className="mt-4 text-lg font-bold text-[#101828]">
               Unable to load orders
             </h2>
-
-            <p className="mx-auto mt-2 max-w-md text-sm text-slate-500">
+            <p className="mx-auto mt-1.5 max-w-md text-xs text-[#64748B] sm:text-sm">
               {error}
             </p>
-
-            <motion.button
+            <button
               type="button"
-              whileHover={{ y: -3 }}
-              whileTap={{ scale: 0.97 }}
               onClick={loadOrders}
-              className="mt-5 inline-flex items-center gap-1.5 rounded-lg bg-[#0755E9] px-3.5 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[#0645C4]"
+              className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[#0755E9] px-5 text-xs font-bold text-white transition hover:bg-[#0645C4]"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={14} />
               Try Again
-            </motion.button>
-          </motion.div>
-
+            </button>
+          </div>
         ) : orders.length === 0 ? (
-
-          /* Empty Orders State */
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 25 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-slate-200 bg-white px-6 py-20 text-center shadow-sm"
-          >
-            <motion.div
-              animate={{ y: [0, -8, 0] }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-blue-50"
-            >
-              <ShoppingBag
-                size={34}
-                strokeWidth={1.5}
-                className="text-[#0755E9]"
-              />
-            </motion.div>
-
-            <h2 className="mt-6 text-xl font-bold text-[#101828]">
+          <div className="rounded-2xl border border-[#E2E8F0] bg-white px-6 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#0755E9]/15 bg-[#EFF6FF] text-[#0755E9]">
+              <ShoppingBag size={28} aria-hidden="true" />
+            </div>
+            <h2 className="mt-4 text-xl font-bold text-[#101828]">
               No orders yet
             </h2>
-
-            <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-slate-500">
-              You haven&apos;t placed any orders yet. Explore our products
-              and find something you love.
+            <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-[#64748B] sm:text-sm">
+              You haven&apos;t placed any orders yet. Explore our latest gadgets and smart devices to get started.
             </p>
-
-            <motion.div
-              whileHover={{ y: -3, scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              className="mt-7 inline-flex"
+            <Link
+              href="/products"
+              className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[#0755E9] px-6 text-xs font-bold text-white transition hover:bg-[#0645C4] sm:text-sm"
             >
-              <Link
-                href="/products"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[#0755E9] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4]"
-              >
-                <ShoppingBag size={17} />
-                Start Shopping
-                <ArrowRight size={16} />
-              </Link>
-            </motion.div>
-          </motion.div>
-
+              <ShoppingBag size={15} />
+              <span>Start Shopping</span>
+              <ArrowRight size={15} />
+            </Link>
+          </div>
         ) : (
-          <>
-            {/* Order Summary Cards */}
-            <motion.section
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.15 }}
-              variants={{
-                hidden: {},
-                visible: {
-                  transition: { staggerChildren: 0.12 },
-                },
-              }}
-              className="mb-5 grid grid-cols-2 gap-2.5 sm:mb-7 sm:grid-cols-4 sm:gap-3"
-            >
-              {summaryCards.map((item) => {
-                const Icon = item.icon;
-
-                return (
-                  <motion.div
-                    key={item.label}
-                    variants={revealFromBottom}
-                    whileHover={{
-                      y: -6,
-                      boxShadow: "0px 12px 30px rgba(7,85,233,0.09)",
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-slate-500 sm:text-sm">
-                        {item.label}
-                      </span>
-
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${item.bg}`}>
-                        <Icon size={18} className={item.color} />
-                      </div>
-                    </div>
-
-                    <motion.p
-                      key={item.count}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 text-2xl font-bold text-[#101828]"
-                    >
-                      {item.count}
-                    </motion.p>
-                  </motion.div>
-                );
-              })}
-            </motion.section>
-
-            {/* Order History */}
-            <motion.section
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={revealFromBottom}
-              className="mb-5 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:mb-6 sm:p-5"
-            >
-              <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                <div>
-                  <h2 className="font-bold text-[#101828]">
-                    Order History
-                  </h2>
-
-                  <p className="mt-1 text-xs text-slate-500">
-                    Filter your orders by their current status.
+          <div className="space-y-5">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {summaryCards.map(({ label, count, icon: Icon }) => (
+                <div
+                  key={label}
+                  className="rounded-2xl border border-[#E2E8F0] bg-white p-4"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-[#64748B]">
+                      {label}
+                    </span>
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+                      <Icon size={16} aria-hidden="true" />
+                    </span>
+                  </div>
+                  <p className="mt-2.5 text-2xl font-extrabold text-[#101828] tabular-nums">
+                    {count}
                   </p>
                 </div>
+              ))}
+            </div>
 
-                <span className="text-xs font-medium text-slate-400">
+            {/* Filter Strip */}
+            <div className="rounded-2xl border border-[#E2E8F0] bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                  Filter by Status
+                </h2>
+                <span className="text-xs font-semibold text-[#64748B] tabular-nums">
                   {filteredOrders.length} results
                 </span>
               </div>
 
-              <div className="flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {ORDER_FILTERS.map((filter) => {
                   const isActive = activeFilter === filter;
 
                   return (
-                    <motion.button
+                    <button
                       key={filter}
                       type="button"
                       onClick={() => handleFilterChange(filter)}
-                      whileTap={{ scale: 0.94 }}
-                      className={`relative shrink-0 overflow-hidden rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs font-bold transition ${
                         isActive
-                          ? "text-white"
-                          : "bg-slate-50 text-slate-600 hover:bg-blue-50 hover:text-[#0755E9]"
+                          ? "border-[#0755E9] bg-[#0755E9] text-white shadow-xs"
+                          : "border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B] hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
                       }`}
                     >
-                      {isActive && (
-                        <motion.span
-                          layoutId="activeOrderFilter"
-                          className="absolute inset-0 rounded-xl bg-[#0755E9]"
-                          transition={{
-                            type: "spring",
-                            stiffness: 350,
-                            damping: 30,
-                          }}
-                        />
-                      )}
-
-                      <span className="relative z-10">
-                        {filter}
-
-                        <span
-                          className={`ml-2 rounded-md px-1.5 py-0.5 text-[11px] ${
-                            isActive
-                              ? "bg-white/20 text-white"
-                              : "bg-white text-slate-500"
-                          }`}
-                        >
-                          {filterCounts[filter]}
-                        </span>
+                      <span>{filter}</span>
+                      <span
+                        className={`rounded-md px-1.5 py-0.5 text-[10px] tabular-nums ${
+                          isActive
+                            ? "bg-white/20 text-white"
+                            : "bg-white text-[#64748B]"
+                        }`}
+                      >
+                        {filterCounts[filter]}
                       </span>
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
-            </motion.section>
+            </div>
 
-            {/* Orders List */}
-            <AnimatePresence mode="wait">
-              {filteredOrders.length === 0 ? (
-                <motion.div
-                  key={`empty-${activeFilter}`}
-                  variants={revealFromBottom}
-                  initial="hidden"
-                  animate="visible"
-                  exit={{
-                    opacity: 0,
-                    y: -15,
-                    transition: { duration: 0.2 },
-                  }}
-                  className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm"
+            {/* Order List */}
+            {filteredOrders.length === 0 ? (
+              <div className="rounded-2xl border border-[#E2E8F0] bg-white px-6 py-14 text-center">
+                <Search size={28} className="mx-auto text-slate-300" />
+                <h3 className="mt-4 text-base font-bold text-[#101828]">
+                  No {activeFilter.toLowerCase()} orders
+                </h3>
+                <p className="mt-1 text-xs text-[#64748B] sm:text-sm">
+                  You don&apos;t have orders matching this status.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("All")}
+                  className="mt-4 rounded-xl bg-[#0755E9] px-4 py-2 text-xs font-bold text-white hover:bg-[#0645C4]"
                 >
-                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-slate-400">
-                    <Search size={26} />
-                  </div>
+                  View All Orders
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {paginatedOrders.map((order) => {
+                  const orderId = order._id || order.id;
+                  const orderNumber =
+                    order.orderNumber || order.orderId || orderId;
+                  const totalAmount =
+                    order.totalAmount ?? order.total ?? order.grandTotal ?? 0;
+                  const OrderStatusIcon = getStatusIcon(order.orderStatus);
 
-                  <h2 className="mt-5 text-lg font-bold text-[#101828]">
-                    No {activeFilter.toLowerCase()} orders
-                  </h2>
-
-                  <p className="mt-2 text-sm text-slate-500">
-                    You don&apos;t have any orders with this status.
-                  </p>
-
-                  <motion.button
-                    type="button"
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleFilterChange("All")}
-                    className="mt-5 rounded-lg bg-[#0755E9] px-4 py-2 text-xs font-semibold text-white hover:bg-[#0645C4]"
-                  >
-                    View All Orders
-                  </motion.button>
-                </motion.div>
-
-              ) : (
-                <motion.div
-                  key={`${activeFilter}-${currentPage}`}
-                  initial="hidden"
-                  animate="visible"
-                  exit="exit"
-                  variants={{
-                    hidden: {},
-                    visible: {
-                      transition: { staggerChildren: 0.12 },
-                    },
-                    exit: {
-                      transition: {
-                        staggerChildren: 0.04,
-                        staggerDirection: -1,
-                      },
-                    },
-                  }}
-                >
-                  <div className="mb-4 flex items-center justify-between">
-                    <p className="text-sm text-slate-500">
-                      Showing{" "}
-                      <span className="font-semibold text-[#101828]">
-                        {paginatedOrders.length}
-                      </span>{" "}
-                      of{" "}
-                      <span className="font-semibold text-[#101828]">
-                        {filteredOrders.length}
-                      </span>{" "}
-                      orders
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {paginatedOrders.map((order) => {
-                      const orderId = order._id || order.id;
-
-                      const orderNumber =
-                        order.orderNumber || order.orderId || orderId;
-
-                      const totalAmount =
-                        order.totalAmount ??
-                        order.total ??
-                        order.grandTotal ??
-                        0;
-
-                      const OrderStatusIcon = getStatusIcon(
-                        order.orderStatus
-                      );
-
-                      return (
-                        <motion.article
-                          key={orderId}
-                          variants={{
-                            hidden: {
-                              opacity: 0,
-                              y: 45,
-                              scale: 0.98,
-                            },
-                            visible: {
-                              opacity: 1,
-                              y: 0,
-                              scale: 1,
-                              transition: {
-                                duration: 0.55,
-                                ease: [0.22, 1, 0.36, 1],
-                              },
-                            },
-                            exit: {
-                              opacity: 0,
-                              y: -15,
-                              transition: { duration: 0.2 },
-                            },
-                          }}
-                          whileHover={{
-                            y: -5,
-                            boxShadow: "0px 15px 35px rgba(7,85,233,0.09)",
-                            borderColor: "#BFDBFE",
-                          }}
-                          className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
-                        >
-                          {/* Order Card */}
-                          <div className="p-4 sm:p-5">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
-                                  Order number
-                                </p>
-                                <h3 className="mt-1 break-all text-sm font-bold text-[#101828] sm:text-base">
-                                  {orderNumber}
-                                </h3>
-                                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-slate-500">
-                                  <CalendarDays size={13} />
-                                  Placed on {formatDate(order.createdAt)}
-                                </p>
-                              </div>
-
-                              <div className="flex flex-wrap gap-2 sm:justify-end">
-                                <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.orderStatus)}`}>
-                                  <OrderStatusIcon size={13} />
-                                  {order.orderStatus || "Pending"}
-                                </span>
-                                <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusStyle(order.paymentStatus)}`}>
-                                  Payment: {order.paymentStatus || "Pending"}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="my-4 border-t border-slate-100" />
-
-                            {/* Product preview */}
-                            {Array.isArray(order.items) && order.items.length > 0 ? (
-                              <div className="space-y-3">
-                                {order.items.slice(0, 2).map((item, index) => {
-                                  const image = getOrderItemImage(item);
-                                  const quantity = getOrderItemQuantity(item);
-                                  return (
-                                    <div key={item?._id || item?.product?._id || index} className="flex min-w-0 items-center gap-3">
-                                      <div className="flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
-                                        {image ? (
-                                          <img src={image} alt={getOrderItemName(item)} className="h-full w-full object-contain p-1" loading="lazy" />
-                                        ) : (
-                                          <Package size={27} className="text-slate-300" />
-                                        )}
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="line-clamp-2 text-sm font-semibold text-[#101828]">
-                                          {getOrderItemName(item)}
-                                        </p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                          Qty: {quantity}
-                                          {item?.variant ? ` · ${item.variant}` : ""}
-                                        </p>
-                                        <p className="mt-1 text-sm font-bold text-[#101828]">
-                                          {formatPrice(getOrderItemPrice(item))}
-                                        </p>
-                                      </div>
-                                      {index === 0 && order.items.length > 1 && (
-                                        <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
-                                          +{order.items.length - 1} more
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">
-                                <Package size={24} className="text-slate-400" />
-                                <span className="text-sm text-slate-500">{order.items?.length || 0} items in this order</span>
-                              </div>
-                            )}
-
-                            <div className="my-4 border-t border-slate-100" />
-
-                            {/* Order totals */}
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="min-w-0">
-                                <p className="text-xs text-slate-400">Payment method</p>
-                                <p className="mt-1 truncate text-sm font-semibold text-slate-700">
-                                  {order.paymentMethod === "Online"
-                                    ? "Online Payment"
-                                    : order.paymentMethod || "N/A"}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-xs text-slate-400">Total amount</p>
-                                <p className="mt-1 text-base font-bold text-[#101828]">
-                                  {formatPrice(totalAmount)}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Card action */}
-                          <div className="border-t border-slate-100 bg-slate-50/70 p-3 sm:px-5">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                              <Link
-                                href={`/account/orders/${orderId}`}
-                                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#0645C4] sm:w-auto sm:min-w-44"
-                              >
-                                View Order Details
-                                <ChevronRight size={15} />
-                              </Link>
-
-                              {order.shipment?.shipmentId && (
-                                <Link
-                                  href={`/account/orders/${orderId}/tracking`}
-                                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#0755E9] bg-white px-3 py-2.5 text-xs font-semibold text-[#0755E9] transition hover:bg-blue-50 sm:w-auto sm:min-w-36"
-                                >
-                                  <Truck size={15} />
-                                  Track Order
-                                </Link>
-                              )}
-
-                              {canCancelOrder(order.orderStatus) && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setCancelError("");
-                                    setCancelOrderTarget(order);
-                                  }}
-                                  disabled={cancellingOrderId === orderId}
-                                  className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2.5 text-xs font-semibold text-red-600 transition hover:border-red-300 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-auto sm:w-auto"
-                                >
-                                  <XCircle size={15} />
-                                  Cancel Order
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          </motion.article>
-                      );
-                    })}
-                  </div>
-
-                  {/* Pagination */}
-                  {totalPages > 1 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 35 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, amount: 0.2 }}
-                      transition={revealTransition}
-                      className="mt-7 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:px-6"
+                  return (
+                    <article
+                      key={orderId}
+                      className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white transition-shadow hover:shadow-xs"
                     >
-                      <p className="text-sm text-slate-500">
-                        Page{" "}
-                        <span className="font-semibold text-[#101828]">
-                          {currentPage}
-                        </span>{" "}
-                        of{" "}
-                        <span className="font-semibold text-[#101828]">
-                          {totalPages}
-                        </span>
-                      </p>
+                      <div className="p-4 sm:p-5">
+                        {/* Order Top Meta */}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+                              Order ID
+                            </p>
+                            <h3 className="mt-0.5 break-all text-sm font-bold text-[#101828] sm:text-base">
+                              {orderNumber}
+                            </h3>
+                            <p className="mt-1 flex items-center gap-1.5 text-xs text-[#64748B]">
+                              <CalendarDays size={13} aria-hidden="true" />
+                              Placed on {formatDate(order.createdAt)}
+                            </p>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <motion.button
-                          type="button"
-                          disabled={currentPage === 1}
-                          whileHover={currentPage !== 1 ? { y: -2 } : {}}
-                          whileTap={currentPage !== 1 ? { scale: 0.96 } : {}}
-                          onClick={() =>
-                            handlePagination(currentPage - 1)
-                          }
-                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
-                        >
-                          <ArrowLeft size={15} />
-                          Previous
-                        </motion.button>
+                          <div className="flex flex-wrap gap-2 sm:justify-end">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold ${getStatusStyle(
+                                order.orderStatus
+                              )}`}
+                            >
+                              <OrderStatusIcon size={12} aria-hidden="true" />
+                              {order.orderStatus || "Pending"}
+                            </span>
 
-                        <motion.button
-                          type="button"
-                          disabled={currentPage === totalPages}
-                          whileHover={
-                            currentPage !== totalPages ? { y: -2 } : {}
-                          }
-                          whileTap={
-                            currentPage !== totalPages ? { scale: 0.96 } : {}
-                          }
-                          onClick={() =>
-                            handlePagination(currentPage + 1)
-                          }
-                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none"
-                        >
-                          Next
-                          <ArrowRight size={15} />
-                        </motion.button>
+                            <span
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${getStatusStyle(
+                                order.paymentStatus
+                              )}`}
+                            >
+                              Payment: {order.paymentStatus || "Pending"}
+                            </span>
+
+                            {order.orderStatus === "Cancelled" &&
+                              (order.refundSummary?.status || order.refundStatus) &&
+                              (order.refundSummary?.status || order.refundStatus) !==
+                                "NOT_REQUIRED" && (
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-bold ${
+                                    getRefundStatusMeta(
+                                      order.refundSummary?.status ||
+                                        order.refundStatus,
+                                      order.paymentStatus,
+                                      order.paymentMethod
+                                    ).badgeClasses
+                                  }`}
+                                >
+                                  {
+                                    getRefundStatusMeta(
+                                      order.refundSummary?.status ||
+                                        order.refundStatus,
+                                      order.paymentStatus,
+                                      order.paymentMethod
+                                    ).label
+                                  }
+                                </span>
+                              )}
+                          </div>
+                        </div>
+
+                        {order.orderStatus === "Cancelled" &&
+                          order.cancellationReason && (
+                            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-xs text-red-900">
+                              <span>
+                                <strong>Reason:</strong>{" "}
+                                {order.cancellationReason}
+                              </span>
+                              {Number(
+                                order.refundSummary?.amount ??
+                                  order.refundAmount ??
+                                  0
+                              ) > 0 && (
+                                <span className="font-bold text-[#0755E9]">
+                                  Refund:{" "}
+                                  {formatCurrencyINR(
+                                    order.refundSummary?.amount ??
+                                      order.refundAmount
+                                  )}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                        {/* Items Preview */}
+                        <div className="my-4 space-y-3 border-y border-[#E2E8F0] py-4">
+                          {Array.isArray(order.items) && order.items.length > 0 ? (
+                            order.items.slice(0, 2).map((item, idx) => {
+                              const image = getOrderItemImage(item);
+                              const quantity = getOrderItemQuantity(item);
+                              const attrs =
+                                item?.attributes &&
+                                typeof item.attributes === "object"
+                                  ? Object.entries(item.attributes)
+                                      .map(([k, v]) => `${k}: ${v}`)
+                                      .join(" · ")
+                                  : "";
+
+                              return (
+                                <div
+                                  key={item?._id || item?.product?._id || idx}
+                                  className="flex min-w-0 items-center gap-3"
+                                >
+                                  <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-1">
+                                    {image ? (
+                                      <img
+                                        src={image}
+                                        alt={getOrderItemName(item)}
+                                        className="h-full w-full object-contain"
+                                        loading="lazy"
+                                      />
+                                    ) : (
+                                      <Package size={24} className="text-slate-300" />
+                                    )}
+                                  </div>
+
+                                  <div className="min-w-0 flex-1">
+                                    <p className="line-clamp-2 text-xs font-bold text-[#101828] sm:text-sm">
+                                      {getOrderItemName(item)}
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-[#64748B]">
+                                      Qty: {quantity}
+                                      {attrs ? ` · ${attrs}` : ""}
+                                    </p>
+                                    <p className="mt-0.5 text-xs font-bold text-[#101828] tabular-nums sm:text-sm">
+                                      {formatPrice(getOrderItemPrice(item))}
+                                    </p>
+                                  </div>
+
+                                  {idx === 0 && order.items.length > 1 && (
+                                    <span className="shrink-0 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1 text-[11px] font-bold text-[#64748B]">
+                                      +{order.items.length - 1} more
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <p className="text-xs text-[#64748B]">
+                              Order items summary unavailable
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Payment & Total Row */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                              Payment Method
+                            </p>
+                            <p className="mt-0.5 text-xs font-bold text-[#101828] sm:text-sm">
+                              {order.paymentMethod === "Online"
+                                ? "Online Payment"
+                                : order.paymentMethod || "N/A"}
+                            </p>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#64748B]">
+                              Total Amount
+                            </p>
+                            <p className="mt-0.5 text-base font-extrabold text-[#101828] tabular-nums">
+                              {formatPrice(totalAmount)}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </motion.div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </>
-        )}
-      </div>
 
-      {/* Cancel Order Confirmation Modal */}
-      <AnimatePresence>
-        {cancelOrderTarget && (
-          <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget && !cancellingOrderId) {
-                setCancelOrderTarget(null);
-                setCancelError("");
-              }
-            }}
-          >
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="cancel-order-title"
-              initial={{ opacity: 0, y: 20, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.98 }}
-              transition={{ duration: 0.2 }}
-              className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl sm:p-6"
-            >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-                <XCircle size={25} />
+                      {/* Footer Actions */}
+                      <div className="flex flex-col gap-2 border-t border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-5">
+                        <Link
+                          href={`/account/orders/${orderId}`}
+                          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white transition hover:bg-[#0645C4]"
+                        >
+                          <span>View Details</span>
+                          <ChevronRight size={14} aria-hidden="true" />
+                        </Link>
+
+                        {order.shipment?.shipmentId && (
+                          <Link
+                            href={`/account/orders/${orderId}/tracking`}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-[#0755E9] bg-[#EFF6FF] px-4 text-xs font-bold text-[#0755E9] transition hover:bg-[#0755E9] hover:text-white"
+                          >
+                            <Truck size={14} aria-hidden="true" />
+                            <span>Track Order</span>
+                          </Link>
+                        )}
+
+                        {canCancelOrder(order) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              dispatch(clearCancelError());
+                              setCancelOrderTarget(order);
+                            }}
+                            disabled={cancellingOrderId === orderId}
+                            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-4 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50 sm:ml-auto"
+                          >
+                            <XCircle size={14} aria-hidden="true" />
+                            <span>Cancel Order</span>
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
+            )}
 
-              <h2
-                id="cancel-order-title"
-                className="mt-4 text-center text-lg font-bold text-[#101828]"
-              >
-                Cancel this order?
-              </h2>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 sm:flex-row">
+                <p className="text-xs font-medium text-[#64748B] tabular-nums">
+                  Page{" "}
+                  <span className="font-bold text-[#101828]">{currentPage}</span>{" "}
+                  of{" "}
+                  <span className="font-bold text-[#101828]">{totalPages}</span>
+                </p>
 
-              <p className="mt-2 text-center text-sm leading-6 text-slate-500">
-                Are you sure you want to cancel order{" "}
-                <span className="font-semibold text-slate-800">
-                  {cancelOrderTarget.orderNumber ||
-                    cancelOrderTarget._id ||
-                    cancelOrderTarget.id}
-                </span>
-                ? This action cannot be undone.
-              </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={currentPage === 1}
+                    onClick={() => handlePagination(currentPage - 1)}
+                    className="inline-flex h-9 items-center gap-1 rounded-xl border border-[#E2E8F0] bg-white px-3.5 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] disabled:opacity-45"
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Previous</span>
+                  </button>
 
-              <div className="mt-4 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-5 text-amber-800">
-                Cancellation is available only for Pending and Confirmed
-                orders. Once cancelled, the order cannot be restored from this
-                page.
-              </div>
-
-              {cancelError && (
-                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
-                  {cancelError}
+                  <button
+                    type="button"
+                    disabled={currentPage === totalPages}
+                    onClick={() => handlePagination(currentPage + 1)}
+                    className="inline-flex h-9 items-center gap-1 rounded-xl bg-[#0755E9] px-3.5 text-xs font-bold text-white transition hover:bg-[#0645C4] disabled:opacity-45"
+                  >
+                    <span>Next</span>
+                    <ArrowRight size={14} />
+                  </button>
                 </div>
-              )}
-
-              <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCancelOrderTarget(null);
-                    setCancelError("");
-                  }}
-                  disabled={Boolean(cancellingOrderId)}
-                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-                >
-                  Keep Order
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleConfirmCancellation}
-                  disabled={Boolean(cancellingOrderId)}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {cancellingOrderId ? (
-                    <>
-                      <RefreshCw size={16} className="animate-spin" />
-                      Cancelling...
-                    </>
-                  ) : (
-                    <>
-                      <XCircle size={16} />
-                      Yes, Cancel Order
-                    </>
-                  )}
-                </button>
               </div>
-            </motion.div>
-          </motion.div>
+            )}
+          </div>
         )}
-      </AnimatePresence>
-    </main>
+      </AccountShell>
+
+      <CancelOrderModal
+        key={
+          cancelOrderTarget?._id || cancelOrderTarget?.id || "cancel-order-list"
+        }
+        order={cancelOrderTarget}
+        open={Boolean(cancelOrderTarget)}
+        loading={Boolean(cancellingOrderId)}
+        error={cancelError || ""}
+        onClose={() => {
+          setCancelOrderTarget(null);
+          dispatch(clearCancelError());
+        }}
+        onConfirm={handleConfirmCancellation}
+      />
+    </>
   );
 }
 

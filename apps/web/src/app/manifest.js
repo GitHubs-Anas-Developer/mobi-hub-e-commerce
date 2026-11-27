@@ -18,11 +18,15 @@ export default function manifest() {
     theme_color: BRAND_PRIMARY_COLOR,
     icons: [
       {
-        src: BRAND_ASSETS.icon,
-        sizes: "any",
-        type: "image/svg+xml",
+        src: BRAND_ASSETS.icon192,
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        src: BRAND_ASSETS.icon512,
+        sizes: "512x512",
+        type: "image/png",
       },
     ],
   };
 }
-

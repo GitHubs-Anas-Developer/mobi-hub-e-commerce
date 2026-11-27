@@ -1,55 +1,108 @@
-
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Breadcrumb, Drawer, Layout } from "antd";
+import { Home } from "lucide-react";
 
 import AdminSidebar from "./AdminSidebar";
 import AdminHeader from "./AdminHeader";
+import { resolveAdminPageMeta } from "./adminNavigation";
+
+const { Sider, Content } = Layout;
 
 export default function AdminLayoutShell({ children }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const { breadcrumbs } = resolveAdminPageMeta(pathname);
+
+  const breadcrumbItems = [
+    {
+      key: "home",
+      title: (
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[#64748B] hover:text-[#0755E9]"
+        >
+          <Home size={12} />
+          <span>Store</span>
+        </Link>
+      ),
+    },
+    ...breadcrumbs.map((crumb, index) => ({
+      key: `${crumb.label}-${index}`,
+      title: crumb.href ? (
+        <Link
+          href={crumb.href}
+          className="text-xs font-medium text-[#64748B] hover:text-[#0755E9]"
+        >
+          {crumb.label}
+        </Link>
+      ) : (
+        <span className="text-xs font-semibold text-[#101828] capitalize">
+          {crumb.label}
+        </span>
+      ),
+    })),
+  ];
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Mobile Overlay */}
-      {sidebarOpen && (
-        <button
-          type="button"
-          aria-label="Close sidebar"
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/50 lg:hidden"
-        />
-      )}
-
-      {/* Sidebar */}
-      <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:static lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+    <Layout className="elz-admin-root min-h-screen !bg-[#F8FAFC]">
+      {/* Desktop Collapsible Sider */}
+      <Sider
+        width={256}
+        collapsedWidth={76}
+        collapsed={collapsed}
+        trigger={null}
+        className="hidden !border-r !border-[#E2E8F0] !bg-white lg:block"
+        style={{
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          overflow: "hidden",
+        }}
       >
-        <div className="absolute top-4 right-3 z-10 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
-            aria-label="Close sidebar"
-          >
-            <X size={20} />
-          </button>
+        <AdminSidebar collapsed={collapsed} />
+      </Sider>
+
+      {/* Mobile Drawer Navigation */}
+      <Drawer
+        placement="left"
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        styles={{
+          body: { padding: 0 },
+          wrapper: { width: 268 },
+        }}
+        closable={false}
+        className="lg:hidden"
+      >
+        <AdminSidebar
+          collapsed={false}
+          onNavigate={() => setMobileOpen(false)}
+        />
+      </Drawer>
+
+      {/* Main Content Area */}
+      <Layout className="min-w-0 flex-1 !bg-[#F8FAFC]">
+        <AdminHeader
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((prev) => !prev)}
+          onOpenMobileDrawer={() => setMobileOpen(true)}
+        />
+
+        {/* Breadcrumb Strip */}
+        <div className="border-b border-[#E2E8F0] bg-white px-3 py-2.5 sm:px-6">
+          <Breadcrumb items={breadcrumbItems} />
         </div>
 
-        <AdminSidebar />
-      </div>
-
-      {/* Main Content */}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
-
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          {children}
-        </main>
-      </div>
-    </div>
+        <Content className="w-full min-w-0 flex-1 p-3 sm:p-6 lg:p-7">
+          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        </Content>
+      </Layout>
+    </Layout>
   );
 }

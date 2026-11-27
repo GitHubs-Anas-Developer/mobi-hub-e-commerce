@@ -18,6 +18,8 @@ const formatPrice = (amount) =>
   }).format(amount);
 
 const orderConfirmationTemplate = (order) => {
+  const brandSiteUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const brandLogoUrl = `${brandSiteUrl}/brand/elenzo-logo.png`;
   const itemsHtml = order.items
     .map(
       (item) => `
@@ -53,8 +55,10 @@ const orderConfirmationTemplate = (order) => {
                   border-radius:12px;overflow:hidden;">
 
         <div style="background:#0755e9;padding:25px;text-align:center;">
-          <h1 style="color:white;margin:0;">ELEZIO</h1>
-          <p style="color:#eaf1ff;margin-bottom:0;">
+          <div style="display:inline-block;background:#ffffff;border-radius:10px;padding:10px 18px;">
+            <img src="${brandLogoUrl}" alt="ELENZO — Gadgets &amp; Electronics" width="175" style="display:block;max-width:175px;width:100%;height:auto;border:0;" />
+          </div>
+          <p style="color:#eaf1ff;margin-top:10px;margin-bottom:0;font-size:13px;">
             Online Gadget &amp; Electronics Store
           </p>
         </div>
@@ -66,7 +70,7 @@ const orderConfirmationTemplate = (order) => {
           <p>Hello ${escapeHtml(address.fullName)},</p>
 
           <p>
-            Thank you for shopping with ELEZIO.
+            Thank you for shopping with ELENZO.
             Your order has been successfully placed.
           </p>
 
@@ -117,11 +121,10 @@ const orderConfirmationTemplate = (order) => {
           <p>
             ${escapeHtml(address.fullName)}<br/>
             ${escapeHtml(address.addressLine1)}<br/>
-            ${
-              address.addressLine2
-                ? escapeHtml(address.addressLine2) + "<br/>"
-                : ""
-            }
+            ${address.addressLine2
+      ? escapeHtml(address.addressLine2) + "<br/>"
+      : ""
+    }
             ${escapeHtml(address.city)},
             ${escapeHtml(address.state)} -
             ${escapeHtml(address.pincode)}<br/>
@@ -134,14 +137,14 @@ const orderConfirmationTemplate = (order) => {
           </p>
 
           <p>
-            Thank you for choosing ELEZIO!<br/>
-            <strong>ELEZIO Team</strong>
+            Thank you for choosing ELENZO!<br/>
+            <strong>ELENZO Team</strong>
           </p>
         </div>
 
         <div style="background:#f8fafc;padding:20px;
                     text-align:center;color:#64748b;font-size:12px;">
-          © ${new Date().getFullYear()} ELEZIO.
+          © ${new Date().getFullYear()} ELENZO.
           All rights reserved.
         </div>
 

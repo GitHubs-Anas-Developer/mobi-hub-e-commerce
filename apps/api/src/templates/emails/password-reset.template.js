@@ -14,20 +14,24 @@ const escapeHtml = (value = "") =>
 const passwordResetTemplate = ({ name, resetUrl }) => {
   const safeName = escapeHtml(name || "Customer");
   const safeUrl = escapeHtml(resetUrl);
+  const brandSiteUrl = (process.env.CLIENT_URL || "http://localhost:3000").replace(/\/+$/, "");
+  const brandLogoUrl = `${brandSiteUrl}/brand/elenzo-logo.png`;
 
   return {
-    subject: "Reset Your ELEZIO Password",
+    subject: "Reset Your ELENZO Password",
 
     html: `
       <!DOCTYPE html>
       <html>
         <body style="margin:0;padding:30px;background:#f1f5f9;font-family:Arial,sans-serif;">
           <div style="max-width:520px;margin:auto;background:#ffffff;padding:32px;border-radius:12px;">
-            <h1 style="color:#0755e9;text-align:center;">ELEZIO</h1>
+            <div style="text-align:center;margin-bottom:20px;">
+              <img src="${brandLogoUrl}" alt="ELENZO" width="165" style="display:inline-block;max-width:165px;width:100%;height:auto;border:0;" />
+            </div>
 
             <h2>Hello ${safeName},</h2>
 
-            <p>We received a request to reset your ELEZIO account password.</p>
+            <p>We received a request to reset your ELENZO account password.</p>
 
             <p>Click below to create a new password:</p>
 
@@ -45,7 +49,7 @@ const passwordResetTemplate = ({ name, resetUrl }) => {
             <hr style="border:0;border-top:1px solid #e2e8f0;margin:25px 0;" />
 
             <p style="color:#64748b;font-size:12px;text-align:center;">
-              © ${new Date().getFullYear()} ELEZIO. All rights reserved.
+              © ${new Date().getFullYear()} ELENZO. All rights reserved.
             </p>
           </div>
         </body>
@@ -54,7 +58,7 @@ const passwordResetTemplate = ({ name, resetUrl }) => {
 
     text: `Hello ${name || "Customer"},
 
-We received a request to reset your ELEZIO password.
+We received a request to reset your ELENZO password.
 
 Reset your password using this link:
 ${resetUrl}

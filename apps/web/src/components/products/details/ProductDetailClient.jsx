@@ -1,41 +1,24 @@
-
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
 import { useDispatch, useSelector } from "react-redux";
-
-import {
-  ArrowLeft,
-  ChevronRight,
-  Package,
-} from "lucide-react";
-
+import { Package, RefreshCw, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  motion,
-  AnimatePresence,
-} from "framer-motion";
-
 import productService from "@/services/productService";
-
+import recentlyViewedService from "@/services/recentlyViewed.service";
 import { addToCart } from "@/store/thunks/cartThunks";
-
 import {
+  fetchWishlist,
   addToWishlist,
   removeFromWishlist,
 } from "@/store/thunks/wishlistThunks";
 
-import ReviewSection from "@/components/reviews/ReviewSection";
+import Breadcrumb from "@/components/common/Breadcrumb";
+import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
+import RelatedProducts from "@/components/related-products/RelatedProducts";
 
 import ProductDetailSkeleton from "./ProductDetailSkeleton";
 import ProductGallery from "./ProductGallery";
@@ -44,157 +27,50 @@ import ProductVariantSelector from "./ProductVariantSelector";
 import ProductQuantitySelector from "./ProductQuantitySelector";
 import ProductActions from "./ProductActions";
 import ProductServiceHighlights from "./ProductServiceHighlights";
-import ProductDescription from "./ProductDescription";
-import ProductSpecifications from "./ProductSpecifications";
-
-import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
-import recentlyViewedService from "@/services/recentlyViewed.service";
-import RelatedProducts from "@/components/related-products/RelatedProducts";
-
-import Breadcrumb from "@/components/common/Breadcrumb";
-
-/* =====================================
-   ANIMATION VARIANTS
-===================================== */
-
-const pageVariants = {
-  hidden: {
-    opacity: 0,
-  },
-
-  visible: {
-    opacity: 1,
-    transition: {
-      duration: 0.5,
-      staggerChildren: 0.12,
-    },
-  },
-};
-
-const fadeUp = {
-  hidden: {
-    opacity: 0,
-    y: 24,
-  },
-
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.55,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const fadeLeft = {
-  hidden: {
-    opacity: 0,
-    x: -30,
-  },
-
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.65,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const fadeRight = {
-  hidden: {
-    opacity: 0,
-    x: 30,
-  },
-
-  visible: {
-    opacity: 1,
-    x: 0,
-    transition: {
-      duration: 0.65,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const sectionReveal = {
-  hidden: {
-    opacity: 0,
-    y: 35,
-  },
-
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.65,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-/* =====================================
-   PRICE HELPERS
-===================================== */
+import ProductDetailTabs from "./ProductDetailTabs";
 
 function getVariantPrice(variant) {
-  return Number(variant?.sellingPrice ?? 0);
+  return Math.max(0, Number(variant?.sellingPrice ?? 0) || 0);
 }
 
 function getVariantMrp(variant) {
-  return Number(
-    variant?.mrp ?? getVariantPrice(variant)
-  );
+  const price = getVariantPrice(variant);
+  const mrp = Number(variant?.mrp ?? price) || price;
+  return mrp > price ? mrp : price;
 }
 
-/* =====================================
-   PRODUCT DETAIL CLIENT
-===================================== */
+const getWishlistItemId = (item) => {
+  if (!item) return "";
+  if (typeof item === "string") return item;
+  return String(
+    item?._id ?? item?.id ?? item?.product?._id ?? item?.product ?? ""
+  );
+};
 
 export default function ProductDetailClient({ slug }) {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  /* =====================================
-     REDUX STATE
-  ===================================== */
-
   const isAuthenticated = useSelector(
-    (state) => state.auth.isAuthenticated
+    (state) => state.auth?.isAuthenticated ?? false
   );
-
   const cartIsMutating = useSelector(
-    (state) => state.cart.isMutating
+    (state) => state.cart?.isMutating ?? false
   );
-
   const wishlistIsMutating = useSelector(
-    (state) => state.wishlist.isMutating
+    (state) => state.wishlist?.isMutating ?? false
   );
-
   const wishlistProducts = useSelector(
-    (state) => state.wishlist.products
+    (state) => state.wishlist?.products || []
   );
-
-  /* =====================================
-     LOCAL STATE
-  ===================================== */
 
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
-  const [selectedVariantId, setSelectedVariantId] =
-    useState("");
-
+  const [selectedVariantId, setSelectedVariantId] = useState("");
   const [selectedImage, setSelectedImage] = useState("");
-
   const [quantity, setQuantity] = useState(1);
-
-  /* =====================================
-     FETCH PRODUCT
-  ===================================== */
+  const [activeTab, setActiveTab] = useState("description");
 
   const fetchProduct = useCallback(async () => {
     if (!slug) {
@@ -207,10 +83,8 @@ export default function ProductDetailClient({ slug }) {
     setError("");
 
     try {
-      const response =
-        await productService.getProductBySlug(slug);
-
-      const fetchedProduct = response.data;
+      const response = await productService.getProductBySlug(slug);
+      const fetchedProduct = response?.data;
 
       if (!fetchedProduct) {
         throw new Error("Product not found.");
@@ -220,38 +94,26 @@ export default function ProductDetailClient({ slug }) {
 
       const images = [
         fetchedProduct.thumbnail?.url,
-
-        ...(fetchedProduct.images || []).map(
-          (image) => image.url
-        ),
+        ...(fetchedProduct.images || []).map((image) => image?.url),
       ].filter(Boolean);
 
       setSelectedImage(images[0] || "");
 
-      const activeVariants = (
-        fetchedProduct.variants || []
-      ).filter(
-        (variant) => variant.isActive !== false
+      const activeVariants = (fetchedProduct.variants || []).filter(
+        (variant) => variant?.isActive !== false
       );
 
-      const defaultVariant = activeVariants.find(
-        (variant) => variant.isDefault
-      );
+      const defaultVariant =
+        activeVariants.find((variant) => variant?.isDefault) ||
+        activeVariants[0];
 
-      const initialVariant =
-        defaultVariant || activeVariants[0];
-
-      setSelectedVariantId(
-        initialVariant?._id || ""
-      );
-
+      setSelectedVariantId(defaultVariant?._id || "");
       setQuantity(1);
     } catch (err) {
       setProduct(null);
-
       setError(
-        err.response?.data?.message ||
-          err.message ||
+        err?.response?.data?.message ||
+          err?.message ||
           "Unable to load this product."
       );
     } finally {
@@ -263,165 +125,91 @@ export default function ProductDetailClient({ slug }) {
     fetchProduct();
   }, [fetchProduct]);
 
-  /* =====================================
-     TRACK RECENTLY VIEWED PRODUCT
-  ===================================== */
+  useEffect(() => {
+    if (isAuthenticated && wishlistProducts.length === 0) {
+      dispatch(fetchWishlist());
+    }
+  }, [dispatch, isAuthenticated, wishlistProducts.length]);
 
   useEffect(() => {
     if (!product?._id || !isAuthenticated) return;
 
-    const trackProduct = async () => {
-      try {
-        await recentlyViewedService.addRecentlyViewed(
-          product._id
-        );
-      } catch (error) {
-        console.error(
-          "Recently viewed tracking failed:",
-          error
-        );
-      }
-    };
-
-    trackProduct();
+    recentlyViewedService.addRecentlyViewed(product._id).catch(() => {});
   }, [product?._id, isAuthenticated]);
-
-  /* =====================================
-     ACTIVE VARIANTS
-  ===================================== */
 
   const activeVariants = useMemo(
     () =>
       (product?.variants || []).filter(
-        (variant) => variant.isActive !== false
+        (variant) => variant?.isActive !== false
       ),
     [product]
   );
 
-  const selectedVariant = activeVariants.find(
-    (variant) =>
-      String(variant._id) === String(selectedVariantId)
+  const selectedVariant = useMemo(
+    () =>
+      activeVariants.find(
+        (variant) => String(variant._id) === String(selectedVariantId)
+      ) || null,
+    [activeVariants, selectedVariantId]
   );
 
-  /* =====================================
-     PRICE
-  ===================================== */
-
-  const sellingPrice = getVariantPrice(
-    selectedVariant
-  );
-
+  const sellingPrice = getVariantPrice(selectedVariant);
   const mrp = getVariantMrp(selectedVariant);
-
   const discount =
     mrp > sellingPrice && mrp > 0
-      ? Math.round(
-          ((mrp - sellingPrice) / mrp) * 100
-        )
+      ? Math.round(((mrp - sellingPrice) / mrp) * 100)
       : 0;
 
-  /* =====================================
-     STOCK
-  ===================================== */
+  const stock = Number(selectedVariant?.stock || 0);
+  const canPurchase = Boolean(selectedVariant && stock > 0);
 
-  const stock = Number(
-    selectedVariant?.stock || 0
-  );
+  const productImages = useMemo(() => {
+    const raw = [
+      product?.thumbnail?.url,
+      ...(selectedVariant?.images || []).map((image) => image?.url),
+      ...(product?.images || []).map((image) => image?.url),
+    ].filter(Boolean);
 
-  const canPurchase = Boolean(
-    selectedVariant && stock > 0
-  );
-
-  /* =====================================
-     PRODUCT IMAGES
-  ===================================== */
-
-  const productImages = useMemo(
-    () =>
-      [
-        product?.thumbnail?.url,
-
-        ...(product?.images || []).map(
-          (image) => image.url
-        ),
-
-        ...(selectedVariant?.images || []).map(
-          (image) => image.url
-        ),
-      ].filter(Boolean),
-    [product, selectedVariant]
-  );
-
-  /* =====================================
-     SPECIFICATIONS
-  ===================================== */
+    return Array.from(new Set(raw));
+  }, [product, selectedVariant]);
 
   const specifications = useMemo(() => {
     const value = product?.specifications;
-
     if (!value) return [];
-
-    if (value instanceof Map) {
-      return Array.from(value.entries());
-    }
-
-    if (Array.isArray(value)) {
-      return value;
-    }
-
-    return Object.entries(value);
+    if (value instanceof Map) return Array.from(value.entries());
+    if (Array.isArray(value)) return value;
+    if (typeof value === "object") return Object.entries(value);
+    return [];
   }, [product]);
 
-  /* =====================================
-     WISHLIST STATUS
-  ===================================== */
-
-  const isInWishlist = (
-    wishlistProducts || []
-  ).some(
-    (item) =>
-      String(item._id) === String(product?._id)
+  const isInWishlist = useMemo(
+    () =>
+      (wishlistProducts || []).some(
+        (item) => getWishlistItemId(item) === String(product?._id || "")
+      ),
+    [wishlistProducts, product?._id]
   );
 
-  /* =====================================
-     LOGIN REDIRECT
-  ===================================== */
-
   const requireLogin = () => {
-    router.push(
-      `/login?redirect=${encodeURIComponent(
-        `/products/${slug}`
-      )}`
-    );
+    router.push(`/login?redirect=${encodeURIComponent(`/products/${slug}`)}`);
   };
-
-  /* =====================================
-     VARIANT CHANGE
-  ===================================== */
 
   const handleVariantChange = (variantId) => {
     setSelectedVariantId(variantId);
     setQuantity(1);
 
     const variant = activeVariants.find(
-      (item) =>
-        String(item._id) === String(variantId)
+      (item) => String(item._id) === String(variantId)
     );
 
     if (variant?.images?.[0]?.url) {
       setSelectedImage(variant.images[0].url);
     } else {
       setSelectedImage(
-        product.thumbnail?.url ||
-          product.images?.[0]?.url ||
-          ""
+        product?.thumbnail?.url || product?.images?.[0]?.url || ""
       );
     }
   };
-
-  /* =====================================
-     PURCHASE VALIDATION
-  ===================================== */
 
   const validatePurchase = () => {
     if (!isAuthenticated) {
@@ -430,14 +218,12 @@ export default function ProductDetailClient({ slug }) {
     }
 
     if (!product?._id || !selectedVariant?._id) {
-      toast.error("Please select a product variant.");
+      toast.error("Please select an available variant.");
       return false;
     }
 
     if (!canPurchase) {
-      toast.error(
-        "This product is currently unavailable."
-      );
+      toast.error("This product is currently unavailable.");
       return false;
     }
 
@@ -453,14 +239,8 @@ export default function ProductDetailClient({ slug }) {
     return true;
   };
 
-  /* =====================================
-     ADD TO CART
-  ===================================== */
-
   const handleAddToCart = async () => {
-    if (!validatePurchase()) {
-      return false;
-    }
+    if (!validatePurchase()) return false;
 
     try {
       await dispatch(
@@ -471,48 +251,31 @@ export default function ProductDetailClient({ slug }) {
         })
       ).unwrap();
 
-      toast.success(
-        "Product added to cart successfully."
-      );
-
+      toast.success(`${product.name || "Product"} added to cart.`);
       return true;
     } catch (err) {
       toast.error(
         typeof err === "string"
           ? err
-          : err?.message ||
-              "Unable to add product to cart."
+          : err?.message || "Unable to add product to cart."
       );
-
       return false;
     }
   };
 
-  /* =====================================
-     BUY NOW - DIRECT CHECKOUT
-  ===================================== */
-
   const handleBuyNow = () => {
-    if (!validatePurchase()) {
-      return;
-    }
+    if (!validatePurchase()) return;
 
     const checkoutParams = new URLSearchParams({
       mode: "direct",
       productId: String(product._id),
       variantId: String(selectedVariant._id),
       quantity: String(Number(quantity)),
-      slug: product.slug,
+      slug: product.slug || slug,
     });
 
-    router.push(
-      `/checkout?${checkoutParams.toString()}`
-    );
+    router.push(`/checkout?${checkoutParams.toString()}`);
   };
-
-  /* =====================================
-     WISHLIST
-  ===================================== */
 
   const handleWishlist = async () => {
     if (!isAuthenticated) {
@@ -524,311 +287,186 @@ export default function ProductDetailClient({ slug }) {
 
     try {
       if (isInWishlist) {
-        await dispatch(
-          removeFromWishlist(product._id)
-        ).unwrap();
-
+        await dispatch(removeFromWishlist(product._id)).unwrap();
         toast.success("Removed from wishlist.");
       } else {
-        await dispatch(
-          addToWishlist(product._id)
-        ).unwrap();
-
-        toast.success("Added to wishlist.");
+        await dispatch(addToWishlist(product._id)).unwrap();
+        toast.success("Saved to wishlist.");
       }
     } catch (err) {
       toast.error(
         typeof err === "string"
           ? err
-          : err?.message ||
-              "Unable to update wishlist."
+          : err?.message || "Unable to update wishlist."
       );
     }
   };
 
-  /* =====================================
-     LOADING STATE
-  ===================================== */
-
   if (loading) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <main className="min-h-screen bg-white">
         <ProductDetailSkeleton />
-      </motion.div>
+      </main>
     );
   }
-
-  /* =====================================
-     ERROR / NOT FOUND
-  ===================================== */
 
   if (error || !product) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.45 }}
-        className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center"
-      >
-        <Package
-          size={48}
-          className="text-slate-300"
-        />
+      <main className="min-h-screen bg-white px-4 py-12">
+        <div className="mx-auto flex max-w-lg flex-col items-center rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-6 py-14 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#E2E8F0] bg-white text-[#64748B]">
+            <Package size={28} aria-hidden="true" />
+          </div>
 
-        <h1 className="mt-4 text-2xl font-bold text-[#101828]">
-          Product not found
-        </h1>
+          <h1 className="mt-4 text-xl font-bold tracking-tight text-[#101828]">
+            {error ? "Unable to load product" : "Product not found"}
+          </h1>
 
-        <p className="mt-2 text-sm text-slate-500">
-          {error || "This product may be unavailable."}
-        </p>
+          <p className="mt-2 text-sm leading-relaxed text-[#64748B]">
+            {error || "This product may have been removed or is currently unavailable."}
+          </p>
 
-        <Link
-          href="/products"
-          className="mt-6 rounded-lg bg-[#0755e9] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0645c4]"
-        >
-          Browse Products
-        </Link>
-      </motion.div>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {error && (
+              <button
+                type="button"
+                onClick={fetchProduct}
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#0755E9] px-5 text-xs font-bold text-white transition hover:bg-[#0645C4] sm:text-sm"
+              >
+                <RefreshCw size={15} />
+                Try Again
+              </button>
+            )}
+
+            <Link
+              href="/products"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#E2E8F0] bg-white px-5 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9] sm:text-sm"
+            >
+              <ArrowLeft size={15} />
+              Browse Products
+            </Link>
+          </div>
+        </div>
+      </main>
     );
   }
 
-  /* =====================================
-     MAIN UI
-  ===================================== */
+  const breadcrumbItems = [
+    { label: "Products", href: "/products" },
+    ...(product.category?._id && product.category?.name
+      ? [
+          {
+            label: product.category.name,
+            href: `/categories/${product.category._id}/products`,
+          },
+        ]
+      : []),
+    { label: product.name },
+  ];
 
   return (
-    <AnimatePresence mode="wait">
-      <motion.main
-        key={product._id}
-        variants={pageVariants}
-        initial="hidden"
-        animate="visible"
-        className="min-h-screen bg-white pb-32 sm:pb-36"
-      >
-        <div className="mx-auto w-full px-4 py-6 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-white pb-24 sm:pb-12">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        {/* Top Navigation Row */}
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <Breadcrumb items={breadcrumbItems} className="flex-1" />
 
-          {/* BACK TO MY ACCOUNT */}
-          <motion.div variants={fadeUp}>
-            <Link
-              href="/account"
-              className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 transition hover:text-blue-600"
-            >
-              <ArrowLeft size={17} />
-              Back to My Account
-            </Link>
-          </motion.div>
+          <Link
+            href="/products"
+            className="hidden items-center gap-1.5 rounded-lg border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#64748B] transition hover:border-[#0755E9]/40 hover:text-[#0755E9] sm:inline-flex"
+          >
+            <ArrowLeft size={13} aria-hidden="true" />
+            <span>Back to Catalog</span>
+          </Link>
+        </div>
 
-          {/* BREADCRUMB */}
-<motion.nav
-  variants={fadeUp}
-  className="mb-6 flex w-full flex-col items-start gap-2.5"
->
-  
-  <Breadcrumb
-    items={[
-      { label: "Products", href: "/products" },
-      { label: product.name },
-    ]}
-  />
-</motion.nav>
-          {/* PRODUCT MAIN SECTION */}
-
-          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:items-stretch">
-
-            {/* PRODUCT GALLERY */}
-
-            <motion.div
-              variants={fadeLeft}
-              className="min-w-0"
-            >
-              <ProductGallery
-                productImages={productImages}
-                selectedImage={selectedImage}
-                setSelectedImage={setSelectedImage}
-                onWishlist={handleWishlist}
-                isInWishlist={isInWishlist}
-                wishlistIsMutating={wishlistIsMutating}
-              />
-            </motion.div>
-
-            {/* PRODUCT INFORMATION */}
-
-            <motion.div
-              variants={fadeRight}
-              className="flex min-w-0 flex-col lg:min-h-[620px]"
-            >
-              <ProductInfo
-                product={product}
-                selectedVariant={selectedVariant}
-                sellingPrice={sellingPrice}
-                mrp={mrp}
-                discount={discount}
-              />
-
-              {/* STOCK STATUS */}
-
-              <AnimatePresence mode="wait">
-                {selectedVariant && (
-                  <motion.div
-                    key={selectedVariant._id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    transition={{ duration: 0.25 }}
-                    className="mt-5"
-                  >
-                    <p
-                      className={`text-sm font-semibold ${
-                        canPurchase
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {canPurchase
-                        ? "In Stock - Ready to ship"
-                        : "Currently unavailable"}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* VARIANT SELECTOR */}
-
-              <motion.div
-                variants={fadeUp}
-                className="mt-2"
-              >
-                <ProductVariantSelector
-                  variants={activeVariants}
-                  selectedVariantId={selectedVariantId}
-                  onVariantChange={handleVariantChange}
-                />
-              </motion.div>
-
-              {/* QUANTITY SELECTOR */}
-
-              <motion.div
-                variants={fadeUp}
-                className="mt-6"
-              >
-                <ProductQuantitySelector
-                  quantity={quantity}
-                  setQuantity={setQuantity}
-                  stock={stock}
-                  canPurchase={canPurchase}
-                />
-              </motion.div>
-
-              {/* SERVICE HIGHLIGHTS */}
-
-              <motion.div
-                variants={fadeUp}
-                className="mt-7"
-              >
-                <ProductServiceHighlights />
-              </motion.div>
-
-            </motion.div>
+        {/* Main 2-Column Product Hero */}
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12 lg:gap-12">
+          {/* Left Column: Product Gallery */}
+          <div className="min-w-0 lg:sticky lg:top-24 lg:col-span-6">
+            <ProductGallery
+              productImages={productImages}
+              productName={product.name}
+              selectedImage={selectedImage}
+              setSelectedImage={setSelectedImage}
+              discountPercentage={discount}
+              onWishlist={handleWishlist}
+              isInWishlist={isInWishlist}
+              wishlistIsMutating={wishlistIsMutating}
+            />
           </div>
 
-          {/* FIXED RESPONSIVE PRODUCT ACTIONS */}
+          {/* Right Column: Product Information & Purchase Controls */}
+          <div className="flex min-w-0 flex-col lg:col-span-6">
+            <ProductInfo
+              product={product}
+              selectedVariant={selectedVariant}
+              sellingPrice={sellingPrice}
+              mrp={mrp}
+              discount={discount}
+              stock={stock}
+              canPurchase={canPurchase}
+              onReviewsClick={() => setActiveTab("reviews")}
+            />
 
-          <ProductActions
-            onAddToCart={handleAddToCart}
-            onBuyNow={handleBuyNow}
-            cartIsMutating={cartIsMutating}
-            canPurchase={canPurchase}
+            <ProductVariantSelector
+              variants={activeVariants}
+              selectedVariantId={selectedVariantId}
+              onVariantChange={handleVariantChange}
+            />
+
+            <ProductQuantitySelector
+              quantity={quantity}
+              setQuantity={setQuantity}
+              stock={stock}
+              canPurchase={canPurchase}
+            />
+
+            <ProductActions
+              sellingPrice={sellingPrice}
+              mrp={mrp}
+              onAddToCart={handleAddToCart}
+              onBuyNow={handleBuyNow}
+              onWishlist={handleWishlist}
+              isInWishlist={isInWishlist}
+              cartIsMutating={cartIsMutating}
+              wishlistIsMutating={wishlistIsMutating}
+              canPurchase={canPurchase}
+            />
+
+            <ProductServiceHighlights />
+          </div>
+        </div>
+
+        {/* Below-the-Fold Tabbed Details & Reviews */}
+        <ProductDetailTabs
+          product={product}
+          specifications={specifications}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          isAuthenticated={isAuthenticated}
+          onRequireLogin={requireLogin}
+        />
+
+        {/* Related Products */}
+        <section className="mt-12" aria-label="Related products">
+          <RelatedProducts
+            productId={product._id}
+            title="Related Products"
+            subtitle="Similar gadgets and accessories selected for you."
+            limit={10}
           />
+        </section>
 
-          {/* PRODUCT DESCRIPTION */}
-
-          <motion.section
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              amount: 0.15,
-            }}
-            className="mt-16"
-          >
-            <ProductDescription
-              description={product.description}
-            />
-          </motion.section>
-
-          {/* PRODUCT SPECIFICATIONS */}
-
-          <motion.section
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              amount: 0.15,
-            }}
-            className="mt-12"
-          >
-            <ProductSpecifications
-              specifications={specifications}
-            />
-          </motion.section>
-
-          {/* PRODUCT REVIEWS */}
-
-          <motion.section
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              amount: 0.1,
-            }}
-            className="mt-12"
-          >
-            <ReviewSection
-              productId={product._id}
-              isAuthenticated={isAuthenticated}
-              onRequireLogin={requireLogin}
-            />
-          </motion.section>
-
-          {/* RELATED PRODUCTS */}
-
-          <motion.section
-            variants={sectionReveal}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{
-              once: true,
-              amount: 0.1,
-            }}
-            className="mt-12"
-          >
-            <RelatedProducts
-              productId={product._id}
-              title="Related Products"
-              subtitle="Explore similar products you may like."
-              limit={10}
-            />
-          </motion.section>
-
-          {/* RECENTLY VIEWED PRODUCTS */}
-
+        {/* Recently Viewed */}
+        <section className="mt-12" aria-label="Recently viewed products">
           <RecentlyViewed
             title="Recently Viewed Products"
             limit={5}
             excludeProductId={product._id}
           />
-
-        </div>
-      </motion.main>
-    </AnimatePresence>
+        </section>
+      </div>
+    </main>
   );
 }

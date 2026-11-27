@@ -8,7 +8,7 @@ export default function Skeleton({
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse bg-gray-200 ${className}`}
+      className={`animate-pulse bg-slate-200/75 ${className}`}
       style={{
         width,
         height,

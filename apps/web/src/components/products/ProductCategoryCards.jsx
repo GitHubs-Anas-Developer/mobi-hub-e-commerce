@@ -1,20 +1,8 @@
-
 "use client";
 
 import { useMemo, useRef } from "react";
 import Image from "next/image";
-import { motion, useReducedMotion } from "motion/react";
-
-import {
-  LayoutGrid,
-  Package,
-  ArrowRight,
-  Check,
-} from "lucide-react";
-
-// ========================================
-// CATEGORY IMAGE HELPER
-// ========================================
+import { LayoutGrid, Package, ChevronLeft, ChevronRight, Check } from "lucide-react";
 
 const getCategoryImage = (item) => {
   if (typeof item?.image === "string") {
@@ -25,28 +13,18 @@ const getCategoryImage = (item) => {
     item?.image?.url ||
     item?.image?.secure_url ||
     item?.thumbnail?.url ||
-    (typeof item?.thumbnail === "string"
-      ? item.thumbnail
-      : "") ||
+    (typeof item?.thumbnail === "string" ? item.thumbnail : "") ||
     item?.images?.[0]?.url ||
-    (typeof item?.images?.[0] === "string"
-      ? item.images[0]
-      : "") ||
+    (typeof item?.images?.[0] === "string" ? item.images[0] : "") ||
     ""
   );
 };
-
-// ========================================
-// PRODUCT CATEGORY CARDS
-// ========================================
 
 export default function ProductCategoryCards({
   categories = [],
   selectedCategory = "",
   onCategorySelect,
 }) {
-  const shouldReduceMotion = useReducedMotion();
-
   const scrollRef = useRef(null);
 
   const dragState = useRef({
@@ -56,12 +34,8 @@ export default function ProductCategoryCards({
     moved: false,
   });
 
-  // ========================================
-  // CATEGORY DATA
-  // ========================================
-
   const categoryItems = useMemo(() => {
-    const validCategories = categories
+    const validCategories = (Array.isArray(categories) ? categories : [])
       .filter((item) => item?._id)
       .map((item) => ({
         id: String(item._id),
@@ -79,15 +53,9 @@ export default function ProductCategoryCards({
     ];
   }, [categories]);
 
-  // ========================================
-  // MOUSE DRAG START
-  // ========================================
-
   const handleMouseDown = (event) => {
     if (event.button !== 0) return;
-
     const container = scrollRef.current;
-
     if (!container) return;
 
     dragState.current = {
@@ -98,96 +66,79 @@ export default function ProductCategoryCards({
     };
   };
 
-  // ========================================
-  // MOUSE DRAG MOVE
-  // ========================================
-
   const handleMouseMove = (event) => {
+    if (!dragState.current.isDragging) return;
     const container = scrollRef.current;
-    const state = dragState.current;
+    if (!container) return;
 
-    if (!container || !state.isDragging) return;
-
-    const distance = event.clientX - state.startX;
-
-    if (Math.abs(distance) > 5) {
-      state.moved = true;
+    const deltaX = event.clientX - dragState.current.startX;
+    if (Math.abs(deltaX) > 4) {
+      dragState.current.moved = true;
     }
-
-    if (state.moved) {
-      event.preventDefault();
-
-      container.scrollLeft =
-        state.scrollLeft - distance;
-    }
+    container.scrollLeft = dragState.current.scrollLeft - deltaX;
   };
-
-  // ========================================
-  // MOUSE DRAG END
-  // ========================================
 
   const handleMouseUp = () => {
     dragState.current.isDragging = false;
   };
 
-  // ========================================
-  // PREVENT CLICK AFTER DRAG
-  // ========================================
-
-  const handleCategoryClick = (event, categoryId) => {
+  const handleCategoryClick = (event, itemId) => {
     if (dragState.current.moved) {
       event.preventDefault();
-      event.stopPropagation();
-
       dragState.current.moved = false;
       return;
     }
-
-    onCategorySelect?.(
-      categoryId === "all" ? "" : categoryId
-    );
+    onCategorySelect?.(itemId === "all" ? "" : itemId);
   };
 
-  // ========================================
-  // RENDER
-  // ========================================
+  const scrollByAmount = (direction) => {
+    const container = scrollRef.current;
+    if (!container) return;
+    container.scrollBy({
+      left: direction * 280,
+      behavior: "smooth",
+    });
+  };
+
+  if (categoryItems.length <= 1) return null;
 
   return (
     <section
-      className="w-full min-w-0 py-6 sm:py-8"
+      className="mb-5 w-full min-w-0 rounded-2xl border border-[#E2E8F0] bg-white p-4 sm:mb-6 sm:p-5"
       aria-labelledby="shop-category-heading"
     >
-      {/* SECTION HEADER */}
-
-      <div className="mb-6 flex items-end justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <div className="mb-2 flex items-center gap-2">
-            <span className="h-1 w-7 rounded-full bg-[#0755e9]" />
-
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#0755e9]">
-              Discover
-            </span>
-          </div>
-
           <h2
             id="shop-category-heading"
-            className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl"
+            className="text-sm font-bold tracking-tight text-[#101828] sm:text-base"
           >
-            Shop by Category
+            Browse by Category
           </h2>
-
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Find the perfect accessories for your devices
+          <p className="mt-0.5 text-xs text-[#64748B]">
+            Filter products instantly across ELENZO departments
           </p>
         </div>
 
-        <div className="hidden items-center gap-1 text-xs font-semibold text-slate-400 sm:flex">
-          Swipe to explore
-          <ArrowRight size={15} />
+        <div className="hidden items-center gap-1.5 sm:flex">
+          <button
+            type="button"
+            onClick={() => scrollByAmount(-1)}
+            aria-label="Scroll categories left"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollByAmount(1)}
+            aria-label="Scroll categories right"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
       </div>
-
-      {/* CATEGORY SCROLLER */}
 
       <div
         ref={scrollRef}
@@ -195,159 +146,68 @@ export default function ProductCategoryCards({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        className="
-          -mx-1 flex gap-4 overflow-x-auto px-1 pb-4
-          overscroll-x-contain scroll-smooth
-          cursor-grab active:cursor-grabbing
-          select-none
-          [scrollbar-width:thin]
-          [&::-webkit-scrollbar]:h-1
-          [&::-webkit-scrollbar-thumb]:rounded-full
-          [&::-webkit-scrollbar-thumb]:bg-slate-300
-          sm:gap-6
-        "
+        className="flex cursor-grab select-none gap-2.5 overflow-x-auto pb-1 overscroll-x-contain scroll-smooth active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
       >
-        {categoryItems.map((item, index) => {
+        {categoryItems.map((item) => {
           const isAll = item.id === "all";
-
           const isSelected = isAll
             ? !selectedCategory
             : String(selectedCategory) === item.id;
 
           return (
-            <motion.button
+            <button
               key={item.id}
               type="button"
-              onClick={(event) =>
-                handleCategoryClick(event, item.id)
-              }
+              onClick={(event) => handleCategoryClick(event, item.id)}
               aria-label={`Select ${item.name}`}
               aria-pressed={isSelected}
-              initial={
-                shouldReduceMotion
-                  ? false
-                  : { opacity: 0, y: 12 }
-              }
-              whileInView={{
-                opacity: 1,
-                y: 0,
-              }}
-              viewport={{
-                once: true,
-                amount: 0.2,
-              }}
-              transition={{
-                duration: shouldReduceMotion ? 0 : 0.35,
-                delay: shouldReduceMotion
-                  ? 0
-                  : Math.min(index * 0.04, 0.2),
-              }}
-              whileTap={
-                shouldReduceMotion
-                  ? undefined
-                  : { scale: 0.95 }
-              }
-              className="
-                group flex w-[92px] shrink-0
-                flex-col items-center text-center
-                sm:w-[112px]
-              "
+              className={`group relative flex w-[100px] shrink-0 flex-col items-center rounded-xl border p-2.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 sm:w-[116px] sm:p-3 ${
+                isSelected
+                  ? "border-[#0755E9] bg-[#EFF6FF] shadow-xs"
+                  : "border-[#E2E8F0] bg-white hover:border-[#0755E9]/35 hover:bg-[#F8FAFC]"
+              }`}
             >
-              {/* IMAGE CIRCLE */}
+              {isSelected && (
+                <span className="absolute right-1.5 top-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-[#0755E9] text-white">
+                  <Check size={10} strokeWidth={3} aria-hidden="true" />
+                </span>
+              )}
 
               <div
-                className={`
-                  relative flex aspect-square w-full
-                  items-center justify-center rounded-full
-                  border-2 p-1 transition-all duration-300
-                  ${
-                    isSelected
-                      ? "border-[#0755e9] bg-blue-50 shadow-lg shadow-blue-100"
-                      : "border-transparent bg-slate-100 group-hover:border-blue-200 group-hover:bg-blue-50"
-                  }
-                `}
+                className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border transition-colors sm:h-16 sm:w-16 ${
+                  isAll
+                    ? "border-[#0755E9] bg-[#0755E9] text-white"
+                    : isSelected
+                      ? "border-[#0755E9]/20 bg-white"
+                      : "border-[#E2E8F0] bg-[#F8FAFC]"
+                }`}
               >
-                <div
-                  className={`
-                    relative flex h-full w-full
-                    items-center justify-center overflow-hidden
-                    rounded-full
-                    ${
-                      isAll
-                        ? "bg-gradient-to-br from-[#0755e9] to-[#082b70]"
-                        : "bg-white"
-                    }
-                  `}
-                >
-                  {isAll ? (
-                    <LayoutGrid
-                      size={34}
-                      strokeWidth={1.6}
-                      className="text-white sm:h-10 sm:w-10"
-                    />
-                  ) : item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      draggable={false}
-                      sizes="(max-width: 640px) 92px, 112px"
-                      className="
-                        pointer-events-none
-                        object-contain p-2
-                        transition-transform duration-500
-                        group-hover:scale-110
-                      "
-                    />
-                  ) : (
-                    <Package
-                      size={34}
-                      strokeWidth={1.5}
-                      className="text-slate-300 sm:h-10 sm:w-10"
-                    />
-                  )}
-                </div>
-
-                {/* SELECTED CHECK */}
-
-                {isSelected && (
-                  <span className="absolute -right-0.5 -top-0.5 z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#0755e9] text-white shadow-md">
-                    <Check size={13} strokeWidth={3} />
-                  </span>
+                {isAll ? (
+                  <LayoutGrid size={24} strokeWidth={1.8} />
+                ) : item.image ? (
+                  <Image
+                    src={item.image}
+                    alt={item.name}
+                    fill
+                    draggable={false}
+                    sizes="64px"
+                    className="pointer-events-none object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <Package size={24} strokeWidth={1.5} className="text-slate-300" />
                 )}
               </div>
 
-              {/* CATEGORY NAME */}
-
               <span
-                className={`
-                  mt-3 min-h-9 w-full line-clamp-2
-                  text-xs font-bold leading-5
-                  transition-colors sm:text-sm
-                  ${
-                    isSelected
-                      ? "text-[#0755e9]"
-                      : "text-slate-700 group-hover:text-[#0755e9]"
-                  }
-                `}
+                className={`mt-2 line-clamp-2 min-h-8 w-full text-[11px] font-semibold leading-tight transition-colors sm:text-xs ${
+                  isSelected
+                    ? "text-[#082B70]"
+                    : "text-[#101828] group-hover:text-[#0755E9]"
+                }`}
               >
                 {item.name}
               </span>
-
-              {/* ACTIVE INDICATOR */}
-
-              <span
-                className={`
-                  mt-1 h-1 rounded-full
-                  transition-all duration-300
-                  ${
-                    isSelected
-                      ? "w-7 bg-[#0755e9]"
-                      : "w-0 bg-transparent"
-                  }
-                `}
-              />
-            </motion.button>
+            </button>
           );
         })}
       </div>

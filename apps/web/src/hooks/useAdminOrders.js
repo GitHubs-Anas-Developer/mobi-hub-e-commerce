@@ -7,18 +7,34 @@ export default function useAdminOrders() {
   const [orders, setOrders] = useState([]);
   const [pagination, setPagination] = useState(null);
 
-  const [filters, setFilters] = useState({
-    status: "all",
-    paymentStatus: "all",
-    search: "",
-    startDate: "",
-    endDate: "",
-    sort: "newest",
-    page: 1,
-    limit: 10,
+  const [filters, setFilters] = useState(() => {
+    const initial = {
+      status: "all",
+      paymentStatus: "all",
+      search: "",
+      startDate: "",
+      endDate: "",
+      sort: "newest",
+      page: 1,
+      limit: 10,
+    };
+
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const urlStatus = sp.get("status");
+      const urlSearch = sp.get("search");
+      if (urlStatus) initial.status = urlStatus;
+      if (urlSearch) initial.search = urlSearch;
+    }
+
+    return initial;
   });
 
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(() =>
+    typeof window !== "undefined"
+      ? (new URLSearchParams(window.location.search).get("search") || "").trim()
+      : "",
+  );
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,7 +102,13 @@ export default function useAdminOrders() {
   ]);
 
   useEffect(() => {
-    fetchOrders();
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) fetchOrders();
+    });
+    return () => {
+      active = false;
+    };
   }, [fetchOrders]);
 
   // Update filters and reset pagination

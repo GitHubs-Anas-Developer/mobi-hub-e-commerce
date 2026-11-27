@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-
+import { toast } from "sonner";
 import {
   ShoppingBag,
   ShieldCheck,
@@ -16,32 +16,24 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-import {
-  motion,
-  AnimatePresence,
-  useScroll,
-  useSpring,
-} from "framer-motion";
-
 import addressService from "@/services/addressService";
 import couponService from "@/services/couponService";
 import orderService from "@/services/orderService";
 import paymentService from "@/services/paymentService";
 import productService from "@/services/productService";
 
+import { useAuth } from "@/hooks/useAuth";
 import { fetchCart } from "@/store/thunks/cartThunks";
 
+import Breadcrumb from "@/components/common/Breadcrumb";
+import CheckoutProgress from "./CheckoutProgress";
+import ContactInfoCard from "./ContactInfoCard";
 import DeliveryAddress from "./DeliveryAddress";
 import PaymentMethod from "./PaymentMethod";
 import OrderSummary from "./OrderSummary";
 import CheckoutSkeleton from "../loading/skeletons/CheckoutSkeleton";
 
-const RAZORPAY_SCRIPT_URL =
-  "https://checkout.razorpay.com/v1/checkout.js";
-
-/* ---------------------------------------
-   Initial Address Form
---------------------------------------- */
+const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
 
 const initialAddressForm = {
   fullName: "",
@@ -58,63 +50,34 @@ const initialAddressForm = {
   isDefault: false,
 };
 
-/* ---------------------------------------
-   Price Formatter
---------------------------------------- */
-
 export const formatPrice = (amount) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
+  `₹${Number(amount || 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
-  }).format(Number(amount) || 0);
-
-/* ---------------------------------------
-   Cart Item Details
---------------------------------------- */
+  })}`;
 
 export const getCartItemDetails = (item) => {
   const product = item.product || item.productId || {};
 
   const variantId =
-    typeof item.variantId === "object"
-      ? item.variantId?._id
-      : item.variantId;
+    typeof item.variantId === "object" ? item.variantId?._id : item.variantId;
 
   const variant =
     (typeof item.variantId === "object" && item.variantId) ||
-    product.variants?.find(
-      (variant) => String(variant._id) === String(variantId)
-    ) ||
-    product.variants?.find((variant) => variant.isDefault) ||
+    product.variants?.find((v) => String(v._id) === String(variantId)) ||
+    product.variants?.find((v) => v.isDefault) ||
     product.variants?.[0] ||
     {};
 
   return {
     product,
     variant,
-
     sellingPrice: Number(
-      variant.sellingPrice ??
-        item.sellingPrice ??
-        product.basePrice ??
-        0
+      variant.sellingPrice ?? item.sellingPrice ?? product.basePrice ?? 0
     ),
-
-    mrp: Number(
-      variant.mrp ??
-        item.mrp ??
-        product.basePrice ??
-        0
-    ),
-
+    mrp: Number(variant.mrp ?? item.mrp ?? product.basePrice ?? 0),
     quantity: Number(item.quantity || 0),
   };
 };
-
-/* ---------------------------------------
-   Load Razorpay Script
---------------------------------------- */
 
 const loadRazorpayScript = () =>
   new Promise((resolve) => {
@@ -138,82 +101,31 @@ const loadRazorpayScript = () =>
         () => resolve(Boolean(window.Razorpay)),
         { once: true }
       );
-
-      existingScript.addEventListener(
-        "error",
-        () => resolve(false),
-        { once: true }
-      );
-
+      existingScript.addEventListener("error", () => resolve(false), {
+        once: true,
+      });
       return;
     }
 
     const script = document.createElement("script");
-
     script.src = RAZORPAY_SCRIPT_URL;
     script.async = true;
-
-    script.onload = () => {
-      resolve(Boolean(window.Razorpay));
-    };
-
-    script.onerror = () => {
-      resolve(false);
-    };
-
+    script.onload = () => resolve(Boolean(window.Razorpay));
+    script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
-
-/* ---------------------------------------
-   Animation Variants
---------------------------------------- */
-
-const sectionVariants = {
-  hidden: {
-    opacity: 0,
-    y: 22,
-  },
-
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: [0.22, 1, 0.36, 1],
-    },
-  },
-};
-
-const pageVariants = {
-  hidden: {},
-
-  visible: {
-    transition: {
-      staggerChildren: 0.12,
-    },
-  },
-};
-
-/* =======================================
-   CHECKOUT CONTENT
-======================================= */
 
 export default function CheckoutContent() {
   const dispatch = useDispatch();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user } = useAuth();
 
-  // Direct checkout query parameters are identifiers only.
-  // Product price and stock are always loaded from the backend.
   const isDirectCheckout = searchParams.get("mode") === "direct";
   const directProductId = searchParams.get("productId") || "";
   const directVariantId = searchParams.get("variantId") || "";
   const directSlug = searchParams.get("slug") || "";
   const directQuantity = Number(searchParams.get("quantity") || 0);
-
-  /* ---------------------------------------
-     Redux Cart
-  --------------------------------------- */
 
   const {
     items: cartItems = [],
@@ -221,10 +133,7 @@ export default function CheckoutContent() {
     error: cartError,
   } = useSelector((state) => state.cart);
 
-  /* ---------------------------------------
-     Direct Checkout Product
-  --------------------------------------- */
-
+  // Direct Checkout Product
   const [directProduct, setDirectProduct] = useState(null);
   const [directLoading, setDirectLoading] = useState(false);
   const [directError, setDirectError] = useState("");
@@ -234,97 +143,40 @@ export default function CheckoutContent() {
     (variant) => String(variant._id) === String(directVariantId)
   );
 
-  /* ---------------------------------------
-     Scroll Progress
-  --------------------------------------- */
-
-  const { scrollYProgress } = useScroll();
-
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
-
-  /* ---------------------------------------
-     Address States
-  --------------------------------------- */
-
+  // Addresses State
   const [addresses, setAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState("");
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [addressError, setAddressError] = useState("");
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [addressFormMode, setAddressFormMode] = useState("create");
+  const [editingAddressId, setEditingAddressId] = useState("");
+  const [savingAddress, setSavingAddress] = useState(false);
+  const [deletingAddressId, setDeletingAddressId] = useState("");
+  const [addressForm, setAddressForm] = useState(initialAddressForm);
 
-  const [selectedAddress, setSelectedAddress] =
-    useState("");
-
-  const [addressLoading, setAddressLoading] =
-    useState(true);
-
-  const [addressError, setAddressError] =
-    useState("");
-
-  const [showAddressForm, setShowAddressForm] =
-    useState(false);
-
-  const [savingAddress, setSavingAddress] =
-    useState(false);
-
-  const [addressForm, setAddressForm] =
-    useState(initialAddressForm);
-
-  /* ---------------------------------------
-     Payment State
-  --------------------------------------- */
-
+  // Payment State
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState("razorpay");
 
-  /* ---------------------------------------
-     Coupon States
-  --------------------------------------- */
-
+  // Coupon State
   const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [couponSuccess, setCouponSuccess] = useState("");
 
-  const [appliedCoupon, setAppliedCoupon] =
-    useState(null);
-
-  const [couponLoading, setCouponLoading] =
-    useState(false);
-
-  const [couponError, setCouponError] =
-    useState("");
-
-  const [couponSuccess, setCouponSuccess] =
-    useState("");
-
-  /* ---------------------------------------
-     Order & Payment States
-  --------------------------------------- */
-
-  const [isProcessing, setIsProcessing] =
-    useState(false);
-
-  const [pendingOnlineOrderId, setPendingOnlineOrderId] =
-    useState(null);
-
-  const [pendingVerificationData, setPendingVerificationData] =
-    useState(null);
-
-  const [checkoutError, setCheckoutError] =
-    useState("");
-
-  /* =======================================
-     FETCH CART
-  ======================================= */
+  // Order & Razorpay States
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [pendingOnlineOrderId, setPendingOnlineOrderId] = useState(null);
+  const [pendingVerificationData, setPendingVerificationData] = useState(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
-    // Direct checkout must not fetch or modify the user's cart.
     if (!isDirectCheckout) {
       dispatch(fetchCart());
     }
   }, [dispatch, isDirectCheckout]);
-
-  /* =======================================
-     FETCH DIRECT CHECKOUT PRODUCT
-  ======================================= */
 
   useEffect(() => {
     if (!isDirectCheckout) {
@@ -342,8 +194,7 @@ export default function CheckoutContent() {
       setDirectError("");
 
       try {
-        const isValidObjectId = (value) =>
-          /^[0-9a-fA-F]{24}$/.test(value);
+        const isValidObjectId = (value) => /^[0-9a-fA-F]{24}$/.test(value);
 
         if (
           !isValidObjectId(directProductId) ||
@@ -356,18 +207,13 @@ export default function CheckoutContent() {
           throw new Error("Invalid direct checkout details.");
         }
 
-    const response =
-  await productService.getProductBySlug(directSlug);
+        const response = await productService.getProductBySlug(directSlug);
+        const product =
+          response?.data?.data ||
+          response?.data ||
+          response?.product ||
+          response;
 
-console.log("DIRECT CHECKOUT API RESPONSE:", response);
-
-const product =
-  response?.data?.data ||
-  response?.data ||
-  response?.product ||
-  response;
-
-console.log("DIRECT CHECKOUT PRODUCT:", product);
         if (
           !product ||
           String(product._id) !== String(directProductId) ||
@@ -391,13 +237,12 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
         if (isMounted) {
           setDirectProduct(product);
         }
-      } catch (error) {
+      } catch (err) {
         if (isMounted) {
           setDirectProduct(null);
-
           setDirectError(
-            error.response?.data?.message ||
-              error.message ||
+            err?.response?.data?.message ||
+              err?.message ||
               "Unable to load the selected product."
           );
         }
@@ -422,61 +267,38 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
     directRetryKey,
   ]);
 
-  /* =======================================
-     FETCH ADDRESSES
-  ======================================= */
+  const fetchAddresses = useCallback(async () => {
+    try {
+      setAddressLoading(true);
+      setAddressError("");
 
-  useEffect(() => {
-    let isMounted = true;
+      const response = await addressService.getAddresses();
+      const addressList = Array.isArray(response?.data)
+        ? response.data
+        : response?.data?.addresses || [];
 
-    const fetchAddresses = async () => {
-      try {
-        setAddressLoading(true);
-        setAddressError("");
+      setAddresses(addressList);
 
-        const response = await addressService.getAddresses();
-
-        const addressList = Array.isArray(response.data)
-          ? response.data
-          : response.data?.addresses || [];
-
-        if (!isMounted) return;
-
-        setAddresses(addressList);
-
-        const defaultAddress = addressList.find(
-          (address) => address.isDefault
-        );
-
-        if (defaultAddress) {
-          setSelectedAddress(defaultAddress._id);
-        } else if (addressList.length > 0) {
-          setSelectedAddress(addressList[0]._id);
-        }
-      } catch (error) {
-        if (!isMounted) return;
-
-        setAddressError(
-          error.response?.data?.message ||
-            "Unable to load delivery addresses."
-        );
-      } finally {
-        if (isMounted) {
-          setAddressLoading(false);
-        }
+      const defaultAddress = addressList.find((address) => address.isDefault);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress._id);
+      } else if (addressList.length > 0) {
+        setSelectedAddress(addressList[0]._id);
+      } else {
+        setSelectedAddress("");
       }
-    };
-
-    fetchAddresses();
-
-    return () => {
-      isMounted = false;
-    };
+    } catch (err) {
+      setAddressError(
+        err?.response?.data?.message || "Unable to load delivery addresses."
+      );
+    } finally {
+      setAddressLoading(false);
+    }
   }, []);
 
-  /* =======================================
-     CHECKOUT ITEMS & CALCULATIONS
-  ======================================= */
+  useEffect(() => {
+    fetchAddresses();
+  }, [fetchAddresses]);
 
   const checkoutItems = isDirectCheckout
     ? directProduct && directVariant
@@ -490,17 +312,11 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       : []
     : cartItems;
 
-  const checkoutLoading = isDirectCheckout
-    ? directLoading
-    : cartLoading;
-
-  const checkoutLoadError = isDirectCheckout
-    ? directError
-    : cartError;
+  const checkoutLoading = isDirectCheckout ? directLoading : cartLoading;
+  const checkoutLoadError = isDirectCheckout ? directError : cartError;
 
   const subtotal = checkoutItems.reduce((total, item) => {
     const { sellingPrice, quantity } = getCartItemDetails(item);
-
     return total + sellingPrice * quantity;
   }, 0);
 
@@ -519,78 +335,157 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
     0
   );
 
-  /* =======================================
-     ADDRESS FORM CHANGE
-  ======================================= */
+  const selectedAddressDetails = addresses.find(
+    (addr) => String(addr._id) === String(selectedAddress)
+  );
 
   const handleAddressChange = (event) => {
     const { name, value, type, checked } = event.target;
-
     setAddressForm((previous) => ({
       ...previous,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
-  /* =======================================
-     ADD NEW ADDRESS
-  ======================================= */
+  const handleOpenCreateAddress = () => {
+    setAddressError("");
+    setAddressFormMode("create");
+    setEditingAddressId("");
+    setAddressForm({
+      ...initialAddressForm,
+      fullName: user?.name || "",
+      phone: user?.phone || "",
+    });
+    setShowAddressForm(true);
+  };
 
-  const handleAddAddress = async (event) => {
+  const handleOpenEditAddress = (address) => {
+    if (!address?._id) return;
+    setAddressError("");
+    setAddressFormMode("edit");
+    setEditingAddressId(address._id);
+    setAddressForm({
+      fullName: address.fullName || "",
+      phone: address.phone || "",
+      alternatePhone: address.alternatePhone || "",
+      addressLine1: address.addressLine1 || "",
+      addressLine2: address.addressLine2 || "",
+      landmark: address.landmark || "",
+      city: address.city || "",
+      state: address.state || "",
+      pincode: address.pincode || "",
+      country: address.country || "India",
+      addressType: address.addressType || "Home",
+      isDefault: Boolean(address.isDefault),
+    });
+    setShowAddressForm(true);
+  };
+
+  const handleCancelAddressForm = () => {
+    setShowAddressForm(false);
+    setAddressFormMode("create");
+    setEditingAddressId("");
+    setAddressForm({ ...initialAddressForm });
+    setAddressError("");
+  };
+
+  const handleSubmitAddress = async (event) => {
     event.preventDefault();
 
     try {
       setSavingAddress(true);
       setAddressError("");
 
-      const response =
-        await addressService.createAddress(addressForm);
-
-      const newAddress =
-        response.data?.address || response.data;
-
-      if (!newAddress?._id) {
-        throw new Error(
-          "Invalid address response from server."
+      if (addressFormMode === "edit" && editingAddressId) {
+        const response = await addressService.updateAddress(
+          editingAddressId,
+          addressForm
         );
+        const updated = response?.data?.address || response?.data;
+
+        if (!updated?._id) {
+          throw new Error("Invalid address response from server.");
+        }
+
+        setAddresses((previous) =>
+          previous.map((item) => {
+            if (String(item._id) === String(updated._id)) return updated;
+            return addressForm.isDefault ? { ...item, isDefault: false } : item;
+          })
+        );
+
+        toast.success("Delivery address updated.");
+      } else {
+        const response = await addressService.createAddress(addressForm);
+        const newAddress = response?.data?.address || response?.data;
+
+        if (!newAddress?._id) {
+          throw new Error("Invalid address response from server.");
+        }
+
+        setAddresses((previous) => {
+          const base = addressForm.isDefault
+            ? previous.map((a) => ({ ...a, isDefault: false }))
+            : previous;
+          return [...base, newAddress];
+        });
+
+        setSelectedAddress(newAddress._id);
+        toast.success("Delivery address added.");
       }
 
-      setAddresses((previous) => {
-        const updatedAddresses = addressForm.isDefault
-          ? previous.map((address) => ({
-              ...address,
-              isDefault: false,
-            }))
-          : previous;
-
-        return [...updatedAddresses, newAddress];
-      });
-
-      setSelectedAddress(newAddress._id);
-
-      setShowAddressForm(false);
-
-      setAddressForm({ ...initialAddressForm });
-    } catch (error) {
+      handleCancelAddressForm();
+    } catch (err) {
       setAddressError(
-        error.response?.data?.message ||
-          error.message ||
-          "Unable to add delivery address."
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to save delivery address."
       );
     } finally {
       setSavingAddress(false);
     }
   };
 
-  /* =======================================
-     APPLY COUPON
-  ======================================= */
+  const handleDeleteAddress = async (addressId) => {
+    if (!addressId || deletingAddressId) return;
+
+    try {
+      setDeletingAddressId(addressId);
+      setAddressError("");
+
+      await addressService.deleteAddress(addressId);
+
+      const remaining = addresses.filter(
+        (addr) => String(addr._id) !== String(addressId)
+      );
+      setAddresses(remaining);
+
+      if (String(selectedAddress) === String(addressId)) {
+        const nextDefault =
+          remaining.find((addr) => addr.isDefault) || remaining[0];
+        setSelectedAddress(nextDefault?._id || "");
+      }
+
+      if (String(editingAddressId) === String(addressId)) {
+        handleCancelAddressForm();
+      }
+
+      toast.success("Address deleted.");
+    } catch (err) {
+      setAddressError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Unable to delete address."
+      );
+    } finally {
+      setDeletingAddressId("");
+    }
+  };
 
   const handleApplyCoupon = async (event) => {
     event.preventDefault();
 
     const code = couponCode.trim().toUpperCase();
-
     if (!code) {
       setCouponError("Please enter a coupon code.");
       return;
@@ -601,45 +496,33 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       setCouponError("");
       setCouponSuccess("");
 
-      const response =
-        await couponService.applyCoupon(code);
-
-      const couponData = response.data || response;
+      const response = await couponService.applyCoupon(code);
+      const couponData = response?.data || response;
 
       if (
-        !couponData.coupon ||
+        !couponData?.coupon ||
         typeof couponData.discountAmount !== "number" ||
         typeof couponData.finalAmount !== "number"
       ) {
-        throw new Error(
-          "Invalid coupon response from server."
-        );
+        throw new Error("Invalid coupon response from server.");
       }
 
       setAppliedCoupon(couponData);
-
       setCouponCode(couponData.coupon.code);
-
-      setCouponSuccess(
-        `Coupon ${couponData.coupon.code} applied successfully!`
-      );
-    } catch (error) {
+      setCouponSuccess(`Coupon ${couponData.coupon.code} applied successfully!`);
+      toast.success(`Coupon ${couponData.coupon.code} applied!`);
+    } catch (err) {
       setAppliedCoupon(null);
       setCouponSuccess("");
-
       setCouponError(
-        error.response?.data?.message ||
-          error.message ||
+        err?.response?.data?.message ||
+          err?.message ||
           "Unable to apply coupon. Please try again."
       );
     } finally {
       setCouponLoading(false);
     }
   };
-
-  /* =======================================
-     REMOVE COUPON
-  ======================================= */
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
@@ -648,40 +531,25 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
     setCouponSuccess("");
   };
 
-  /* =======================================
-     VERIFY RAZORPAY PAYMENT
-  ======================================= */
-
-  const verifyRazorpayPayment = async (
-    paymentData,
-    orderId
-  ) => {
+  const verifyRazorpayPayment = async (paymentData, orderId) => {
     try {
       setIsProcessing(true);
       setCheckoutError("");
 
-      const response =
-        await paymentService.verifyPayment(paymentData);
+      const response = await paymentService.verifyPayment(paymentData);
 
-      if (!response.success) {
-        throw new Error(
-          response.message || "Payment verification failed."
-        );
+      if (!response?.success) {
+        throw new Error(response?.message || "Payment verification failed.");
       }
 
       setPendingOnlineOrderId(null);
       setPendingVerificationData(null);
-
       router.replace(`/order-success/${orderId}`);
-    } catch (error) {
-      setPendingVerificationData({
-        paymentData,
-        orderId,
-      });
-
+    } catch (err) {
+      setPendingVerificationData({ paymentData, orderId });
       setCheckoutError(
-        error.response?.data?.message ||
-          error.message ||
+        err?.response?.data?.message ||
+          err?.message ||
           "Payment verification failed. Please retry verification."
       );
     } finally {
@@ -689,76 +557,49 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
     }
   };
 
-  /* =======================================
-     OPEN RAZORPAY CHECKOUT
-  ======================================= */
-
-  const openRazorpayCheckout = async (
-    paymentData,
-    orderId
-  ) => {
+  const openRazorpayCheckout = async (paymentData, orderId) => {
     const scriptLoaded = await loadRazorpayScript();
 
     if (!scriptLoaded || !window.Razorpay) {
-      throw new Error(
-        "Unable to load Razorpay checkout. Please try again."
-      );
+      throw new Error("Unable to load Razorpay checkout. Please try again.");
     }
 
     const options = {
       key: paymentData.keyId,
       amount: paymentData.amount,
       currency: paymentData.currency,
-
-      name: "ELEZIO",
-
-      description: "ELEZIO Order Payment",
-
+      name: "ELENZO",
+      description: "ELENZO Order Payment",
       order_id: paymentData.razorpayOrderId,
-
       handler: async (response) => {
         const verificationData = {
           razorpay_order_id: response.razorpay_order_id,
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_signature: response.razorpay_signature,
         };
-
-        await verifyRazorpayPayment(
-          verificationData,
-          orderId
-        );
+        await verifyRazorpayPayment(verificationData, orderId);
       },
-
       modal: {
         ondismiss: () => {
           setIsProcessing(false);
-
           setCheckoutError(
-            "Payment window closed. Your order is still pending payment. You can retry payment."
+            "Payment window closed. Your order is saved as pending payment. Click Retry Online Payment to complete it."
           );
         },
       },
-
-      theme: {
-        color: "#0755E9",
-      },
+      theme: { color: "#0755E9" },
     };
 
     const razorpay = new window.Razorpay(options);
-
     razorpay.on("payment.failed", (response) => {
       setIsProcessing(false);
-
       setCheckoutError(
-        response.error?.description ||
-          "Payment failed. You can retry payment."
+        response?.error?.description ||
+          "Payment failed. Click Retry Online Payment to try again."
       );
     });
-
     razorpay.open();
-  };  /* =======================================
-     RETRY ONLINE PAYMENT
-  ======================================= */
+  };
 
   const handleRetryPayment = async () => {
     if (!pendingOnlineOrderId || isProcessing) return;
@@ -767,38 +608,25 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       setIsProcessing(true);
       setCheckoutError("");
 
-      const response =
-        await paymentService.initiatePayment(
-          pendingOnlineOrderId
-        );
-
-      if (
-        !response.success ||
-        !response.data?.razorpayOrderId
-      ) {
-        throw new Error(
-          response.message || "Unable to initiate payment."
-        );
-      }
-
-      await openRazorpayCheckout(
-        response.data,
+      const response = await paymentService.initiatePayment(
         pendingOnlineOrderId
       );
-    } catch (error) {
+
+      if (!response?.success || !response?.data?.razorpayOrderId) {
+        throw new Error(response?.message || "Unable to initiate payment.");
+      }
+
+      await openRazorpayCheckout(response.data, pendingOnlineOrderId);
+    } catch (err) {
       setCheckoutError(
-        error.response?.data?.message ||
-          error.message ||
+        err?.response?.data?.message ||
+          err?.message ||
           "Unable to retry payment."
       );
     } finally {
       setIsProcessing(false);
     }
   };
-
-  /* =======================================
-     RETRY PAYMENT VERIFICATION
-  ======================================= */
 
   const handleRetryVerification = async () => {
     if (!pendingVerificationData || isProcessing) return;
@@ -809,40 +637,30 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
     );
   };
 
-  /* =======================================
-     PLACE ORDER
-  ======================================= */
-
   const handlePlaceOrder = async () => {
     if (isProcessing) return;
 
     if (!selectedAddress) {
-      setCheckoutError(
-        "Please select a delivery address."
-      );
+      setCheckoutError("Please select a delivery address before placing your order.");
       return;
     }
 
     if (addressLoading) {
-      setCheckoutError(
-        "Please wait while delivery addresses are loading."
-      );
+      setCheckoutError("Please wait while delivery addresses load.");
       return;
     }
 
     if (checkoutItems.length === 0) {
       setCheckoutError(
         isDirectCheckout
-          ? "The selected product is unavailable. Please try again."
+          ? "The selected product is unavailable. Please return and try again."
           : "Your cart is empty."
       );
       return;
     }
 
     if (isDirectCheckout && (!directProduct || !directVariant)) {
-      setCheckoutError(
-        "Unable to verify the selected product."
-      );
+      setCheckoutError("Unable to verify the selected product.");
       return;
     }
 
@@ -850,22 +668,16 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       setIsProcessing(true);
       setCheckoutError("");
 
-      // Map frontend payment method to backend enum
       const paymentMethod =
-        selectedPaymentMethod === "razorpay"
-          ? "Online"
-          : "COD";
+        selectedPaymentMethod === "razorpay" ? "Online" : "COD";
 
       const orderPayload = {
         addressId: selectedAddress,
         paymentMethod,
       };
 
-      // Direct checkout sends only the selected product.
-      // Normal cart checkout sends no items array.
       if (isDirectCheckout) {
         orderPayload.checkoutType = "direct";
-
         orderPayload.items = [
           {
             productId: directProductId,
@@ -876,184 +688,160 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
       }
 
       if (appliedCoupon?.coupon?.code) {
-        orderPayload.couponCode =
-          appliedCoupon.coupon.code;
+        orderPayload.couponCode = appliedCoupon.coupon.code;
       }
 
-      // Create order
-      const orderResponse =
-        await orderService.createOrder(orderPayload);
-
-      const order =
-        orderResponse.data?.data || orderResponse.data;
+      const orderResponse = await orderService.createOrder(orderPayload);
+      const order = orderResponse?.data?.data || orderResponse?.data;
 
       if (!order?._id) {
         throw new Error("Unable to create order.");
       }
 
-      // COD Flow
       if (paymentMethod === "COD") {
         router.replace(`/order-success/${order._id}`);
         return;
       }
 
-      // Keep created order ID for payment retry
       setPendingOnlineOrderId(order._id);
 
-      // Initiate Razorpay Payment
-      const paymentResponse =
-        await paymentService.initiatePayment(order._id);
+      const paymentResponse = await paymentService.initiatePayment(order._id);
 
-      if (
-        !paymentResponse.success ||
-        !paymentResponse.data?.razorpayOrderId
-      ) {
+      if (!paymentResponse?.success || !paymentResponse?.data?.razorpayOrderId) {
         throw new Error(
-          paymentResponse.message ||
-            "Unable to initiate online payment."
+          paymentResponse?.message || "Unable to initiate online payment."
         );
       }
 
-      await openRazorpayCheckout(
-        paymentResponse.data,
-        order._id
-      );
-    } catch (error) {
+      await openRazorpayCheckout(paymentResponse.data, order._id);
+    } catch (err) {
       setCheckoutError(
-        error.response?.data?.message ||
-          error.message ||
+        err?.response?.data?.message ||
+          err?.message ||
           "Unable to place your order. Please try again."
       );
     } finally {
       setIsProcessing(false);
     }
-  };  /* =======================================
-     RENDER
-  ======================================= */
+  };
+
+  const isActionDisabled =
+    isProcessing ||
+    (!pendingOnlineOrderId &&
+      (addressLoading ||
+        !selectedAddress ||
+        checkoutItems.length === 0 ||
+        checkoutLoading));
+
+  const handlePrimaryAction = () => {
+    if (pendingVerificationData) return handleRetryVerification();
+    if (pendingOnlineOrderId) return handleRetryPayment();
+    return handlePlaceOrder();
+  };
+
+  const primaryButtonText = isProcessing
+    ? pendingVerificationData
+      ? "Verifying Payment..."
+      : "Processing..."
+    : pendingVerificationData
+      ? "Retry Payment Verification"
+      : pendingOnlineOrderId
+        ? "Retry Online Payment"
+        : selectedPaymentMethod === "cod"
+          ? `Place COD Order · ${formatPrice(totalAmount)}`
+          : `Pay Securely · ${formatPrice(totalAmount)}`;
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] py-7 sm:py-10">
+    <main className="min-h-screen bg-white pb-32 lg:pb-12">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        {/* Top Breadcrumb + Title Header */}
+        <Breadcrumb
+          items={[
+            isDirectCheckout && directSlug
+              ? { label: "Product", href: `/products/${directSlug}` }
+              : { label: "Shopping Cart", href: "/cart" },
+            { label: "Checkout" },
+          ]}
+          className="mb-4"
+        />
 
-      {/* Scroll Progress */}
-      <motion.div
-        style={{ scaleX: progress }}
-        className="fixed left-0 top-0 z-50 h-[3px] w-full origin-left bg-[#0755E9]"
-      />
-
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-
-        {/* =================================
-            PAGE HEADER
-        ================================= */}
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="mb-8"
-        >
-          <Link
-            href={
-              isDirectCheckout && directSlug
-                ? `/products/${directSlug}`
-                : "/cart"
-            }
-            className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-[#64748B] transition hover:text-[#0755E9]"
-          >
-            <ArrowLeft size={16} />
-            {isDirectCheckout ? "Back to Product" : "Back to Cart"}
-          </Link>
-
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight text-[#101828] sm:text-3xl">
-                Checkout
-              </h1>
-
-              <p className="mt-2 text-sm text-[#64748B]">
-                Complete your order securely with ELEZIO.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 text-xs font-medium text-[#64748B]">
-              <ShieldCheck
-                size={17}
-                className="text-[#0755E9]"
-              />
-              Secure checkout
-            </div>
+        <header className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-[#101828] sm:text-2xl">
+              Secure Checkout
+            </h1>
+            <p className="mt-0.5 text-xs text-[#64748B] sm:text-sm">
+              Confirm your delivery address and payment method to complete your ELENZO order.
+            </p>
           </div>
-        </motion.div>
 
-        {/* =================================
-            LOADING
-        ================================= */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#101828]">
+              <ShieldCheck size={14} className="text-[#0755E9]" aria-hidden="true" />
+              <span>SSL Encrypted Checkout</span>
+            </span>
 
-       {checkoutLoading ? (
-  <CheckoutSkeleton
-    isDirectCheckout={isDirectCheckout}
-  />
+            <Link
+              href={
+                isDirectCheckout && directSlug
+                  ? `/products/${directSlug}`
+                  : "/cart"
+              }
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3.5 text-xs font-bold text-[#101828] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+            >
+              <ArrowLeft size={14} aria-hidden="true" />
+              <span>{isDirectCheckout ? "Back to Product" : "Back to Cart"}</span>
+            </Link>
+          </div>
+        </header>
+
+        {checkoutLoading ? (
+          <CheckoutSkeleton isDirectCheckout={isDirectCheckout} />
         ) : checkoutLoadError ? (
-
-          /* =================================
-              LOADING ERROR
-          ================================= */
-
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm"
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-white px-6 py-14 text-center"
           >
             <AlertCircle
-              size={32}
+              size={34}
               className="mx-auto text-red-500"
+              aria-hidden="true"
             />
-
-            <p className="mt-3 text-sm text-red-600">
-              {checkoutLoadError}
-            </p>
-
+            <h2 className="mt-4 text-lg font-bold text-[#101828]">
+              Unable to prepare checkout
+            </h2>
+            <p className="mt-2 text-sm text-[#64748B]">{checkoutLoadError}</p>
             <button
               type="button"
               onClick={() => {
                 if (isDirectCheckout) {
-                  setDirectRetryKey((value) => value + 1);
+                  setDirectRetryKey((v) => v + 1);
                 } else {
                   dispatch(fetchCart());
                 }
               }}
-              className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
+              className="mt-6 inline-flex h-10 items-center gap-2 rounded-xl bg-[#0755E9] px-5 text-sm font-bold text-white transition hover:bg-[#0645C4]"
             >
               <RefreshCw size={15} />
               Try Again
             </button>
-          </motion.div>
-        ) : checkoutItems.length === 0 &&
-          !pendingOnlineOrderId ? (
-
-          /* =================================
-              EMPTY CART / PRODUCT
-          ================================= */
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl border border-[#E2E8F0] bg-white px-6 py-14 text-center shadow-sm"
-          >
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#EFF6FF] text-[#0755E9]">
-              <ShoppingBag size={30} />
+          </div>
+        ) : checkoutItems.length === 0 && !pendingOnlineOrderId ? (
+          <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-6 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-[#0755E9]/15 bg-[#EFF6FF] text-[#0755E9]">
+              <ShoppingBag size={28} aria-hidden="true" />
             </div>
 
             <h2 className="mt-5 text-xl font-bold text-[#101828]">
               {isDirectCheckout
-                ? "Product unavailable"
+                ? "Product unavailable for checkout"
                 : "Your cart is empty"}
             </h2>
 
-            <p className="mt-2 text-sm text-[#64748B]">
+            <p className="mx-auto mt-2 max-w-md text-sm text-[#64748B]">
               {isDirectCheckout
-                ? "The selected product could not be loaded. Please return to the product page and try again."
-                : "Add some products before proceeding to checkout."}
+                ? "The selected product could not be verified. Please return to the product page and try again."
+                : "Add items to your cart before proceeding to checkout."}
             </p>
 
             <Link
@@ -1062,296 +850,200 @@ console.log("DIRECT CHECKOUT PRODUCT:", product);
                   ? `/products/${directSlug}`
                   : "/products"
               }
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0645C4]"
+              className="mt-6 inline-flex h-11 items-center gap-2 rounded-xl bg-[#0755E9] px-6 text-sm font-bold text-white transition hover:bg-[#0645C4]"
             >
-              {isDirectCheckout
-                ? "Back to Product"
-                : "Continue Shopping"}
-
+              <span>
+                {isDirectCheckout ? "Back to Product" : "Browse Products"}
+              </span>
               <ArrowRight size={16} />
             </Link>
-          </motion.div>
+          </div>
         ) : (
+          <>
+            {/* 4-Step Progress Indicator */}
+            <CheckoutProgress
+              hasSelectedAddress={Boolean(selectedAddress)}
+              isPendingPayment={Boolean(pendingOnlineOrderId)}
+              isDirectCheckout={isDirectCheckout}
+              directSlug={directSlug}
+            />
 
-          /* =================================
-              CHECKOUT CONTENT
-          ================================= */
-
-          <motion.div
-            variants={pageVariants}
-            initial="hidden"
-            animate="visible"
-            className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3 lg:gap-8"
-          >
-
-            {/* =================================
-                LEFT SECTION
-            ================================= */}
-
-            <section className="space-y-6 lg:col-span-2">
-
-              {/* DELIVERY ADDRESS */}
-
-              {!pendingOnlineOrderId && (
-                <motion.div
-                  variants={sectionVariants}
-                  className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm sm:p-7"
-                >
-                  <DeliveryAddress
-                    addresses={addresses}
-                    selectedAddress={selectedAddress}
-                    onSelectAddress={setSelectedAddress}
-                    addressLoading={addressLoading}
-                    addressError={addressError}
-                    showAddressForm={showAddressForm}
-                    onOpenAddressForm={() => {
-                      setAddressError("");
-                      setShowAddressForm(true);
-                    }}
-                    onCancelAddressForm={() => {
-                      setShowAddressForm(false);
-
-                      setAddressForm({
-                        ...initialAddressForm,
-                      });
-
-                      setAddressError("");
-                    }}
-                    addressForm={addressForm}
-                    onAddressChange={handleAddressChange}
-                    onAddAddress={handleAddAddress}
-                    savingAddress={savingAddress}
-                  />
-                </motion.div>
-              )}
-
-              {/* PAYMENT METHOD */}
-
-              {!pendingOnlineOrderId && (
-                <motion.div
-                  variants={sectionVariants}
-                  className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm sm:p-7"
-                >
-                  <PaymentMethod
-                    selectedPaymentMethod={selectedPaymentMethod}
-                    onSelectPaymentMethod={
-                      setSelectedPaymentMethod
-                    }
-                    disabled={isProcessing}
-                  />
-                </motion.div>
-              )}
-
-              {/* CHECKOUT ERROR */}
-
-              <AnimatePresence>
-                {checkoutError && (
-                  <motion.div
-                    initial={{
-                      opacity: 0,
-                      height: 0,
-                      y: -8,
-                    }}
-                    animate={{
-                      opacity: 1,
-                      height: "auto",
-                      y: 0,
-                    }}
-                    exit={{
-                      opacity: 0,
-                      height: 0,
-                    }}
-                    role="alert"
-                    className="flex items-start gap-3 overflow-hidden rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"
-                  >
-                    <AlertCircle
-                      size={19}
-                      className="mt-0.5 shrink-0"
+            {/* Two-Column Checkout Grid */}
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+              {/* Left Column: Contact + Address + Payment */}
+              <div className="space-y-6 lg:col-span-7">
+                {!pendingOnlineOrderId && (
+                  <>
+                    <ContactInfoCard
+                      user={user}
+                      selectedAddressDetails={selectedAddressDetails}
                     />
 
-                    <p>{checkoutError}</p>
-                  </motion.div>
+                    <DeliveryAddress
+                      addresses={addresses}
+                      selectedAddress={selectedAddress}
+                      onSelectAddress={setSelectedAddress}
+                      addressLoading={addressLoading}
+                      addressError={addressError}
+                      onRetryAddresses={fetchAddresses}
+                      showAddressForm={showAddressForm}
+                      addressFormMode={addressFormMode}
+                      onOpenAddressForm={handleOpenCreateAddress}
+                      onEditAddress={handleOpenEditAddress}
+                      onDeleteAddress={handleDeleteAddress}
+                      deletingAddressId={deletingAddressId}
+                      onCancelAddressForm={handleCancelAddressForm}
+                      addressForm={addressForm}
+                      onAddressChange={handleAddressChange}
+                      onSubmitAddress={handleSubmitAddress}
+                      savingAddress={savingAddress}
+                    />
+
+                    <PaymentMethod
+                      selectedPaymentMethod={selectedPaymentMethod}
+                      onSelectPaymentMethod={setSelectedPaymentMethod}
+                      disabled={isProcessing}
+                    />
+                  </>
                 )}
-              </AnimatePresence>
 
-              {/* PAYMENT RETRY INFORMATION */}
-
-              <AnimatePresence>
+                {/* Pending Online Order Retry Info */}
                 {pendingOnlineOrderId && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6"
-                  >
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
                     <div className="flex items-start gap-3">
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-amber-600">
-                        <CreditCard size={20} />
+                        <CreditCard size={20} aria-hidden="true" />
                       </div>
 
                       <div>
-                        <h2 className="font-bold text-amber-900">
-                          Online payment is pending
+                        <h2 className="text-base font-bold text-amber-900">
+                          Online payment pending confirmation
                         </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-amber-800">
-                          Your order has already been created.
-                          You do not need to place another order.
-                          Continue with the existing order&apos;s
-                          payment.
+                        <p className="mt-1.5 text-sm leading-relaxed text-amber-800">
+                          Your order has already been created safely. You do not need to recreate the order—use the button in the summary to retry payment or verification.
                         </p>
-
-                        <p className="mt-3 break-all text-xs font-medium text-amber-800">
+                        <p className="mt-3 break-all text-xs font-bold text-amber-900">
                           Order ID: {pendingOnlineOrderId}
                         </p>
                       </div>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </section>
-
-            {/* =================================
-                RIGHT SECTION
-            ================================= */}
-
-            <motion.aside
-              variants={sectionVariants}
-              className="space-y-5 lg:sticky lg:top-6"
-            >
-
-              {/* ORDER SUMMARY */}
-
-              {!pendingOnlineOrderId && (
-                <OrderSummary
-                  cartItems={checkoutItems}
-                  totalItems={totalItems}
-                  subtotal={subtotal}
-                  shippingFee={shippingFee}
-                  discount={discount}
-                  totalAmount={totalAmount}
-                  appliedCoupon={appliedCoupon}
-                  couponCode={couponCode}
-                  couponLoading={couponLoading}
-                  couponError={couponError}
-                  couponSuccess={couponSuccess}
-                  onCouponCodeChange={(value) => {
-                    setCouponCode(value.toUpperCase());
-                    setCouponError("");
-                    setCouponSuccess("");
-                  }}
-                  onApplyCoupon={handleApplyCoupon}
-                  onRemoveCoupon={handleRemoveCoupon}
-                />
-              )}
-
-              {/* PLACE ORDER / RETRY PAYMENT */}
-
-              <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5 shadow-sm">
-
-                {pendingVerificationData ? (
-
-                  /* RETRY VERIFICATION */
-
-                  <button
-                    type="button"
-                    onClick={handleRetryVerification}
-                    disabled={isProcessing}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <RefreshCw
-                          size={17}
-                          className="animate-spin"
-                        />
-                        Verifying Payment...
-                      </>
-                    ) : (
-                      "Retry Payment Verification"
-                    )}
-                  </button>
-                ) : (
-
-                  /* PLACE ORDER / RETRY PAYMENT */
-
-                  <button
-                    type="button"
-                    onClick={
-                      pendingOnlineOrderId
-                        ? handleRetryPayment
-                        : handlePlaceOrder
-                    }
-                    disabled={
-                      isProcessing ||
-                      (!pendingOnlineOrderId &&
-                        (addressLoading ||
-                          !selectedAddress ||
-                          checkoutItems.length === 0 ||
-                          checkoutLoading))
-                    }
-                    className="group flex w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0645C4] hover:shadow-lg hover:shadow-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <RefreshCw
-                          size={17}
-                          className="animate-spin"
-                        />
-                        Please wait...
-                      </>
-                    ) : pendingOnlineOrderId ? (
-                      <>
-                        Retry Online Payment
-                        <ArrowRight size={17} />
-                      </>
-                    ) : (
-                      <>
-                        Place Order
-                        <ArrowRight
-                          size={17}
-                          className="transition-transform group-hover:translate-x-1"
-                        />
-                      </>
-                    )}
-                  </button>
+                  </div>
                 )}
 
-                {/* Secure Message */}
+                {/* Checkout Error Alert */}
+                {checkoutError && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2.5 rounded-2xl border border-red-200 bg-red-50 p-4 text-xs font-medium text-red-700 sm:text-sm"
+                  >
+                    <AlertCircle
+                      size={18}
+                      className="mt-0.5 shrink-0 text-red-500"
+                      aria-hidden="true"
+                    />
+                    <p>{checkoutError}</p>
+                  </div>
+                )}
+              </div>
 
-                <div className="mt-4 flex items-center justify-center gap-2">
-                  <LockKeyhole
-                    size={13}
-                    className="text-[#0755E9]"
+              {/* Right Column: Sticky Order Summary + Place Order Card */}
+              <div className="space-y-4 lg:sticky lg:top-24 lg:col-span-5">
+                {!pendingOnlineOrderId && (
+                  <OrderSummary
+                    cartItems={checkoutItems}
+                    totalItems={totalItems}
+                    subtotal={subtotal}
+                    shippingFee={shippingFee}
+                    discount={discount}
+                    totalAmount={totalAmount}
+                    appliedCoupon={appliedCoupon}
+                    couponCode={couponCode}
+                    couponLoading={couponLoading}
+                    couponError={couponError}
+                    couponSuccess={couponSuccess}
+                    onCouponCodeChange={(value) => {
+                      setCouponCode(value.toUpperCase());
+                      setCouponError("");
+                      setCouponSuccess("");
+                    }}
+                    onApplyCoupon={handleApplyCoupon}
+                    onRemoveCoupon={handleRemoveCoupon}
                   />
+                )}
 
-                  <p className="text-center text-[11px] leading-5 text-[#64748B]">
-                    Your order and payment will be validated
-                    securely by ELEZIO.
-                  </p>
+                {/* Place Order / Payment Retry Box */}
+                <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
+                  <button
+                    type="button"
+                    onClick={handlePrimaryAction}
+                    disabled={isActionDisabled}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-5 py-3 text-sm font-bold text-white shadow-xs transition hover:bg-[#0645C4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                  >
+                    {isProcessing ? (
+                      <RefreshCw size={16} className="animate-spin" />
+                    ) : (
+                      <LockKeyhole size={15} aria-hidden="true" />
+                    )}
+                    <span>{primaryButtonText}</span>
+                    {!isProcessing && <ArrowRight size={16} aria-hidden="true" />}
+                  </button>
+
+                  {!pendingOnlineOrderId && !selectedAddress && !addressLoading && (
+                    <p className="mt-2.5 text-center text-xs font-semibold text-amber-700">
+                      Please select or add a delivery address to place your order.
+                    </p>
+                  )}
+
+                  <div className="mt-3.5 flex items-center justify-center gap-1.5 text-[11px] font-medium text-[#64748B]">
+                    <ShieldCheck
+                      size={13}
+                      className="text-[#0755E9]"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      Validated securely by ELENZO before confirmation
+                    </span>
+                  </div>
                 </div>
               </div>
+            </div>
 
-              {/* SECURITY INFORMATION */}
-
-              <div className="flex items-start gap-3 rounded-xl border border-[#E2E8F0] bg-[#EFF6FF] p-4">
-                <ShieldCheck
-                  size={19}
-                  className="mt-0.5 shrink-0 text-[#0755E9]"
-                />
-
-                <div>
-                  <p className="text-xs font-bold text-[#101828]">
-                    Safe & Secure Checkout
+            {/* Mobile Sticky Checkout CTA Bar (BottomNavigation is hidden on /checkout) */}
+            <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E2E8F0] bg-white/95 px-4 pb-[max(10px,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-6px_20px_rgba(16,24,40,0.08)] backdrop-blur-md lg:hidden">
+              <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+                    {selectedPaymentMethod === "cod" ? "COD Total" : "Payable"}
                   </p>
-
-                  <p className="mt-1 text-xs leading-5 text-[#64748B]">
-                    Your payment details are processed securely.
+                  <p className="truncate text-lg font-extrabold text-[#101828] tabular-nums">
+                    {formatPrice(totalAmount)}
                   </p>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={handlePrimaryAction}
+                  disabled={isActionDisabled}
+                  className="inline-flex h-11 flex-1 max-w-[230px] items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+                >
+                  {isProcessing ? (
+                    <RefreshCw size={15} className="animate-spin" />
+                  ) : (
+                    <LockKeyhole size={14} aria-hidden="true" />
+                  )}
+                  <span className="truncate">
+                    {isProcessing
+                      ? "Processing..."
+                      : pendingVerificationData
+                        ? "Retry Verification"
+                        : pendingOnlineOrderId
+                          ? "Retry Payment"
+                          : "Place Order"}
+                  </span>
+                </button>
               </div>
-            </motion.aside>
-          </motion.div>
+            </div>
+          </>
         )}
       </div>
     </main>

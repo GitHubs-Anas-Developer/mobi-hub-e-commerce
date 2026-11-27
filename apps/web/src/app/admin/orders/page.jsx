@@ -1,23 +1,86 @@
-
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
+import { useDispatch, useSelector } from "react-redux";
 import {
-  ShoppingCart,
-  Search,
-  RefreshCw,
-  Loader2,
+  Alert,
+  Button,
+  Card,
+  DatePicker,
+  Descriptions,
+  Divider,
+  Drawer,
+  Input,
+  Pagination,
+  Select,
+  Space,
+  Statistic,
+  Table,
+  Tag,
+} from "antd";
+import {
+  Clock,
   Eye,
-  ChevronLeft,
-  ChevronRight,
-  CalendarDays,
+  Package,
+  RefreshCw,
+  Search,
+  ShoppingCart,
+  Truck,
   X,
 } from "lucide-react";
 
 import useAdminOrders from "@/hooks/useAdminOrders";
+import AdminPageHeader from "@/components/admin/layout/AdminPageHeader";
+import {
+  clearQuickOrder,
+  selectAdminQuickOrder,
+  selectAdminQuickOrderLoading,
+} from "@/store/slices/adminSlice";
+import { fetchAdminQuickOrder } from "@/store/thunks/adminThunks";
+
+const { RangePicker } = DatePicker;
+
+const ORDER_STATUS_COLORS = {
+  Pending: "gold",
+  Confirmed: "blue",
+  Processing: "geekblue",
+  Shipped: "purple",
+  Delivered: "green",
+  Cancelled: "red",
+};
+
+const PAYMENT_STATUS_COLORS = {
+  Pending: "gold",
+  Paid: "green",
+  Failed: "red",
+  PartiallyRefunded: "orange",
+  Refunded: "default",
+};
+
+const formatDate = (date) => {
+  if (!date) return "—";
+  return new Date(date).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const formatPrice = (amount) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 2,
+  }).format(Number(amount || 0));
 
 export default function AdminOrdersPage() {
+  const dispatch = useDispatch();
+  const quickOrder = useSelector(selectAdminQuickOrder);
+  const quickOrderLoading = useSelector(selectAdminQuickOrderLoading);
+
   const {
     orders,
     pagination,
@@ -28,506 +91,468 @@ export default function AdminOrdersPage() {
     refreshOrders,
   } = useAdminOrders();
 
-  const [actionError, setActionError] = useState("");
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const handleFilterChange = (key, value) => {
     setFilters((previous) => ({
       ...previous,
       [key]: value,
+      page: key === "page" ? value : 1,
+    }));
+  };
+
+  const handleDateRangeChange = (dates) => {
+    if (!dates || !dates[0] || !dates[1]) {
+      setFilters((previous) => ({
+        ...previous,
+        startDate: "",
+        endDate: "",
+        page: 1,
+      }));
+      return;
+    }
+
+    setFilters((previous) => ({
+      ...previous,
+      startDate: dates[0].format("YYYY-MM-DD"),
+      endDate: dates[1].format("YYYY-MM-DD"),
       page: 1,
     }));
   };
 
-  const formatDate = (date) => {
-    if (!date) return "—";
-
-    return new Date(date).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const openOrderDrawer = (orderId) => {
+    setDrawerOpen(true);
+    dispatch(fetchAdminQuickOrder(orderId));
   };
 
-  const formatPrice = (amount) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 2,
-    }).format(amount || 0);
-  };
-
-  const orderStatusStyles = {
-    Pending: "bg-amber-50 text-amber-700",
-    Confirmed: "bg-blue-50 text-blue-700",
-    Processing: "bg-indigo-50 text-indigo-700",
-    Shipped: "bg-purple-50 text-purple-700",
-    Delivered: "bg-green-50 text-green-700",
-    Cancelled: "bg-red-50 text-red-700",
-  };
-
-  const paymentStatusStyles = {
-    Pending: "bg-amber-50 text-amber-700",
-    Paid: "bg-green-50 text-green-700",
-    Failed: "bg-red-50 text-red-700",
-    PartiallyRefunded: "bg-orange-50 text-orange-700",
-    Refunded: "bg-slate-100 text-slate-700",
+  const closeOrderDrawer = () => {
+    setDrawerOpen(false);
+    dispatch(clearQuickOrder());
   };
 
   const totalOrders = pagination?.totalOrders ?? 0;
-
-  const pendingCount = orders.filter(
-    (order) => order.orderStatus === "Pending"
+  const pendingCount = orders.filter((o) => o.orderStatus === "Pending").length;
+  const processingCount = orders.filter((o) =>
+    ["Confirmed", "Processing"].includes(o.orderStatus),
   ).length;
-
-  const processingCount = orders.filter(
-    (order) =>
-      ["Confirmed", "Processing"].includes(order.orderStatus)
-  ).length;
-
   const deliveredCount = orders.filter(
-    (order) => order.orderStatus === "Delivered"
+    (o) => o.orderStatus === "Delivered",
   ).length;
+
+  const columns = [
+    {
+      title: "Order #",
+      dataIndex: "orderNumber",
+      key: "orderNumber",
+      fixed: "left",
+      width: 170,
+      render: (num, record) => (
+        <div>
+          <Link
+            href={`/admin/orders/${record._id}`}
+            className="font-bold text-[#0755E9] hover:underline"
+          >
+            {num}
+          </Link>
+          <p className="mt-0.5 text-[11px] text-[#64748B]">
+            {record.items?.length || 0} item(s)
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: "Customer",
+      key: "customer",
+      width: 210,
+      render: (_, record) => (
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-[#101828]">
+            {record.user?.name || "Unknown Customer"}
+          </p>
+          <p className="truncate text-xs text-[#64748B]">
+            {record.user?.email || "—"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      title: "Order Date",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 170,
+      render: (date) => (
+        <span className="text-xs text-[#64748B]">{formatDate(date)}</span>
+      ),
+    },
+    {
+      title: "Payment Method",
+      dataIndex: "paymentMethod",
+      key: "paymentMethod",
+      width: 130,
+      render: (method) => (
+        <Tag color={method === "Online" ? "blue" : "default"}>
+          {method === "Online" ? "Online (Razorpay)" : method}
+        </Tag>
+      ),
+    },
+    {
+      title: "Payment Status",
+      key: "paymentStatus",
+      width: 155,
+      render: (_, record) => (
+        <div className="flex flex-col items-start gap-1">
+          <Tag color={PAYMENT_STATUS_COLORS[record.paymentStatus] || "default"}>
+            {record.paymentStatus}
+          </Tag>
+          {record.orderStatus === "Cancelled" &&
+            record.refundStatus &&
+            record.refundStatus !== "NOT_REQUIRED" && (
+              <span className="text-[11px] font-semibold text-[#64748B]">
+                Refund: {record.refundStatus.replace(/_/g, " ")}
+              </span>
+            )}
+        </div>
+      ),
+    },
+    {
+      title: "Order Status",
+      dataIndex: "orderStatus",
+      key: "orderStatus",
+      width: 130,
+      render: (status) => (
+        <Tag color={ORDER_STATUS_COLORS[status] || "default"}>{status}</Tag>
+      ),
+    },
+    {
+      title: "Total Amount",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
+      width: 130,
+      render: (amt) => (
+        <span className="font-bold tabular-nums text-[#101828]">
+          {formatPrice(amt)}
+        </span>
+      ),
+    },
+    {
+      title: "Actions",
+      key: "actions",
+      width: 180,
+      render: (_, record) => (
+        <Space size="small">
+          <Button
+            size="small"
+            icon={<Eye size={13} />}
+            onClick={() => openOrderDrawer(record._id)}
+          >
+            Preview
+          </Button>
+          <Link href={`/admin/orders/${record._id}`}>
+            <Button size="small" type="primary">
+              Manage
+            </Button>
+          </Link>
+        </Space>
+      ),
+    },
+  ];
+
+  const hasFilters =
+    filters.status !== "all" ||
+    filters.paymentStatus !== "all" ||
+    filters.startDate ||
+    filters.endDate ||
+    filters.search ||
+    filters.sort !== "newest";
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">
-          Orders
-        </h1>
+      <AdminPageHeader
+        title="Orders Management"
+        subtitle="Track, filter, preview, verify refunds, and update fulfillment stages."
+        badge={`${totalOrders} Total`}
+        extra={
+          <Button
+            icon={
+              <RefreshCw
+                size={15}
+                className={loading ? "animate-spin" : ""}
+              />
+            }
+            onClick={refreshOrders}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
-        <p className="mt-1 text-sm text-slate-500">
-          Manage customer orders, payment status and order fulfillment.
-        </p>
+      {/* Quick KPIs */}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <Card className="!border-[#E2E8F0]">
+          <Statistic
+            title="Total Filtered"
+            value={totalOrders}
+            prefix={<ShoppingCart size={16} className="mr-1 text-[#0755E9]" />}
+          />
+        </Card>
+        <Card className="!border-[#E2E8F0]">
+          <Statistic
+            title="Pending (Page)"
+            value={pendingCount}
+            prefix={<Clock size={16} className="mr-1 text-amber-600" />}
+          />
+        </Card>
+        <Card className="!border-[#E2E8F0]">
+          <Statistic
+            title="Active Fulfillment"
+            value={processingCount}
+            prefix={<Truck size={16} className="mr-1 text-[#0755E9]" />}
+          />
+        </Card>
+        <Card className="!border-[#E2E8F0]">
+          <Statistic
+            title="Delivered (Page)"
+            value={deliveredCount}
+            prefix={<Package size={16} className="mr-1 text-emerald-600" />}
+          />
+        </Card>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          {
-            label: "Total Orders",
-            value: totalOrders,
-            color: "text-slate-900",
-            icon: ShoppingCart,
-          },
-          {
-            label: "Pending Orders",
-            value: pendingCount,
-            color: "text-amber-600",
-            icon: CalendarDays,
-          },
-          {
-            label: "Processing Orders",
-            value: processingCount,
-            color: "text-blue-600",
-            icon: RefreshCw,
-          },
-          {
-            label: "Delivered Orders",
-            value: deliveredCount,
-            color: "text-green-600",
-            icon: ShoppingCart,
-          },
-        ].map((item) => {
-          const Icon = item.icon;
-
-          return (
-            <div
-              key={item.label}
-              className="rounded-xl border border-slate-200 bg-white p-5"
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-slate-500">
-                  {item.label}
-                </p>
-
-                <Icon size={20} className={item.color} />
-              </div>
-
-              <p className={`mt-3 text-2xl font-bold ${item.color}`}>
-                {item.value}
-              </p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Search and Filters */}
-      <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4">
-        {/* Search */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <Search
-              size={18}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            />
-
-            <input
-              type="search"
+      {/* Filters Toolbar */}
+      <Card className="!border-[#E2E8F0]">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-12">
+          <div className="xl:col-span-4">
+            <Input
+              allowClear
               value={filters.search}
               onChange={(event) =>
                 handleFilterChange("search", event.target.value)
               }
-              placeholder="Search order number, customer, email or product..."
-              className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
+              prefix={<Search size={15} className="text-[#94A3B8]" />}
+              placeholder="Search order #, customer, email or SKU..."
             />
-
-            {filters.search && (
-              <button
-                type="button"
-                onClick={() =>
-                  handleFilterChange("search", "")
-                }
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                aria-label="Clear search"
-              >
-                <X size={16} />
-              </button>
-            )}
           </div>
 
-          <button
-            type="button"
-            onClick={refreshOrders}
-            disabled={loading}
-            className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-          >
-            <RefreshCw
-              size={16}
-              className={loading ? "animate-spin" : ""}
+          <div className="xl:col-span-2">
+            <Select
+              className="w-full"
+              value={filters.status}
+              onChange={(value) => handleFilterChange("status", value)}
+              options={[
+                { value: "all", label: "All Order Status" },
+                { value: "Pending", label: "Pending" },
+                { value: "Confirmed", label: "Confirmed" },
+                { value: "Processing", label: "Processing" },
+                { value: "Shipped", label: "Shipped" },
+                { value: "Delivered", label: "Delivered" },
+                { value: "Cancelled", label: "Cancelled" },
+              ]}
             />
-            Refresh
-          </button>
+          </div>
+
+          <div className="xl:col-span-2">
+            <Select
+              className="w-full"
+              value={filters.paymentStatus}
+              onChange={(value) => handleFilterChange("paymentStatus", value)}
+              options={[
+                { value: "all", label: "All Payment Status" },
+                { value: "Pending", label: "Pending" },
+                { value: "Paid", label: "Paid" },
+                { value: "Failed", label: "Failed" },
+                { value: "PartiallyRefunded", label: "Partially Refunded" },
+                { value: "Refunded", label: "Refunded" },
+              ]}
+            />
+          </div>
+
+          <div className="xl:col-span-2">
+            <Select
+              className="w-full"
+              value={filters.sort}
+              onChange={(value) => handleFilterChange("sort", value)}
+              options={[
+                { value: "newest", label: "Newest First" },
+                { value: "oldest", label: "Oldest First" },
+                { value: "amount-high", label: "Amount: High to Low" },
+                { value: "amount-low", label: "Amount: Low to High" },
+              ]}
+            />
+          </div>
+
+          <div className="xl:col-span-2">
+            <RangePicker
+              className="w-full"
+              onChange={handleDateRangeChange}
+              placeholder={["Start", "End"]}
+            />
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {/* Order Status */}
-          <select
-            value={filters.status}
-            onChange={(event) =>
-              handleFilterChange("status", event.target.value)
-            }
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
-          >
-            <option value="all">All Order Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Processing">Processing</option>
-            <option value="Shipped">Shipped</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
-
-          {/* Payment Status */}
-          <select
-            value={filters.paymentStatus}
-            onChange={(event) =>
-              handleFilterChange("paymentStatus", event.target.value)
-            }
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
-          >
-            <option value="all">All Payment Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
-            <option value="Failed">Failed</option>
-            <option value="Refunded">Refunded</option>
-          </select>
-
-          {/* Sorting */}
-          <select
-            value={filters.sort}
-            onChange={(event) =>
-              handleFilterChange("sort", event.target.value)
-            }
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="amount-high">Amount: High to Low</option>
-            <option value="amount-low">Amount: Low to High</option>
-          </select>
-
-          {/* Start Date */}
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-500">
-              Start Date
-            </label>
-
-            <input
-              type="date"
-              value={filters.startDate}
-              max={filters.endDate || undefined}
-              onChange={(event) =>
-                handleFilterChange("startDate", event.target.value)
+        {hasFilters && (
+          <div className="mt-3 flex justify-end">
+            <Button
+              size="small"
+              icon={<X size={14} />}
+              onClick={() =>
+                setFilters({
+                  status: "all",
+                  paymentStatus: "all",
+                  search: "",
+                  startDate: "",
+                  endDate: "",
+                  sort: "newest",
+                  page: 1,
+                  limit: filters.limit,
+                })
               }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
-            />
+            >
+              Reset Filters
+            </Button>
           </div>
-
-          {/* End Date */}
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-500">
-              End Date
-            </label>
-
-            <input
-              type="date"
-              value={filters.endDate}
-              min={filters.startDate || undefined}
-              onChange={(event) =>
-                handleFilterChange("endDate", event.target.value)
-              }
-              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600"
-            />
-          </div>
-
-          {/* Page Limit */}
-          <select
-            value={filters.limit}
-            onChange={(event) =>
-              handleFilterChange("limit", Number(event.target.value))
-            }
-            className="rounded-lg border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-600 sm:self-end"
-          >
-            <option value={10}>10 per page</option>
-            <option value={20}>20 per page</option>
-            <option value={50}>50 per page</option>
-          </select>
-        </div>
-
-        {/* Clear Filters */}
-        {(filters.status !== "all" ||
-          filters.paymentStatus !== "all" ||
-          filters.startDate ||
-          filters.endDate ||
-          filters.search ||
-          filters.sort !== "newest") && (
-          <button
-            type="button"
-            onClick={() =>
-              setFilters((previous) => ({
-                ...previous,
-                status: "all",
-                paymentStatus: "all",
-                search: "",
-                startDate: "",
-                endDate: "",
-                sort: "newest",
-                page: 1,
-              }))
-            }
-            className="inline-flex items-center gap-2 text-sm font-medium text-blue-700 hover:text-blue-800"
-          >
-            <X size={15} />
-            Clear all filters
-          </button>
         )}
-      </div>
+      </Card>
 
-      {/* Feedback */}
-      {(error || actionError) && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError || error}
-        </div>
-      )}
+      {error && <Alert type="error" showIcon title={error} />}
 
       {/* Orders Table */}
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1050px] text-left">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr>
-                {[
-                  "Order",
-                  "Customer",
-                  "Items",
-                  "Total",
-                  "Payment",
-                  "Order Status",
-                  "Date",
-                  "Actions",
-                ].map((heading) => (
-                  <th
-                    key={heading}
-                    className="px-5 py-4 text-xs font-semibold uppercase text-slate-500"
-                  >
-                    {heading}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+      <Card
+        className="!border-[#E2E8F0]"
+        styles={{ body: { padding: 0 } }}
+      >
+        <Table
+          rowKey="_id"
+          columns={columns}
+          dataSource={orders}
+          loading={loading}
+          pagination={false}
+          scroll={{ x: 1080 }}
+          locale={{ emptyText: "No orders matched the selected filters" }}
+        />
 
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="px-5 py-12 text-center">
-                    <Loader2
-                      size={26}
-                      className="mx-auto animate-spin text-blue-700"
-                    />
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      Loading orders...
-                    </p>
-                  </td>
-                </tr>
-              ) : orders.length === 0 ? (
-                <tr>
-                  <td colSpan="8" className="px-5 py-12 text-center">
-                    <ShoppingCart
-                      size={34}
-                      className="mx-auto text-slate-300"
-                    />
-
-                    <p className="mt-2 font-medium text-slate-700">
-                      No orders found
-                    </p>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      Try changing your search or filters.
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                orders.map((order) => (
-                  <tr
-                    key={order._id}
-                    className="transition hover:bg-slate-50"
-                  >
-                    {/* Order */}
-                    <td className="px-5 py-4">
-                      <p className="font-bold text-slate-900">
-                        {order.orderNumber}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {order.paymentMethod}
-                      </p>
-                    </td>
-
-                    {/* Customer */}
-                    <td className="px-5 py-4">
-                      <p className="font-medium text-slate-900">
-                        {order.user?.name || "Unknown customer"}
-                      </p>
-
-                      <p className="mt-1 text-xs text-slate-500">
-                        {order.user?.email || "—"}
-                      </p>
-                    </td>
-
-                    {/* Items */}
-                    <td className="px-5 py-4">
-                      <p className="text-sm font-medium text-slate-900">
-                        {order.items?.length || 0} products
-                      </p>
-
-                      <p className="mt-1 max-w-[180px] truncate text-xs text-slate-500">
-                        {order.items
-                          ?.map((item) => item.productName)
-                          .join(", ") || "—"}
-                      </p>
-                    </td>
-
-                    {/* Total */}
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-900">
-                        {formatPrice(order.totalAmount)}
-                      </p>
-                    </td>
-
-                    {/* Payment */}
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          paymentStatusStyles[order.paymentStatus] ||
-                          "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {order.paymentStatus}
-                      </span>
-                    </td>
-
-                    {/* Order Status */}
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          orderStatusStyles[order.orderStatus] ||
-                          "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {order.orderStatus}
-                      </span>
-                    </td>
-
-                    {/* Date */}
-                    <td className="px-5 py-4 text-sm text-slate-600">
-                      {formatDate(order.createdAt)}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-5 py-4">
-                      <Link
-                        href={`/admin/orders/${order._id}`}
-                        title="View order details"
-                        className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-sm font-medium text-blue-700 transition hover:bg-blue-50"
-                      >
-                        <Eye size={16} />
-                        View
-                      </Link>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer and Pagination */}
-        <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs text-slate-500">
+        <div className="flex flex-col items-center justify-between gap-3 border-t border-[#E2E8F0] px-5 py-4 sm:flex-row">
+          <p className="text-xs text-[#64748B]">
             Showing {orders.length} of {totalOrders} orders
           </p>
 
-          <div className="flex items-center justify-between gap-3 sm:justify-end">
-            <span className="text-sm text-slate-500">
-              Page {pagination?.currentPage ?? filters.page} of{" "}
-              {pagination?.totalPages ?? 0}
-            </span>
-
-            <button
-              type="button"
-              onClick={() =>
-                handleFilterChange("page", filters.page - 1)
-              }
-              disabled={filters.page <= 1 || loading}
-              className="rounded-lg border border-slate-300 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Previous page"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                handleFilterChange("page", filters.page + 1)
-              }
-              disabled={
-                !pagination ||
-                filters.page >= pagination.totalPages ||
-                loading
-              }
-              className="rounded-lg border border-slate-300 p-2 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Next page"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
+          <Pagination
+            current={pagination?.currentPage ?? filters.page}
+            total={totalOrders}
+            pageSize={filters.limit}
+            showSizeChanger
+            pageSizeOptions={[10, 20, 50]}
+            onChange={(page, pageSize) =>
+              setFilters((previous) => ({
+                ...previous,
+                page: pageSize !== previous.limit ? 1 : page,
+                limit: pageSize,
+              }))
+            }
+          />
         </div>
-      </div>
+      </Card>
+
+      {/* Quick Order Details Drawer */}
+      <Drawer
+        title={
+          quickOrder
+            ? `Order #${quickOrder.orderNumber}`
+            : "Order Details Preview"
+        }
+        placement="right"
+        open={drawerOpen}
+        onClose={closeOrderDrawer}
+        loading={quickOrderLoading}
+        styles={{ wrapper: { width: "min(560px, 100vw)" } }}
+        extra={
+          quickOrder && (
+            <Link href={`/admin/orders/${quickOrder._id}`}>
+              <Button type="primary" size="small">
+                Full Management
+              </Button>
+            </Link>
+          )
+        }
+      >
+        {quickOrder && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap gap-2">
+              <Tag color={ORDER_STATUS_COLORS[quickOrder.orderStatus]}>
+                Order: {quickOrder.orderStatus}
+              </Tag>
+              <Tag color={PAYMENT_STATUS_COLORS[quickOrder.paymentStatus]}>
+                Payment: {quickOrder.paymentStatus}
+              </Tag>
+              <Tag>{quickOrder.paymentMethod}</Tag>
+            </div>
+
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="Customer">
+                {quickOrder.user?.name || "Unknown"} (
+                {quickOrder.user?.email || "—"})
+              </Descriptions.Item>
+              <Descriptions.Item label="Placed On">
+                {formatDate(quickOrder.createdAt)}
+              </Descriptions.Item>
+              <Descriptions.Item label="Grand Total">
+                <strong className="text-[#0755E9]">
+                  {formatPrice(quickOrder.totalAmount)}
+                </strong>
+              </Descriptions.Item>
+              <Descriptions.Item label="Shipping Address">
+                {[
+                  quickOrder.shippingAddress?.fullName,
+                  quickOrder.shippingAddress?.addressLine1,
+                  quickOrder.shippingAddress?.city,
+                  quickOrder.shippingAddress?.state,
+                  quickOrder.shippingAddress?.pincode,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </Descriptions.Item>
+            </Descriptions>
+
+            {quickOrder.orderStatus === "Cancelled" && (
+              <Alert
+                type="error"
+                showIcon
+                title={`Cancelled: ${quickOrder.cancellationReason || "Cancelled order"}`}
+                description={`Refund status: ${
+                  quickOrder.refundSummary?.status ||
+                  quickOrder.refundStatus ||
+                  "NOT_REQUIRED"
+                }`}
+              />
+            )}
+
+            <Divider titlePlacement="left" className="!my-3 !text-xs">
+              Order Items ({quickOrder.items?.length || 0})
+            </Divider>
+
+            <div className="space-y-2.5">
+              {(quickOrder.items || []).map((item, idx) => (
+                <div
+                  key={`${item.sku}-${idx}`}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-bold text-[#101828]">
+                      {item.productName}
+                    </p>
+                    <p className="text-[11px] text-[#64748B]">
+                      Qty {item.quantity} · SKU {item.sku || "N/A"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold tabular-nums text-[#101828]">
+                    {formatPrice(item.subtotal)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 }

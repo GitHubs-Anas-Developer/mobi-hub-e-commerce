@@ -1,12 +1,7 @@
 export const priceRanges = [
   {
-    label: "Under ₹500",
+    label: "Under ₹1,000",
     min: "",
-    max: "500",
-  },
-  {
-    label: "₹500 – ₹1,000",
-    min: "500",
     max: "1000",
   },
   {
@@ -15,8 +10,18 @@ export const priceRanges = [
     max: "5000",
   },
   {
-    label: "Above ₹5,000",
+    label: "₹5,000 – ₹20,000",
     min: "5000",
+    max: "20000",
+  },
+  {
+    label: "₹20,000 – ₹50,000",
+    min: "20000",
+    max: "50000",
+  },
+  {
+    label: "Above ₹50,000",
+    min: "50000",
     max: "",
   },
 ];

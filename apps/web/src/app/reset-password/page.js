@@ -15,7 +15,7 @@ import {
   Truck,
   Headphones,
 } from "lucide-react";
-import BrandMark from "@/components/common/BrandMark";
+import Logo from "@/components/layout/navbar/Logo";
 import authService from "@/services/authService";
 import { motion } from "motion/react";
 
@@ -117,7 +117,7 @@ function ResetPasswordForm() {
     } catch (error) {
       setValidationError(
         error?.response?.data?.message ||
-          "Unable to reset password. Please try again.",
+        "Unable to reset password. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -134,18 +134,9 @@ function ResetPasswordForm() {
           transition={{ duration: 0.4, ease: "easeOut" }}
           className="relative hidden overflow-hidden bg-[#082b70] px-8 py-8 text-white lg:flex lg:flex-col lg:justify-between xl:px-14"
         >
-          <div className="absolute -right-32 -top-32 h-80 w-80 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute -bottom-32 -left-32 h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
-
-          <Link href="/" className="relative z-10 flex items-center gap-2.5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-blue-700">
-              <BrandMark className="h-5 w-5" />
-            </span>
-
-            <span className="text-xl font-extrabold tracking-tight">
-              ELE<span className="text-blue-300">ZIO</span>
-            </span>
-          </Link>
+          <div className="relative z-10">
+            <Logo variant="white" />
+          </div>
 
           <div className="relative z-10 max-w-md">
             <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs text-blue-100">
@@ -160,7 +151,7 @@ function ResetPasswordForm() {
 
             <p className="mt-4 max-w-sm text-sm leading-6 text-blue-100/80">
               Create a strong new password to protect your personal information,
-              orders and account details with ELEZIO.
+              orders and account details with ELENZO.
             </p>
 
             <div className="mt-7 space-y-4">
@@ -206,7 +197,7 @@ function ResetPasswordForm() {
           </div>
 
           <p className="relative z-10 text-xs text-blue-100/60">
-            © {currentYear} ELEZIO. All rights reserved.
+            © {currentYear} ELENZO. All rights reserved.
           </p>
         </motion.section>
 
@@ -219,18 +210,9 @@ function ResetPasswordForm() {
         >
           <div className="w-full max-w-[400px]">
             {/* MOBILE BRAND */}
-            <Link
-              href="/"
-              className="mb-7 flex items-center justify-center gap-2 lg:hidden"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <BrandMark className="h-5 w-5" />
-              </span>
-
-              <span className="text-lg font-extrabold text-slate-900">
-                ELE<span className="text-blue-600">ZIO</span>
-              </span>
-            </Link>
+            <div className="mb-7 flex justify-center lg:hidden">
+              <Logo />
+            </div>
 
             {/* HEADER */}
             <div className="mb-6">
@@ -245,7 +227,7 @@ function ResetPasswordForm() {
               <p className="mt-2 text-sm leading-5 text-slate-500">
                 {isSubmitted
                   ? "Your account password has been successfully updated."
-                  : "Create a strong password to secure your ELEZIO account."}
+                  : "Create a strong password to secure your ELENZO account."}
               </p>
             </div>
 
@@ -361,15 +343,14 @@ function ResetPasswordForm() {
                         {[1, 2, 3, 4, 5].map((level) => (
                           <div
                             key={level}
-                            className={`h-1 flex-1 rounded-full transition-colors ${
-                              passwordStrength >= level
-                                ? passwordStrength <= 2
-                                  ? "bg-red-500"
-                                  : passwordStrength <= 3
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                                : "bg-slate-200"
-                            }`}
+                            className={`h-1 flex-1 rounded-full transition-colors ${passwordStrength >= level
+                              ? passwordStrength <= 2
+                                ? "bg-red-500"
+                                : passwordStrength <= 3
+                                  ? "bg-yellow-500"
+                                  : "bg-green-500"
+                              : "bg-slate-200"
+                              }`}
                           />
                         ))}
                       </div>

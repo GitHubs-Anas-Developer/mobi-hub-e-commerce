@@ -1,4 +1,4 @@
-
+import CategoriesPageHeader from "@/components/categories/CategoriesPageHeader";
 import AllCategoriesHeader from "@/components/categories/CategoriesBanner";
 import CategoryGrid from "@/components/categories/CategoryGrid";
 import RecentlyViewed from "@/components/recently-viewed/RecentlyViewed";
@@ -7,53 +7,52 @@ import Breadcrumb from "@/components/common/Breadcrumb";
 export const metadata = {
   title: "All Categories",
   description:
-    "Explore electronics, gadgets, and smart accessories at ELEZIO.",
+    "Explore electronics, gadgets, and smart accessories organized across ELENZO departments.",
 };
 
 export default function CategoriesPage() {
   return (
-    <main className="min-h-screen">
-      <div className="mx-auto w-full px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
-
-        {/* BREADCRUMB */}
+    <main className="min-h-screen w-full bg-[#F8FAFC] pb-24 xl:pb-12">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         <Breadcrumb
-          items={[
-            { label: "Categories" },
-          ]}
+          items={[{ label: "Categories" }]}
           className="mb-4"
         />
 
-        {/* CATEGORIES HEADER */}
-        <AllCategoriesHeader />
+        <CategoriesPageHeader />
 
-        {/* SHOP BY CATEGORY */}
+        <div className="mb-6">
+          <AllCategoriesHeader />
+        </div>
+
         <section
-          className="mt-10 sm:mt-14"
+          className="rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xs sm:p-6"
           aria-labelledby="shop-by-category-heading"
         >
-          <p className="text-xs font-bold uppercase tracking-widest text-[#0755E9]">
-            Find your favourites
-          </p>
+          <div className="mb-5 flex flex-col justify-between gap-2 border-b border-[#E2E8F0] pb-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-[#0755E9]">
+                Shop by Department
+              </p>
 
-          <h2
-            id="shop-by-category-heading"
-            className="mt-2 text-2xl font-bold text-[#101828] sm:text-3xl"
-          >
-            Shop by Category
-          </h2>
+              <h2
+                id="shop-by-category-heading"
+                className="mt-1 text-xl font-extrabold tracking-tight text-[#101828] sm:text-2xl"
+              >
+                All Product Categories
+              </h2>
+            </div>
 
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-            Browse our collection of mobile products and accessories.
-          </p>
-
-          <div className="mt-6 sm:mt-8">
-            <CategoryGrid />
+            <p className="max-w-md text-xs leading-relaxed text-[#64748B] sm:text-right sm:text-sm">
+              Select a department to explore subcategories, brands, and curated gadgets.
+            </p>
           </div>
+
+          <CategoryGrid />
         </section>
 
-        {/* RECENTLY VIEWED PRODUCTS */}
         <section
-          className="mt-12 sm:mt-16"
+          className="mt-10 sm:mt-12"
           aria-label="Recently viewed products"
         >
           <RecentlyViewed
@@ -61,7 +60,6 @@ export default function CategoriesPage() {
             limit={10}
           />
         </section>
-
       </div>
     </main>
   );

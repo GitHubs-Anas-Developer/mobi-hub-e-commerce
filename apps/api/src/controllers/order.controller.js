@@ -30,7 +30,7 @@ export const placeOrder = async (req, res, next) => {
           items: order.items,
           totalAmount: order.totalAmount,
         }),
-        text: `Your ELEZIO order ${order.orderNumber} has been confirmed.`,
+        text: `Your ELENZO order ${order.orderNumber} has been confirmed.`,
       });
     } catch (emailError) {
       console.error("Order confirmation email failed:", emailError.message);
@@ -80,15 +80,40 @@ export const fetchOrderById = async (req, res, next) => {
 
 export const cancelUserOrder = async (req, res, next) => {
   try {
+    const { reason, comment } = req.validatedData.body;
+
     const order = await cancelOrder(
       req.validatedData.params.orderId,
       req.user._id,
+      { reason, comment },
+      { isAdmin: false, actorId: req.user._id },
     );
 
     return res.status(200).json({
       success: true,
       message: "Order cancelled successfully",
       data: order,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelAdminOrder = async (req, res, next) => {
+  try {
+    const { reason, comment } = req.validatedData.body;
+
+    const order = await cancelOrder(
+      req.validatedData.params.orderId,
+      req.user._id,
+      { reason, comment },
+      { isAdmin: true, actorId: req.user._id },
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: "Order cancelled by admin successfully",
+      data: { order },
     });
   } catch (error) {
     next(error);
@@ -134,6 +159,7 @@ export const changePaymentStatus = async (req, res, next) => {
     const order = await updatePaymentStatus(
       req.validatedData.params.orderId,
       req.validatedData.body.paymentStatus,
+      req.user._id,
     );
 
     return res.status(200).json({

@@ -2,6 +2,9 @@ import Order from "../models/order.model.js";
 import Product from "../models/product.model.js";
 import User from "../models/user.model.js";
 import Payment from "../models/payment.model.js";
+import PaymentRefund from "../models/payment-refund.model.js";
+import Return from "../models/return.model.js";
+import Review from "../models/review.model.js";
 import { createError } from "../utils/createError.js";
 
 export const getDashboardOverview = async () => {
@@ -14,6 +17,9 @@ export const getDashboardOverview = async () => {
     revenueResult,
     totalRefunds,
     pendingPayments,
+    pendingRefundOrders,
+    pendingRefundAttempts,
+    pendingReturnRefunds,
   ] = await Promise.all([
     Order.countDocuments(),
 
@@ -54,7 +60,26 @@ export const getDashboardOverview = async () => {
     Payment.countDocuments({
       status: "Created",
     }),
+
+    Order.countDocuments({
+      refundStatus: {
+        $in: ["PENDING", "PROCESSING", "RECONCILIATION_REQUIRED"],
+      },
+    }),
+
+    PaymentRefund.countDocuments({
+      status: { $in: ["Pending", "Processing"] },
+    }),
+
+    Return.countDocuments({
+      status: { $in: ["InspectionPassed", "RefundProcessing"] },
+    }),
   ]);
+
+  const pendingRefunds = Math.max(
+    pendingRefundOrders,
+    pendingRefundAttempts + pendingReturnRefunds,
+  );
 
   return {
     totalOrders,
@@ -66,6 +91,7 @@ export const getDashboardOverview = async () => {
     totalRevenue: revenueResult[0]?.totalRevenue || 0,
     totalRefunds,
     pendingPayments,
+    pendingRefunds,
   };
 };
 
@@ -232,4 +258,26 @@ export const getPaymentStats = async () => {
   ]);
 
   return stats;
+};
+
+export const getRecentCustomerActivity = async (limit = 8) => {
+  const [recentCustomers, recentReviews] = await Promise.all([
+    User.find({ role: "customer" })
+      .sort({ lastLoginAt: -1, createdAt: -1 })
+      .limit(limit)
+      .select("name email phone isActive isEmailVerified lastLoginAt createdAt")
+      .lean(),
+    Review.find()
+      .sort({ createdAt: -1 })
+      .limit(Math.min(limit, 5))
+      .populate("user", "name email")
+      .populate("product", "name slug")
+      .select("rating comment isVisible createdAt")
+      .lean(),
+  ]);
+
+  return {
+    recentCustomers,
+    recentReviews,
+  };
 };

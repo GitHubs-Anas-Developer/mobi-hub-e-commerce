@@ -1,8 +1,14 @@
-
 "use client";
 
 import { useState } from "react";
-import { Loader2, Save, X } from "lucide-react";
+import { Alert, Button, Card, Input, InputNumber, Select } from "antd";
+import {
+  CalendarClock,
+  Percent,
+  Save,
+  Tag as TagIcon,
+  Users,
+} from "lucide-react";
 
 const initialFormData = {
   code: "",
@@ -17,412 +23,426 @@ const initialFormData = {
   perUserLimit: 1,
 };
 
+const fieldLabelClass =
+  "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#475569]";
+
 export default function CouponForm({
   initialData = initialFormData,
   loading = false,
   onSubmit,
   onCancel,
   submitLabel = "Create Coupon",
-
 }) {
   const [formData, setFormData] = useState({
     ...initialFormData,
     ...initialData,
   });
 
-  const [error, setError] = useState("");
+  const [validationError, setValidationError] = useState("");
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
+  const setField = (name, value) => {
+    setValidationError("");
 
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((previous) => {
+      const updated = {
+        ...previous,
+        [name]: name === "code" ? String(value || "").toUpperCase() : value,
+      };
+
+      if (name === "discountType" && value === "Fixed") {
+        updated.maxDiscountAmount = "";
+      }
+
+      return updated;
+    });
   };
 
-  const validateForm = () => {
-    const {
-      code,
-      discountType,
-      discountValue,
-      minOrderAmount,
-      startDate,
-      expiryDate,
-      perUserLimit,
-      maxDiscountAmount,
-      usageLimit,
-    } = formData;
-
-    if (!code.trim()) return "Coupon code is required.";
-
-    if (!/^[A-Za-z0-9_-]{3,30}$/.test(code.trim())) {
-      return "Coupon code must be 3–30 characters and contain only letters, numbers, _ or -.";
-    }
-
-    if (!["Percentage", "Fixed"].includes(discountType)) {
-      return "Please select a valid discount type.";
-    }
-
-    if (
-      discountValue === "" ||
-      !Number.isFinite(Number(discountValue)) ||
-      Number(discountValue) <= 0
-    ) {
-      return "Enter a valid discount value.";
-    }
-
-    if (
-      discountType === "Percentage" &&
-      Number(discountValue) > 100
-    ) {
-      return "Percentage discount cannot exceed 100.";
-    }
-
-    if (
-      minOrderAmount === "" ||
-      !Number.isFinite(Number(minOrderAmount)) ||
-      Number(minOrderAmount) < 0
-    ) {
-      return "Enter a valid minimum order amount.";
-    }
-
-    if (
-      maxDiscountAmount !== "" &&
-      (!Number.isFinite(Number(maxDiscountAmount)) ||
-        Number(maxDiscountAmount) <= 0)
-    ) {
-      return "Maximum discount amount must be positive.";
-    }
-
-    if (!startDate || !expiryDate) {
-      return "Start date and expiry date are required.";
-    }
-
-    if (new Date(expiryDate) <= new Date(startDate)) {
-      return "Expiry date must be after start date.";
-    }
-
-    if (
-      usageLimit !== "" &&
-      (!Number.isInteger(Number(usageLimit)) ||
-        Number(usageLimit) <= 0)
-    ) {
-      return "Usage limit must be a positive whole number.";
-    }
-
-    if (
-      !Number.isInteger(Number(perUserLimit)) ||
-      Number(perUserLimit) <= 0
-    ) {
-      return "Per-user limit must be a positive whole number.";
-    }
-
-    return "";
-  };
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
+    setValidationError("");
 
-    setError("");
+    const trimmedCode = formData.code.trim().toUpperCase();
 
-    const validationError = validateForm();
+    if (!trimmedCode) {
+      setValidationError("Coupon code is required");
+      return;
+    }
 
-    if (validationError) {
-      setError(validationError);
+    if (!/^[A-Za-z0-9_-]{3,30}$/.test(trimmedCode)) {
+      setValidationError(
+        "Coupon code must be 3 to 30 characters and contain only letters, numbers, hyphens, or underscores.",
+      );
+      return;
+    }
+
+    const discountValue = Number(formData.discountValue);
+
+    if (
+      formData.discountValue === "" ||
+      Number.isNaN(discountValue) ||
+      discountValue <= 0
+    ) {
+      setValidationError("Discount value must be greater than 0.");
+      return;
+    }
+
+    if (formData.discountType === "Percentage" && discountValue > 100) {
+      setValidationError("Percentage discount cannot exceed 100%.");
+      return;
+    }
+
+    const minOrderAmount = Number(formData.minOrderAmount);
+
+    if (Number.isNaN(minOrderAmount) || minOrderAmount < 0) {
+      setValidationError("Minimum order amount cannot be negative.");
+      return;
+    }
+
+    if (
+      formData.discountType === "Percentage" &&
+      formData.maxDiscountAmount !== "" &&
+      formData.maxDiscountAmount !== null &&
+      Number(formData.maxDiscountAmount) <= 0
+    ) {
+      setValidationError("Maximum discount amount must be greater than 0.");
+      return;
+    }
+
+    if (!formData.startDate || !formData.expiryDate) {
+      setValidationError("Start date and expiry date are required.");
+      return;
+    }
+
+    const start = new Date(formData.startDate);
+    const expiry = new Date(formData.expiryDate);
+
+    if (expiry <= start) {
+      setValidationError("Expiry date must be later than start date.");
+      return;
+    }
+
+    if (formData.usageLimit !== "" && formData.usageLimit !== null) {
+      const usageLimit = Number(formData.usageLimit);
+
+      if (!Number.isInteger(usageLimit) || usageLimit < 1) {
+        setValidationError("Usage limit must be a whole number at least 1.");
+        return;
+      }
+    }
+
+    const perUserLimit = Number(formData.perUserLimit);
+
+    if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
+      setValidationError("Per user limit must be a whole number at least 1.");
       return;
     }
 
     const payload = {
-      code: formData.code.trim().toUpperCase(),
+      code: trimmedCode,
       description: formData.description.trim(),
       discountType: formData.discountType,
-      discountValue: Number(formData.discountValue),
-      minOrderAmount: Number(formData.minOrderAmount),
+      discountValue,
+      minOrderAmount,
       maxDiscountAmount:
-        formData.maxDiscountAmount === ""
+        formData.maxDiscountAmount === "" ||
+        formData.maxDiscountAmount === null
           ? null
           : Number(formData.maxDiscountAmount),
-      startDate: new Date(formData.startDate).toISOString(),
-      expiryDate: new Date(formData.expiryDate).toISOString(),
+      startDate: start.toISOString(),
+      expiryDate: expiry.toISOString(),
       usageLimit:
-        formData.usageLimit === ""
+        formData.usageLimit === "" || formData.usageLimit === null
           ? null
           : Number(formData.usageLimit),
-      perUserLimit: Number(formData.perUserLimit),
+      perUserLimit,
     };
 
-    onSubmit(payload);
+    await onSubmit(payload);
   };
 
-  const inputClass =
-    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
-
-  const labelClass =
-    "mb-1.5 block text-sm font-medium text-slate-700";
-
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Basic Information
-        </h2>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {validationError && (
+        <Alert
+          type="error"
+          showIcon
+          title="Validation Error"
+          description={validationError}
+          closable
+          onClose={() => setValidationError("")}
+        />
+      )}
 
-        <p className="mt-1 text-sm text-slate-500">
-          Enter the coupon code and its description.
-        </p>
-
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      {/* Basic Details */}
+      <Card
+        title={
+          <span className="flex items-center gap-2 text-base font-semibold text-[#101828]">
+            <TagIcon size={17} className="text-[#0755E9]" />
+            Coupon Details
+          </span>
+        }
+        className="border-[#E2E8F0] shadow-xs"
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="code" className={labelClass}>
+            <label htmlFor="code" className={fieldLabelClass}>
               Coupon Code *
             </label>
 
-            <input
+            <Input
               id="code"
               name="code"
-              type="text"
+              size="large"
               value={formData.code}
-              onChange={handleChange}
+              onChange={(event) => setField("code", event.target.value)}
               placeholder="e.g. SAVE20"
               maxLength={30}
-              required
-              className={inputClass}
+              className="font-mono font-semibold uppercase"
             />
-
-            <p className="mt-1 text-xs text-slate-400">
-              3–30 characters. Letters, numbers, _ and - only.
-            </p>
           </div>
 
           <div>
-            <label htmlFor="description" className={labelClass}>
+            <label htmlFor="description" className={fieldLabelClass}>
               Description
             </label>
 
-            <input
+            <Input
               id="description"
               name="description"
-              type="text"
+              size="large"
               value={formData.description}
-              onChange={handleChange}
+              onChange={(event) => setField("description", event.target.value)}
               placeholder="Enter coupon description"
               maxLength={300}
-              className={inputClass}
             />
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Discount Details */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Discount Details
-        </h2>
-
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <Card
+        title={
+          <span className="flex items-center gap-2 text-base font-semibold text-[#101828]">
+            <Percent size={17} className="text-[#0755E9]" />
+            Discount Details
+          </span>
+        }
+        className="border-[#E2E8F0] shadow-xs"
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="discountType" className={labelClass}>
+            <label htmlFor="discountType" className={fieldLabelClass}>
               Discount Type *
             </label>
 
-            <select
+            <Select
               id="discountType"
-              name="discountType"
+              size="large"
               value={formData.discountType}
-              onChange={handleChange}
-              className={inputClass}
-            >
-              <option value="Percentage">Percentage (%)</option>
-              <option value="Fixed">Fixed Amount (₹)</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="discountValue" className={labelClass}>
-              Discount Value *
-            </label>
-
-            <input
-              id="discountValue"
-              name="discountValue"
-              type="number"
-              min="0.01"
-              max={
-                formData.discountType === "Percentage"
-                  ? 100
-                  : undefined
-              }
-              step="0.01"
-              value={formData.discountValue}
-              onChange={handleChange}
-              placeholder="Enter discount value"
-              required
-              className={inputClass}
+              onChange={(value) => setField("discountType", value)}
+              className="w-full"
+              options={[
+                { label: "Percentage (%)", value: "Percentage" },
+                { label: "Fixed Amount (₹)", value: "Fixed" },
+              ]}
             />
           </div>
 
           <div>
-            <label htmlFor="minOrderAmount" className={labelClass}>
+            <label htmlFor="discountValue" className={fieldLabelClass}>
+              Discount Value *
+            </label>
+
+            <InputNumber
+              id="discountValue"
+              name="discountValue"
+              size="large"
+              min={0.01}
+              max={formData.discountType === "Percentage" ? 100 : undefined}
+              step={0.01}
+              value={
+                formData.discountValue === "" ? null : Number(formData.discountValue)
+              }
+              onChange={(value) =>
+                setField("discountValue", value === null ? "" : value)
+              }
+              placeholder="Enter discount value"
+              className="!w-full"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="minOrderAmount" className={fieldLabelClass}>
               Minimum Order Amount (₹) *
             </label>
 
-            <input
+            <InputNumber
               id="minOrderAmount"
               name="minOrderAmount"
-              type="number"
-              min="0"
-              step="0.01"
-              value={formData.minOrderAmount}
-              onChange={handleChange}
-              required
-              className={inputClass}
+              size="large"
+              min={0}
+              step={0.01}
+              value={
+                formData.minOrderAmount === ""
+                  ? null
+                  : Number(formData.minOrderAmount)
+              }
+              onChange={(value) =>
+                setField("minOrderAmount", value === null ? 0 : value)
+              }
+              className="!w-full"
             />
           </div>
 
           {formData.discountType === "Percentage" && (
             <div>
-              <label
-                htmlFor="maxDiscountAmount"
-                className={labelClass}
-              >
+              <label htmlFor="maxDiscountAmount" className={fieldLabelClass}>
                 Maximum Discount Amount (₹)
               </label>
 
-              <input
+              <InputNumber
                 id="maxDiscountAmount"
                 name="maxDiscountAmount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={formData.maxDiscountAmount}
-                onChange={handleChange}
+                size="large"
+                min={0.01}
+                step={0.01}
+                value={
+                  formData.maxDiscountAmount === "" ||
+                  formData.maxDiscountAmount === null
+                    ? null
+                    : Number(formData.maxDiscountAmount)
+                }
+                onChange={(value) =>
+                  setField("maxDiscountAmount", value === null ? "" : value)
+                }
                 placeholder="No maximum limit"
-                className={inputClass}
+                className="!w-full"
               />
             </div>
           )}
         </div>
-      </section>
+      </Card>
 
       {/* Validity */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Coupon Validity
-        </h2>
-
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <Card
+        title={
+          <span className="flex items-center gap-2 text-base font-semibold text-[#101828]">
+            <CalendarClock size={17} className="text-[#0755E9]" />
+            Coupon Validity
+          </span>
+        }
+        className="border-[#E2E8F0] shadow-xs"
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="startDate" className={labelClass}>
+            <label htmlFor="startDate" className={fieldLabelClass}>
               Start Date *
             </label>
 
-            <input
+            <Input
               id="startDate"
               name="startDate"
               type="datetime-local"
+              size="large"
               value={formData.startDate}
-              onChange={handleChange}
+              onChange={(event) => setField("startDate", event.target.value)}
               required
-              className={inputClass}
             />
           </div>
 
           <div>
-            <label htmlFor="expiryDate" className={labelClass}>
+            <label htmlFor="expiryDate" className={fieldLabelClass}>
               Expiry Date *
             </label>
 
-            <input
+            <Input
               id="expiryDate"
               name="expiryDate"
               type="datetime-local"
+              size="large"
               value={formData.expiryDate}
-              onChange={handleChange}
+              onChange={(event) => setField("expiryDate", event.target.value)}
               required
-              className={inputClass}
             />
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Usage Limits */}
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <h2 className="text-lg font-semibold text-slate-900">
-          Usage Limits
-        </h2>
-
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
+      <Card
+        title={
+          <span className="flex items-center gap-2 text-base font-semibold text-[#101828]">
+            <Users size={17} className="text-[#0755E9]" />
+            Usage Limits
+          </span>
+        }
+        className="border-[#E2E8F0] shadow-xs"
+      >
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="usageLimit" className={labelClass}>
+            <label htmlFor="usageLimit" className={fieldLabelClass}>
               Total Usage Limit
             </label>
 
-            <input
+            <InputNumber
               id="usageLimit"
               name="usageLimit"
-              type="number"
-              min="1"
-              step="1"
-              value={formData.usageLimit}
-              onChange={handleChange}
+              size="large"
+              min={1}
+              step={1}
+              precision={0}
+              value={
+                formData.usageLimit === "" || formData.usageLimit === null
+                  ? null
+                  : Number(formData.usageLimit)
+              }
+              onChange={(value) =>
+                setField("usageLimit", value === null ? "" : value)
+              }
               placeholder="Unlimited"
-              className={inputClass}
+              className="!w-full"
             />
           </div>
 
           <div>
-            <label htmlFor="perUserLimit" className={labelClass}>
+            <label htmlFor="perUserLimit" className={fieldLabelClass}>
               Per User Limit *
             </label>
 
-            <input
+            <InputNumber
               id="perUserLimit"
               name="perUserLimit"
-              type="number"
-              min="1"
-              step="1"
-              value={formData.perUserLimit}
-              onChange={handleChange}
-              required
-              className={inputClass}
+              size="large"
+              min={1}
+              step={1}
+              precision={0}
+              value={
+                formData.perUserLimit === "" ? null : Number(formData.perUserLimit)
+              }
+              onChange={(value) =>
+                setField("perUserLimit", value === null ? 1 : value)
+              }
+              className="!w-full"
             />
           </div>
         </div>
-      </section>
-
-      {/* Error */}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
+      </Card>
 
       {/* Actions */}
-      <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          <X size={16} />
+      <div className="flex flex-col-reverse justify-end gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-4 shadow-xs sm:flex-row">
+        <Button size="large" onClick={onCancel} disabled={loading}>
           Cancel
-        </button>
+        </Button>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+        <Button
+          type="primary"
+          htmlType="submit"
+          size="large"
+          loading={loading}
+          icon={<Save size={16} />}
         >
-          {loading ? (
-            <Loader2 size={17} className="animate-spin" />
-          ) : (
-            <Save size={17} />
-          )}
-
-          {loading ? "Saving..." : "Create Coupon"}        </button>
+          {submitLabel}
+        </Button>
       </div>
     </form>
   );
