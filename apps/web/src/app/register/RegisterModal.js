@@ -182,7 +182,7 @@ export default function RegisterModal({ isOpen, onClose, onSwitchToLogin }) {
     } catch (error) {
       setFormError(
         error?.response?.data?.message ||
-          "Unable to resend verification email. Please try again.",
+        "Unable to resend verification email. Please try again.",
       );
     } finally {
       setResendingEmail(false);

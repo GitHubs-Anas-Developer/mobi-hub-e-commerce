@@ -1,93 +1,186 @@
-
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Button, Card, Empty, Input, Tag, Tooltip } from "antd";
+import { ListChecks, Plus, Trash2 } from "lucide-react";
+
+const QUICK_SPEC_KEYS = [
+  "Display",
+  "Processor",
+  "Battery",
+  "Connectivity",
+  "Charging",
+  "Warranty",
+  "Weight",
+  "In the Box",
+];
 
 export default function ProductSpecifications({
-  specifications,
+  specifications = [],
   onAdd,
   onChange,
   onRemove,
+  onQuickAdd,
+  error = "",
 }) {
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">
-            Product Specifications
-          </h2>
+  const handleQuickPreset = (presetKey) => {
+    const exists = specifications.some(
+      (item) => item.key.trim().toLowerCase() === presetKey.toLowerCase(),
+    );
+    if (exists) return;
 
-          <p className="mt-1 text-sm text-slate-500">
-            Add technical details about your product.
-          </p>
+    if (onQuickAdd) {
+      onQuickAdd(presetKey);
+      return;
+    }
+
+    const emptyIndex = specifications.findIndex(
+      (item) => !item.key.trim() && !item.value.trim(),
+    );
+
+    if (emptyIndex !== -1) {
+      onChange(emptyIndex, "key", presetKey);
+    } else {
+      onAdd();
+    }
+  };
+
+  return (
+    <Card
+      className="!border-[#E2E8F0] shadow-xs"
+      title={
+        <div className="flex flex-wrap items-center justify-between gap-3 py-1">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+              <ListChecks size={17} />
+            </div>
+            <div>
+              <h2 className="!m-0 text-base font-bold text-[#101828]">
+                Product Specifications
+              </h2>
+              <p className="mt-0.5 text-xs font-normal text-[#64748B]">
+                Add structured technical specs displayed on the product details page.
+              </p>
+            </div>
+          </div>
+
+          <Button type="primary" ghost icon={<Plus size={15} />} onClick={onAdd}>
+            Add Row
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-4">
+        {/* Quick Electronics Spec Presets */}
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-2.5">
+          <span className="text-xs font-semibold text-[#64748B]">
+            Quick add:
+          </span>
+          {QUICK_SPEC_KEYS.map((preset) => {
+            const alreadyAdded = specifications.some(
+              (item) => item.key.trim().toLowerCase() === preset.toLowerCase(),
+            );
+
+            return (
+              <Tag
+                key={preset}
+                color={alreadyAdded ? "blue" : "default"}
+                onClick={() => !alreadyAdded && handleQuickPreset(preset)}
+                className={`!m-0 select-none ${
+                  alreadyAdded
+                    ? "opacity-60"
+                    : "cursor-pointer hover:!border-[#0755E9] hover:!text-[#0755E9]"
+                }`}
+              >
+                {alreadyAdded ? preset : `+ ${preset}`}
+              </Tag>
+            );
+          })}
         </div>
 
-        <button
-          type="button"
-          onClick={onAdd}
-          className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          Add Specification
-        </button>
-      </div>
+        {/* Specification Rows */}
+        {specifications.length === 0 ? (
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="No specifications added yet."
+          />
+        ) : (
+          <div className="space-y-3">
+            {specifications.map((specification, index) => {
+              const hasKeyOnly =
+                Boolean(specification.key.trim()) &&
+                !specification.value.trim();
+              const hasValueOnly =
+                !specification.key.trim() &&
+                Boolean(specification.value.trim());
 
-      <div className="mt-6 space-y-4">
-        {specifications.map((specification, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1fr_1fr_auto]"
-          >
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Specification Name
-              </label>
+              return (
+                <div
+                  key={index}
+                  className="grid grid-cols-1 items-start gap-3 rounded-xl border border-[#E2E8F0] bg-white p-3 sm:grid-cols-[1fr_1fr_auto]"
+                >
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+                      Specification Name
+                    </label>
+                    <Input
+                      value={specification.key}
+                      status={hasValueOnly ? "error" : undefined}
+                      onChange={(event) =>
+                        onChange(index, "key", event.target.value)
+                      }
+                      placeholder="e.g. Connectivity"
+                    />
+                    {hasValueOnly && (
+                      <p className="mt-1 text-xs text-red-600">
+                        Enter a specification name or remove this row.
+                      </p>
+                    )}
+                  </div>
 
-              <input
-                type="text"
-                value={specification.key}
-                onChange={(event) =>
-                  onChange(index, "key", event.target.value)
-                }
-                placeholder="e.g. Connectivity"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#64748B]">
+                      Specification Value
+                    </label>
+                    <Input
+                      value={specification.value}
+                      status={hasKeyOnly ? "error" : undefined}
+                      onChange={(event) =>
+                        onChange(index, "value", event.target.value)
+                      }
+                      placeholder="e.g. Bluetooth 5.3 + USB-C"
+                    />
+                    {hasKeyOnly && (
+                      <p className="mt-1 text-xs text-red-600">
+                        Enter a value or remove this row.
+                      </p>
+                    )}
+                  </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Value
-              </label>
-
-              <input
-                type="text"
-                value={specification.value}
-                onChange={(event) =>
-                  onChange(index, "value", event.target.value)
-                }
-                placeholder="e.g. Bluetooth 5.3"
-                className="w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => onRemove(index)}
-              disabled={specifications.length === 1}
-              title="Remove specification"
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-red-200 text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Trash2 size={17} />
-            </button>
+                  <div className="flex sm:pt-6">
+                    <Tooltip
+                      title={
+                        specifications.length === 1
+                          ? "Keep at least one specification row (leave empty if unused)"
+                          : "Remove specification"
+                      }
+                    >
+                      <Button
+                        danger
+                        icon={<Trash2 size={15} />}
+                        disabled={specifications.length === 1}
+                        onClick={() => onRemove(index)}
+                        aria-label={`Remove specification ${index + 1}`}
+                      />
+                    </Tooltip>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-
-        {specifications.length === 0 && (
-          <p className="rounded-lg bg-slate-50 py-8 text-center text-sm text-slate-500">
-            No specifications added yet.
-          </p>
         )}
+
+        {error && <p className="text-xs font-medium text-red-600">{error}</p>}
       </div>
-    </section>
+    </Card>
   );
 }

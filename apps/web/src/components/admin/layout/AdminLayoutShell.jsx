@@ -27,7 +27,6 @@ export default function AdminLayoutShell({ children }) {
           href="/"
           className="inline-flex items-center gap-1 text-xs font-medium text-[#64748B] hover:text-[#0755E9]"
         >
-          <Home size={12} />
           <span>Store</span>
         </Link>
       ),
@@ -99,8 +98,8 @@ export default function AdminLayoutShell({ children }) {
           <Breadcrumb items={breadcrumbItems} />
         </div>
 
-        <Content className="w-full min-w-0 flex-1 p-3 sm:p-6 lg:p-7">
-          <div className="mx-auto w-full max-w-[1600px]">{children}</div>
+        <Content className="w-full min-w-0 flex-1 !p-4 sm:!p-6">
+          <div className="mx-auto w-full min-w-0 max-w-[1600px]">{children}</div>
         </Content>
       </Layout>
     </Layout>

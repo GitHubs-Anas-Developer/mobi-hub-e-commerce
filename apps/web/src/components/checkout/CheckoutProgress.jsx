@@ -47,18 +47,18 @@ export default function CheckoutProgress({
   return (
     <nav
       aria-label="Checkout progress"
-      className="mb-6 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3.5 sm:px-6"
+      className="mb-4 rounded-xl border border-[#E2E8F0] bg-white px-3 py-2.5 sm:mb-5 sm:px-5"
     >
-      <ol className="flex items-center justify-between gap-2">
+      <ol className="flex items-center justify-between gap-1 sm:gap-2">
         {steps.map((step, index) => {
           const Icon = step.icon;
           const isCompleted = step.status === "completed";
           const isCurrent = step.status === "current";
 
           const content = (
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <span
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs font-bold transition ${
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold transition sm:h-8 sm:w-8 sm:text-xs ${
                   isCompleted
                     ? "border-[#0755E9] bg-[#0755E9] text-white"
                     : isCurrent
@@ -74,11 +74,11 @@ export default function CheckoutProgress({
               </span>
 
               <div className="min-w-0">
-                <span className="hidden text-[10px] font-semibold uppercase tracking-wider text-[#64748B] sm:block">
+                <span className="hidden text-[9px] font-semibold uppercase tracking-wider text-[#64748B] md:block">
                   Step {step.number}
                 </span>
                 <span
-                  className={`block truncate text-xs font-bold sm:text-sm ${
+                  className={`block truncate text-[10px] font-bold leading-tight sm:text-xs md:text-sm ${
                     isCurrent
                       ? "text-[#0755E9]"
                       : isCompleted
@@ -112,7 +112,7 @@ export default function CheckoutProgress({
               {index < steps.length - 1 && (
                 <div
                   aria-hidden="true"
-                  className={`mx-2 h-0.5 flex-1 rounded-full sm:mx-4 ${
+                  className={`mx-1 h-0.5 flex-1 rounded-full sm:mx-2.5 ${
                     isCompleted ? "bg-[#0755E9]" : "bg-[#E2E8F0]"
                   }`}
                 />

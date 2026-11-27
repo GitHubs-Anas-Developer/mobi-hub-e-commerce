@@ -1,4 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
+import { AntdRegistry } from "@ant-design/nextjs-registry";
 import "./globals.css";
 
 import { Toaster } from "sonner";
@@ -67,18 +69,22 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body>
-        <StoreProvider>
-          <AppShell>{children}</AppShell>
+        <Suspense fallback={<main className="min-h-screen flex-1 bg-white" />}>
+          <AntdRegistry>
+            <StoreProvider>
+              <AppShell>{children}</AppShell>
 
-          <Toaster
-            position="top-right"
-            theme="light"
-            richColors
-            closeButton
-            duration={3500}
-            visibleToasts={3}
-          />
-        </StoreProvider>
+              <Toaster
+                position="top-right"
+                theme="light"
+                richColors
+                closeButton
+                duration={3500}
+                visibleToasts={3}
+              />
+            </StoreProvider>
+          </AntdRegistry>
+        </Suspense>
       </body>
     </html>
   );

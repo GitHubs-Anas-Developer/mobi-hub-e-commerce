@@ -139,7 +139,7 @@ export default function ProductActions({
               className="inline-flex h-11 items-center justify-center gap-1 rounded-xl border border-[#0755E9] bg-[#EFF6FF] px-3.5 text-xs font-bold text-[#0755E9] transition hover:bg-[#0755E9] hover:text-white disabled:cursor-not-allowed disabled:border-[#E2E8F0] disabled:bg-slate-100 disabled:text-slate-400"
             >
               <Zap size={14} />
-              <span>Buy</span>
+              <span>Buy Now</span>
             </button>
           </div>
         </div>

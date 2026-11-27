@@ -42,11 +42,11 @@ export default function PaymentMethod({
   return (
     <section
       aria-labelledby="checkout-payment-heading"
-      className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+      className="rounded-xl border border-[#E2E8F0] bg-white p-4 sm:p-5"
     >
-      <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
-          <CreditCard size={19} aria-hidden="true" />
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+          <CreditCard size={17} aria-hidden="true" />
         </div>
 
         <div>
@@ -70,7 +70,7 @@ export default function PaymentMethod({
           return (
             <label
               key={method.id}
-              className={`relative flex items-start gap-3 rounded-2xl border p-4 transition-all duration-150 sm:gap-4 sm:p-5 ${
+              className={`relative flex items-start gap-3 rounded-xl border p-3.5 transition-all duration-150 sm:gap-4 sm:p-4 ${
                 disabled
                   ? "cursor-not-allowed opacity-60"
                   : "cursor-pointer"
@@ -93,7 +93,7 @@ export default function PaymentMethod({
               </div>
 
               <div
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                   selected
                     ? "bg-[#0755E9] text-white"
                     : "border border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B]"

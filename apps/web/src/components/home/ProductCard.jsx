@@ -44,9 +44,9 @@ export default function ProductCard({
 
   const stock = Number(
     defaultVariant?.stock ??
-      product.totalStock ??
-      product.stock ??
-      0
+    product.totalStock ??
+    product.stock ??
+    0
   );
   const inStock = stock > 0;
 
@@ -102,11 +102,10 @@ export default function ProductCard({
             isWishlisted ? "Remove from wishlist" : "Add to wishlist"
           }
           aria-pressed={isWishlisted}
-          className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border shadow-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:right-3 sm:top-3 sm:h-9 sm:w-9 ${
-            isWishlisted
+          className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border shadow-xs transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:right-3 sm:top-3 sm:h-9 sm:w-9 ${isWishlisted
               ? "border-red-100 bg-red-50 text-red-500"
               : "border-[#E2E8F0] bg-white text-[#64748B] hover:border-red-200 hover:bg-red-50 hover:text-red-500"
-          }`}
+            }`}
         >
           {wishlistIsMutating ? (
             <Loader2 size={15} className="animate-spin" />
@@ -170,14 +169,12 @@ export default function ProductCard({
           <div className="mt-1.5 flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <span
-                className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-                  inStock ? "bg-[#16A34A]" : "bg-[#DC2626]"
-                }`}
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${inStock ? "bg-[#16A34A]" : "bg-[#DC2626]"
+                  }`}
               />
               <span
-                className={`text-[10px] font-semibold sm:text-[11px] ${
-                  inStock ? "text-[#16A34A]" : "text-[#DC2626]"
-                }`}
+                className={`text-[10px] font-semibold sm:text-[11px] ${inStock ? "text-[#16A34A]" : "text-[#DC2626]"
+                  }`}
               >
                 {inStock ? "In Stock" : "Out of Stock"}
               </span>

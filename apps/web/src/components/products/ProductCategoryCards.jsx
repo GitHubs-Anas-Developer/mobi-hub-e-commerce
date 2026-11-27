@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { LayoutGrid, Package, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutGrid, Package, Check } from "lucide-react";
 
 const getCategoryImage = (item) => {
   if (typeof item?.image === "string") {
@@ -25,13 +25,10 @@ export default function ProductCategoryCards({
   selectedCategory = "",
   onCategorySelect,
 }) {
-  const scrollRef = useRef(null);
-
-  const dragState = useRef({
-    isDragging: false,
-    startX: 0,
-    scrollLeft: 0,
-    moved: false,
+  const carouselRef = useRef(null);
+  const [scrollState, setScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
   });
 
   const categoryItems = useMemo(() => {
@@ -53,100 +50,110 @@ export default function ProductCategoryCards({
     ];
   }, [categories]);
 
-  const handleMouseDown = (event) => {
-    if (event.button !== 0) return;
-    const container = scrollRef.current;
-    if (!container) return;
-
-    dragState.current = {
-      isDragging: true,
-      startX: event.clientX,
-      scrollLeft: container.scrollLeft,
-      moved: false,
-    };
-  };
-
-  const handleMouseMove = (event) => {
-    if (!dragState.current.isDragging) return;
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const deltaX = event.clientX - dragState.current.startX;
-    if (Math.abs(deltaX) > 4) {
-      dragState.current.moved = true;
-    }
-    container.scrollLeft = dragState.current.scrollLeft - deltaX;
-  };
-
-  const handleMouseUp = () => {
-    dragState.current.isDragging = false;
-  };
-
-  const handleCategoryClick = (event, itemId) => {
-    if (dragState.current.moved) {
-      event.preventDefault();
-      dragState.current.moved = false;
-      return;
-    }
+  const handleCategoryClick = (itemId) => {
     onCategorySelect?.(itemId === "all" ? "" : itemId);
   };
 
-  const scrollByAmount = (direction) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    container.scrollBy({
-      left: direction * 280,
+  const updateScrollState = useCallback(() => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+
+    const maxScrollLeft = Math.max(
+      0,
+      carousel.scrollWidth - carousel.clientWidth,
+    );
+    setScrollState({
+      canScrollLeft: carousel.scrollLeft > 1,
+      canScrollRight: maxScrollLeft - carousel.scrollLeft > 1,
+    });
+  }, []);
+
+  useEffect(() => {
+    const carousel = carouselRef.current;
+    if (!carousel) return undefined;
+
+    updateScrollState();
+    carousel.addEventListener("scroll", updateScrollState, { passive: true });
+
+    const resizeObserver = new ResizeObserver(updateScrollState);
+    resizeObserver.observe(carousel);
+    if (carousel.firstElementChild) {
+      resizeObserver.observe(carousel.firstElementChild);
+    }
+
+    return () => {
+      carousel.removeEventListener("scroll", updateScrollState);
+      resizeObserver.disconnect();
+    };
+  }, [categoryItems.length, updateScrollState]);
+
+  const scrollCarousel = (direction) => {
+    const carousel = carouselRef.current;
+    if (!carousel) return;
+
+    carousel.scrollBy({
+      left: direction * Math.min(carousel.clientWidth * 0.75, 360),
       behavior: "smooth",
     });
+  };
+
+  const handleCarouselWheel = (event) => {
+    const carousel = carouselRef.current;
+    if (!carousel || carousel.scrollWidth <= carousel.clientWidth) return;
+
+    // Convert a regular mouse wheel to horizontal movement; trackpads already
+    // provide deltaX and remain native.
+    if (Math.abs(event.deltaX) < Math.abs(event.deltaY)) {
+      carousel.scrollLeft += event.deltaY;
+      event.preventDefault();
+    }
   };
 
   if (categoryItems.length <= 1) return null;
 
   return (
     <section
-      className="mb-5 w-full min-w-0 rounded-2xl border border-[#E2E8F0] bg-white p-4 sm:mb-6 sm:p-5"
+      className="mb-4 w-full min-w-0 rounded-2xl border border-[#E2E8F0] bg-white p-3.5 shadow-[0_8px_28px_rgba(16,24,40,0.035)] sm:mb-5 sm:p-5"
       aria-labelledby="shop-category-heading"
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
+      <div className="mb-3.5 flex min-w-0 items-center justify-between gap-3 sm:mb-4">
+        <div className="min-w-0">
           <h2
             id="shop-category-heading"
-            className="text-sm font-bold tracking-tight text-[#101828] sm:text-base"
+            className="text-[19px] font-semibold leading-6 tracking-[-0.02em] text-[#101828] sm:text-[23px] sm:leading-7"
           >
-            Browse by Category
+            Browse Categories
           </h2>
-          <p className="mt-0.5 text-xs text-[#64748B]">
-            Filter products instantly across ELENZO departments
+          <p className="mt-0.5 text-xs leading-5 text-[#64748B]">
+            Explore products by category.
           </p>
         </div>
-
-        <div className="hidden items-center gap-1.5 sm:flex">
+        <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
-            onClick={() => scrollByAmount(-1)}
+            onClick={() => scrollCarousel(-1)}
+            disabled={!scrollState.canScrollLeft}
             aria-label="Scroll categories left"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+            className="hidden h-9 w-9 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#0755E9] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-35 sm:flex"
           >
-            <ChevronLeft size={16} />
+            <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
           </button>
           <button
             type="button"
-            onClick={() => scrollByAmount(1)}
+            onClick={() => scrollCarousel(1)}
+            disabled={!scrollState.canScrollRight}
             aria-label="Scroll categories right"
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-white text-[#64748B] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+            className="hidden h-9 w-9 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#0755E9] transition hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] disabled:cursor-not-allowed disabled:opacity-35 sm:flex"
           >
-            <ChevronRight size={16} />
+            <ChevronRight size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
       </div>
 
       <div
-        ref={scrollRef}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        className="flex cursor-grab select-none gap-2.5 overflow-x-auto pb-1 overscroll-x-contain scroll-smooth active:cursor-grabbing [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
+        ref={carouselRef}
+        onWheel={handleCarouselWheel}
+        className="flex w-full min-w-0 snap-x snap-mandatory gap-2.5 overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-3"
       >
         {categoryItems.map((item) => {
           const isAll = item.id === "all";
@@ -158,13 +165,13 @@ export default function ProductCategoryCards({
             <button
               key={item.id}
               type="button"
-              onClick={(event) => handleCategoryClick(event, item.id)}
+              onClick={() => handleCategoryClick(item.id)}
               aria-label={`Select ${item.name}`}
               aria-pressed={isSelected}
-              className={`group relative flex w-[100px] shrink-0 flex-col items-center rounded-xl border p-2.5 text-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 sm:w-[116px] sm:p-3 ${
+              className={`group relative flex min-h-[126px] w-[108px] shrink-0 snap-start flex-col items-center justify-center rounded-xl border px-2 py-3 text-center transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 sm:min-h-[142px] sm:w-[124px] sm:px-3 sm:py-3.5 lg:w-[136px] ${
                 isSelected
-                  ? "border-[#0755E9] bg-[#EFF6FF] shadow-xs"
-                  : "border-[#E2E8F0] bg-white hover:border-[#0755E9]/35 hover:bg-[#F8FAFC]"
+                  ? "border-[#0755E9] bg-[#EFF6FF] shadow-[0_4px_14px_rgba(7,85,233,0.10)]"
+                  : "border-[#E2E8F0] bg-white hover:-translate-y-0.5 hover:border-[#0755E9]/45 hover:bg-[#F8FAFC] hover:shadow-[0_8px_20px_rgba(16,24,40,0.07)]"
               }`}
             >
               {isSelected && (
@@ -174,7 +181,7 @@ export default function ProductCategoryCards({
               )}
 
               <div
-                className={`relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border transition-colors sm:h-16 sm:w-16 ${
+                className={`relative flex h-[60px] w-[60px] shrink-0 items-center justify-center overflow-hidden rounded-xl border transition-colors sm:h-[68px] sm:w-[68px] ${
                   isAll
                     ? "border-[#0755E9] bg-[#0755E9] text-white"
                     : isSelected
@@ -190,8 +197,8 @@ export default function ProductCategoryCards({
                     alt={item.name}
                     fill
                     draggable={false}
-                    sizes="64px"
-                    className="pointer-events-none object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                    sizes="68px"
+                    className="pointer-events-none object-contain p-2 transition-transform duration-300 ease-out group-hover:scale-[1.04]"
                   />
                 ) : (
                   <Package size={24} strokeWidth={1.5} className="text-slate-300" />
@@ -199,7 +206,7 @@ export default function ProductCategoryCards({
               </div>
 
               <span
-                className={`mt-2 line-clamp-2 min-h-8 w-full text-[11px] font-semibold leading-tight transition-colors sm:text-xs ${
+                className={`mt-2.5 line-clamp-2 min-h-8 w-full text-[11px] font-semibold leading-[1.25] transition-colors sm:text-xs ${
                   isSelected
                     ? "text-[#082B70]"
                     : "text-[#101828] group-hover:text-[#0755E9]"

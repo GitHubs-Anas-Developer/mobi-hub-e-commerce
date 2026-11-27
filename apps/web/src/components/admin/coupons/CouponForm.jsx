@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -70,7 +71,7 @@ export default function CouponForm({
 
     if (!/^[A-Za-z0-9_-]{3,30}$/.test(trimmedCode)) {
       setValidationError(
-        "Coupon code must be 3 to 30 characters and contain only letters, numbers, hyphens, or underscores.",
+        "Coupon code must be 3 to 30 characters and contain only letters, numbers, hyphens, or underscores."
       );
       return;
     }
@@ -104,7 +105,9 @@ export default function CouponForm({
       formData.maxDiscountAmount !== null &&
       Number(formData.maxDiscountAmount) <= 0
     ) {
-      setValidationError("Maximum discount amount must be greater than 0.");
+      setValidationError(
+        "Maximum discount amount must be greater than 0."
+      );
       return;
     }
 
@@ -116,6 +119,14 @@ export default function CouponForm({
     const start = new Date(formData.startDate);
     const expiry = new Date(formData.expiryDate);
 
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(expiry.getTime())
+    ) {
+      setValidationError("Please enter valid dates.");
+      return;
+    }
+
     if (expiry <= start) {
       setValidationError("Expiry date must be later than start date.");
       return;
@@ -125,7 +136,9 @@ export default function CouponForm({
       const usageLimit = Number(formData.usageLimit);
 
       if (!Number.isInteger(usageLimit) || usageLimit < 1) {
-        setValidationError("Usage limit must be a whole number at least 1.");
+        setValidationError(
+          "Usage limit must be a whole number at least 1."
+        );
         return;
       }
     }
@@ -133,7 +146,9 @@ export default function CouponForm({
     const perUserLimit = Number(formData.perUserLimit);
 
     if (!Number.isInteger(perUserLimit) || perUserLimit < 1) {
-      setValidationError("Per user limit must be a whole number at least 1.");
+      setValidationError(
+        "Per user limit must be a whole number at least 1."
+      );
       return;
     }
 
@@ -161,7 +176,7 @@ export default function CouponForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="w-full space-y-5">
       {validationError && (
         <Alert
           type="error"
@@ -170,6 +185,7 @@ export default function CouponForm({
           description={validationError}
           closable
           onClose={() => setValidationError("")}
+          className="w-full"
         />
       )}
 
@@ -181,10 +197,10 @@ export default function CouponForm({
             Coupon Details
           </span>
         }
-        className="border-[#E2E8F0] shadow-xs"
+        className="w-full border-[#E2E8F0] shadow-xs"
       >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+        <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="w-full min-w-0">
             <label htmlFor="code" className={fieldLabelClass}>
               Coupon Code *
             </label>
@@ -194,14 +210,16 @@ export default function CouponForm({
               name="code"
               size="large"
               value={formData.code}
-              onChange={(event) => setField("code", event.target.value)}
+              onChange={(event) =>
+                setField("code", event.target.value)
+              }
               placeholder="e.g. SAVE20"
               maxLength={30}
-              className="font-mono font-semibold uppercase"
+              className="!w-full font-mono font-semibold uppercase"
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label htmlFor="description" className={fieldLabelClass}>
               Description
             </label>
@@ -211,9 +229,12 @@ export default function CouponForm({
               name="description"
               size="large"
               value={formData.description}
-              onChange={(event) => setField("description", event.target.value)}
+              onChange={(event) =>
+                setField("description", event.target.value)
+              }
               placeholder="Enter coupon description"
               maxLength={300}
+              className="!w-full"
             />
           </div>
         </div>
@@ -227,10 +248,10 @@ export default function CouponForm({
             Discount Details
           </span>
         }
-        className="border-[#E2E8F0] shadow-xs"
+        className="w-full border-[#E2E8F0] shadow-xs"
       >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+        <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="w-full min-w-0">
             <label htmlFor="discountType" className={fieldLabelClass}>
               Discount Type *
             </label>
@@ -239,8 +260,10 @@ export default function CouponForm({
               id="discountType"
               size="large"
               value={formData.discountType}
-              onChange={(value) => setField("discountType", value)}
-              className="w-full"
+              onChange={(value) =>
+                setField("discountType", value)
+              }
+              className="!w-full"
               options={[
                 { label: "Percentage (%)", value: "Percentage" },
                 { label: "Fixed Amount (₹)", value: "Fixed" },
@@ -248,7 +271,7 @@ export default function CouponForm({
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label htmlFor="discountValue" className={fieldLabelClass}>
               Discount Value *
             </label>
@@ -258,20 +281,29 @@ export default function CouponForm({
               name="discountValue"
               size="large"
               min={0.01}
-              max={formData.discountType === "Percentage" ? 100 : undefined}
+              max={
+                formData.discountType === "Percentage"
+                  ? 100
+                  : undefined
+              }
               step={0.01}
               value={
-                formData.discountValue === "" ? null : Number(formData.discountValue)
+                formData.discountValue === ""
+                  ? null
+                  : Number(formData.discountValue)
               }
               onChange={(value) =>
-                setField("discountValue", value === null ? "" : value)
+                setField(
+                  "discountValue",
+                  value === null ? "" : value
+                )
               }
               placeholder="Enter discount value"
               className="!w-full"
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label htmlFor="minOrderAmount" className={fieldLabelClass}>
               Minimum Order Amount (₹) *
             </label>
@@ -288,15 +320,21 @@ export default function CouponForm({
                   : Number(formData.minOrderAmount)
               }
               onChange={(value) =>
-                setField("minOrderAmount", value === null ? 0 : value)
+                setField(
+                  "minOrderAmount",
+                  value === null ? 0 : value
+                )
               }
               className="!w-full"
             />
           </div>
 
           {formData.discountType === "Percentage" && (
-            <div>
-              <label htmlFor="maxDiscountAmount" className={fieldLabelClass}>
+            <div className="w-full min-w-0">
+              <label
+                htmlFor="maxDiscountAmount"
+                className={fieldLabelClass}
+              >
                 Maximum Discount Amount (₹)
               </label>
 
@@ -313,7 +351,10 @@ export default function CouponForm({
                     : Number(formData.maxDiscountAmount)
                 }
                 onChange={(value) =>
-                  setField("maxDiscountAmount", value === null ? "" : value)
+                  setField(
+                    "maxDiscountAmount",
+                    value === null ? "" : value
+                  )
                 }
                 placeholder="No maximum limit"
                 className="!w-full"
@@ -331,10 +372,10 @@ export default function CouponForm({
             Coupon Validity
           </span>
         }
-        className="border-[#E2E8F0] shadow-xs"
+        className="w-full border-[#E2E8F0] shadow-xs"
       >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+        <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="w-full min-w-0">
             <label htmlFor="startDate" className={fieldLabelClass}>
               Start Date *
             </label>
@@ -345,12 +386,15 @@ export default function CouponForm({
               type="datetime-local"
               size="large"
               value={formData.startDate}
-              onChange={(event) => setField("startDate", event.target.value)}
+              onChange={(event) =>
+                setField("startDate", event.target.value)
+              }
               required
+              className="!w-full"
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label htmlFor="expiryDate" className={fieldLabelClass}>
               Expiry Date *
             </label>
@@ -361,8 +405,11 @@ export default function CouponForm({
               type="datetime-local"
               size="large"
               value={formData.expiryDate}
-              onChange={(event) => setField("expiryDate", event.target.value)}
+              onChange={(event) =>
+                setField("expiryDate", event.target.value)
+              }
               required
+              className="!w-full"
             />
           </div>
         </div>
@@ -376,10 +423,10 @@ export default function CouponForm({
             Usage Limits
           </span>
         }
-        className="border-[#E2E8F0] shadow-xs"
+        className="w-full border-[#E2E8F0] shadow-xs"
       >
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
+        <div className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className="w-full min-w-0">
             <label htmlFor="usageLimit" className={fieldLabelClass}>
               Total Usage Limit
             </label>
@@ -392,19 +439,23 @@ export default function CouponForm({
               step={1}
               precision={0}
               value={
-                formData.usageLimit === "" || formData.usageLimit === null
+                formData.usageLimit === "" ||
+                formData.usageLimit === null
                   ? null
                   : Number(formData.usageLimit)
               }
               onChange={(value) =>
-                setField("usageLimit", value === null ? "" : value)
+                setField(
+                  "usageLimit",
+                  value === null ? "" : value
+                )
               }
               placeholder="Unlimited"
               className="!w-full"
             />
           </div>
 
-          <div>
+          <div className="w-full min-w-0">
             <label htmlFor="perUserLimit" className={fieldLabelClass}>
               Per User Limit *
             </label>
@@ -417,10 +468,15 @@ export default function CouponForm({
               step={1}
               precision={0}
               value={
-                formData.perUserLimit === "" ? null : Number(formData.perUserLimit)
+                formData.perUserLimit === ""
+                  ? null
+                  : Number(formData.perUserLimit)
               }
               onChange={(value) =>
-                setField("perUserLimit", value === null ? 1 : value)
+                setField(
+                  "perUserLimit",
+                  value === null ? 1 : value
+                )
               }
               className="!w-full"
             />
@@ -429,8 +485,13 @@ export default function CouponForm({
       </Card>
 
       {/* Actions */}
-      <div className="flex flex-col-reverse justify-end gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-4 shadow-xs sm:flex-row">
-        <Button size="large" onClick={onCancel} disabled={loading}>
+      <div className="flex w-full flex-col-reverse justify-end gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-4 shadow-xs sm:flex-row">
+        <Button
+          size="large"
+          onClick={onCancel}
+          disabled={loading}
+          className="w-full sm:!w-auto"
+        >
           Cancel
         </Button>
 
@@ -440,6 +501,7 @@ export default function CouponForm({
           size="large"
           loading={loading}
           icon={<Save size={16} />}
+          className="w-full sm:!w-auto"
         >
           {submitLabel}
         </Button>

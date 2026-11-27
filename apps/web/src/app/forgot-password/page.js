@@ -54,12 +54,12 @@ export default function ForgotPasswordPage() {
       setSubmitted(true);
       setSuccessMessage(
         response?.data?.message ||
-          "If an account exists with this email, a password reset link has been sent."
+        "If an account exists with this email, a password reset link has been sent."
       );
     } catch (error) {
       setFormError(
         error?.response?.data?.message ||
-          "Unable to process your request. Please try again."
+        "Unable to process your request. Please try again."
       );
     } finally {
       setIsLoading(false);

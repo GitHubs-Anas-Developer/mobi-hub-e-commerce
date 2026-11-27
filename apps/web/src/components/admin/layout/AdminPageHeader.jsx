@@ -15,7 +15,7 @@ export default function AdminPageHeader({
   const router = useRouter();
 
   return (
-    <div className="mb-6 flex flex-col justify-between gap-4 border-b border-[#E2E8F0] pb-5 sm:flex-row sm:items-center">
+    <div className="flex flex-col justify-between gap-4 border-b border-[#E2E8F0] pb-5 sm:flex-row sm:items-center">
       <div className="min-w-0">
         {backHref && (
           <Button

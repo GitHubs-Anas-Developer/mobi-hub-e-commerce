@@ -39,7 +39,7 @@ export default function CreateCategoryPage() {
       } catch (err) {
         setError(
           err.response?.data?.message ||
-            "Failed to fetch parent categories",
+          "Failed to fetch parent categories",
         );
       } finally {
         setFetchingParents(false);
@@ -83,64 +83,64 @@ export default function CreateCategoryPage() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.message ||
-          "Failed to upload category image",
+        err.message ||
+        "Failed to upload category image",
       );
     } finally {
       setUploading(false);
     }
   };
 
- const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  try {
-    setLoading(true);
-    setError("");
+    try {
+      setLoading(true);
+      setError("");
 
-    let imageData = formData.image;
+      let imageData = formData.image;
 
-    // Automatically upload image if a new file is selected
-    if (imageData instanceof File) {
-      setUploading(true);
+      // Automatically upload image if a new file is selected
+      if (imageData instanceof File) {
+        setUploading(true);
 
-      const response = await adminProductService.uploadImages(
-        [imageData],
-        "categories",
-      );
+        const response = await adminProductService.uploadImages(
+          [imageData],
+          "categories",
+        );
 
-      imageData = response.data?.[0];
+        imageData = response.data?.[0];
 
-      if (!imageData?.url || !imageData?.publicId) {
-        throw new Error("Image upload response is invalid");
+        if (!imageData?.url || !imageData?.publicId) {
+          throw new Error("Image upload response is invalid");
+        }
+
+        setUploading(false);
       }
 
-      setUploading(false);
-    }
+      const payload = {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+        image: imageData || undefined,
+        parentCategory: formData.parentCategory || null,
+        sortOrder: formData.sortOrder,
+      };
 
-    const payload = {
-      name: formData.name.trim(),
-      description: formData.description.trim(),
-      image: imageData || undefined,
-      parentCategory: formData.parentCategory || null,
-      sortOrder: formData.sortOrder,
-    };
+      await categoryService.createCategory(payload);
 
-    await categoryService.createCategory(payload);
-
-    router.push("/admin/categories");
-    router.refresh();
-  } catch (err) {
-    setError(
-      err.response?.data?.message ||
+      router.push("/admin/categories");
+      router.refresh();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
         err.message ||
         "Failed to create category",
-    );
-  } finally {
-    setLoading(false);
-    setUploading(false);
-  }
-};
+      );
+    } finally {
+      setLoading(false);
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -249,21 +249,21 @@ export default function CreateCategoryPage() {
           </div>
         </div>
 
-    <CategoryImageUpload
-  image={formData.image}
-  onImageChange={(file) =>
-    setFormData((prev) => ({
-      ...prev,
-      image: file,
-    }))
-  }
-  onImageRemove={() =>
-    setFormData((prev) => ({
-      ...prev,
-      image: null,
-    }))
-  }
-/>
+        <CategoryImageUpload
+          image={formData.image}
+          onImageChange={(file) =>
+            setFormData((prev) => ({
+              ...prev,
+              image: file,
+            }))
+          }
+          onImageRemove={() =>
+            setFormData((prev) => ({
+              ...prev,
+              image: null,
+            }))
+          }
+        />
 
         <div className="flex flex-col-reverse justify-end gap-3 sm:flex-row">
           <button
@@ -280,17 +280,17 @@ export default function CreateCategoryPage() {
             disabled={loading || uploading || fetchingParents}
             className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
           >
-       {loading ? (
-  <>
-    <Loader2 size={17} className="animate-spin" />
-    {uploading ? "Uploading Image..." : "Creating..."}
-  </>
-) : (
-  <>
-    <Save size={17} />
-    Create Category
-  </>
-)}
+            {loading ? (
+              <>
+                <Loader2 size={17} className="animate-spin" />
+                {uploading ? "Uploading Image..." : "Creating..."}
+              </>
+            ) : (
+              <>
+                <Save size={17} />
+                Create Category
+              </>
+            )}
           </button>
         </div>
       </form>

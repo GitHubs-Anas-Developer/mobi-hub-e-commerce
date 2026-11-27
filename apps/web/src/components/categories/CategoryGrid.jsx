@@ -56,7 +56,7 @@ export default function CategoryGrid() {
   if (loading && parentCategories.length === 0 && !error) {
     return (
       <div
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5"
+        className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5"
         aria-label="Loading categories"
         aria-busy="true"
       >
@@ -143,7 +143,7 @@ export default function CategoryGrid() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5">
         {parentCategories.map((category, index) => {
           const catId = String(category._id);
           return (

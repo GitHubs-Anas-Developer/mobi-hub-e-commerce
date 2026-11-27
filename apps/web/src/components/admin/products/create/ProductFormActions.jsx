@@ -1,34 +1,52 @@
 "use client";
 
-import { Button, Space } from "antd";
-import { ArrowLeft, Save } from "lucide-react";
+import { Button } from "antd";
+import { ArrowLeft, FileText, Rocket } from "lucide-react";
 
 export default function ProductFormActions({
   loading,
+  loadingAction = "publish",
   onCancel,
-  submitLabel = "Create Product",
-  loadingLabel = "Saving...",
+  onSaveDraft,
+  submitLabel = "Publish Product",
+  draftLabel = "Save as Draft",
+  loadingLabel = "Saving Product...",
 }) {
   return (
-    <div className="flex justify-end border-t border-[#E2E8F0] pt-4">
-      <Space wrap>
-        <Button
-          onClick={onCancel}
-          disabled={loading}
-          icon={<ArrowLeft size={15} />}
-        >
-          Cancel
-        </Button>
+    <div className="flex flex-col-reverse items-stretch justify-between gap-3 rounded-xl border border-[#E2E8F0] bg-white px-5 py-4 shadow-xs sm:flex-row sm:items-center">
+      <Button
+        size="large"
+        onClick={onCancel}
+        disabled={loading}
+        icon={<ArrowLeft size={15} />}
+      >
+        Back to Products
+      </Button>
+
+      <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:items-center">
+        {onSaveDraft && (
+          <Button
+            size="large"
+            onClick={onSaveDraft}
+            disabled={loading}
+            loading={loading && loadingAction === "draft"}
+            icon={<FileText size={15} />}
+          >
+            {loading && loadingAction === "draft" ? "Saving Draft..." : draftLabel}
+          </Button>
+        )}
 
         <Button
           type="primary"
+          size="large"
           htmlType="submit"
-          loading={loading}
-          icon={<Save size={15} />}
+          loading={loading && loadingAction === "publish"}
+          disabled={loading}
+          icon={<Rocket size={15} />}
         >
-          {loading ? loadingLabel : submitLabel}
+          {loading && loadingAction === "publish" ? loadingLabel : submitLabel}
         </Button>
-      </Space>
+      </div>
     </div>
   );
 }

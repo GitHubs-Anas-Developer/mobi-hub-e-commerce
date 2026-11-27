@@ -133,7 +133,7 @@ app.use("/api/v1/admin/inventory", inventoryRoutes);
 app.use("/api/v1/admin/products", adminProductRoutes);
 app.use("/api/v1/admin/upload", uploadRoutes);
 app.use("/api/v1/admin/users", adminUserRoutes);
-
+app.use("/api/v1/inventory", inventoryRoutes);
 // Other routes
 app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/returns", returnRoutes);

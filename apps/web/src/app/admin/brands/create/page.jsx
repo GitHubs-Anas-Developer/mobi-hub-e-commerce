@@ -103,7 +103,7 @@ export default function CreateBrandPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto w-full space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link

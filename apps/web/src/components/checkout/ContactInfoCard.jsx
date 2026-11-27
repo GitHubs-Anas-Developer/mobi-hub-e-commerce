@@ -15,12 +15,12 @@ export default function ContactInfoCard({ user, selectedAddressDetails }) {
   return (
     <section
       aria-labelledby="checkout-contact-heading"
-      className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+      className="rounded-xl border border-[#E2E8F0] bg-white p-4 sm:p-5"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
-            <UserRound size={19} aria-hidden="true" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+            <UserRound size={17} aria-hidden="true" />
           </div>
 
           <div>

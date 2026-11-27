@@ -752,8 +752,8 @@ export default function CheckoutContent() {
           : `Pay Securely · ${formatPrice(totalAmount)}`;
 
   return (
-    <main className="min-h-screen bg-white pb-32 lg:pb-12">
-      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+    <main className="min-h-screen bg-[#F8FAFC] pb-28 lg:pb-10">
+      <div className="mx-auto w-full max-w-[1240px] px-3 py-3 sm:px-5 sm:py-5 lg:px-7">
         {/* Top Breadcrumb + Title Header */}
         <Breadcrumb
           items={[
@@ -762,15 +762,15 @@ export default function CheckoutContent() {
               : { label: "Shopping Cart", href: "/cart" },
             { label: "Checkout" },
           ]}
-          className="mb-4"
+          className="mb-3"
         />
 
-        <header className="mb-5 flex flex-col gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <header className="mb-4 flex flex-col gap-2.5 rounded-xl border border-[#E2E8F0] bg-white px-4 py-3 sm:mb-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#101828] sm:text-2xl">
+            <h1 className="text-lg font-bold tracking-tight text-[#101828] sm:text-xl">
               Secure Checkout
             </h1>
-            <p className="mt-0.5 text-xs text-[#64748B] sm:text-sm">
+            <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-[#64748B] sm:text-[13px]">
               Confirm your delivery address and payment method to complete your ELENZO order.
             </p>
           </div>
@@ -869,9 +869,9 @@ export default function CheckoutContent() {
             />
 
             {/* Two-Column Checkout Grid */}
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12 lg:gap-8">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
               {/* Left Column: Contact + Address + Payment */}
-              <div className="space-y-6 lg:col-span-7">
+              <div className="space-y-4 lg:col-span-7">
                 {!pendingOnlineOrderId && (
                   <>
                     <ContactInfoCard
@@ -947,7 +947,7 @@ export default function CheckoutContent() {
               </div>
 
               {/* Right Column: Sticky Order Summary + Place Order Card */}
-              <div className="space-y-4 lg:sticky lg:top-24 lg:col-span-5">
+              <div className="space-y-3 lg:sticky lg:top-20 lg:col-span-5">
                 {!pendingOnlineOrderId && (
                   <OrderSummary
                     cartItems={checkoutItems}
@@ -972,7 +972,7 @@ export default function CheckoutContent() {
                 )}
 
                 {/* Place Order / Payment Retry Box */}
-                <div className="rounded-2xl border border-[#E2E8F0] bg-white p-5">
+                <div className="rounded-xl border border-[#E2E8F0] bg-white p-3.5 sm:p-4">
                   <button
                     type="button"
                     onClick={handlePrimaryAction}

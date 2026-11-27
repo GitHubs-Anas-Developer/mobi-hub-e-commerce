@@ -146,8 +146,8 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }) {
         typeof error === "string"
           ? error
           : error?.message ||
-            error?.response?.data?.message ||
-            "Invalid email or password. Please try again.";
+          error?.response?.data?.message ||
+          "Invalid email or password. Please try again.";
 
       if (errorCode === "EMAIL_NOT_VERIFIED") {
         setEmailNotVerified(true);
@@ -175,7 +175,7 @@ export default function LoginModal({ isOpen, onClose, onSwitchToRegister }) {
     } catch (error) {
       setFormError(
         error?.response?.data?.message ||
-          "Unable to resend verification email. Please try again.",
+        "Unable to resend verification email. Please try again.",
       );
     } finally {
       setResendingEmail(false);

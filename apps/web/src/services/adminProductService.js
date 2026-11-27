@@ -18,7 +18,7 @@ const adminProductService = {
   },
 
   // Upload product images to Cloudinary
-  uploadImages: async (files, type = "products") => {
+  uploadImages: async (files, type = "products", onUploadProgress) => {
     const formData = new FormData();
 
     formData.append("type", type);
@@ -27,7 +27,9 @@ const adminProductService = {
       formData.append("images", file);
     });
 
-    const response = await axiosInstance.post("/admin/upload/images", formData);
+    const response = await axiosInstance.post("/admin/upload/images", formData, {
+      onUploadProgress,
+    });
 
     return response.data;
   },

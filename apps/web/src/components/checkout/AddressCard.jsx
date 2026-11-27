@@ -41,7 +41,7 @@ export default function AddressCard({
 
   return (
     <div
-      className={`relative rounded-2xl border p-4 transition-all duration-150 sm:p-5 ${
+      className={`relative rounded-xl border p-3.5 transition-all duration-150 sm:p-4 ${
         selected
           ? "border-[#0755E9] bg-[#EFF6FF]/65 ring-1 ring-[#0755E9]"
           : "border-[#E2E8F0] bg-white hover:border-[#0755E9]/45 hover:bg-[#F8FAFC]"

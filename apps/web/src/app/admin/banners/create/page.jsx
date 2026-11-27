@@ -440,15 +440,15 @@ export default function CreateBannerPage() {
 
             {(formData.placement === "categories" ||
               formData.placement === "subcategory") && (
-              <SelectField
-                label="Target Category"
-                name="targetCategory"
-                value={formData.targetCategory}
-                onChange={handleChange}
-                required
-                options={categoryOptions}
-              />
-            )}
+                <SelectField
+                  label="Target Category"
+                  name="targetCategory"
+                  value={formData.targetCategory}
+                  onChange={handleChange}
+                  required
+                  options={categoryOptions}
+                />
+              )}
 
             {formData.placement === "subcategory" && (
               <div>

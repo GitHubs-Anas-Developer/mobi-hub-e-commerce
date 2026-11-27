@@ -81,7 +81,7 @@ export default function AdminDashboardPage() {
       <RecentOrders orders={data.recentOrders} loading={loading} />
 
       {/* Product Performance, Low Stock Alerts & Customer Activity */}
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 xl:grid-cols-3 mt-6">
         <TopProducts products={data.topProducts} loading={loading} />
         <LowStockProducts products={data.lowStockProducts} loading={loading} />
         <div className="lg:col-span-2 xl:col-span-1">

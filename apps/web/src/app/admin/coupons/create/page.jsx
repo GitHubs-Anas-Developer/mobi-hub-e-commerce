@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, TicketPercent } from "lucide-react";
 
 import adminCouponService from "@/services/adminCouponService";
 import CouponForm from "@/components/admin/coupons/CouponForm";
@@ -26,8 +26,8 @@ export default function CreateCouponPage() {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.message ||
-          "Unable to create coupon. Please try again.",
+        err.message ||
+        "Unable to create coupon. Please try again.",
       );
     } finally {
       setLoading(false);
@@ -35,25 +35,26 @@ export default function CreateCouponPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-4 sm:p-6 lg:p-8">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => router.push("/admin/coupons")}
-            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-[#64748B] transition hover:text-[#0755E9]"
-          >
-            <ArrowLeft size={16} />
-            Back to Coupons
-          </button>
-
-          <h1 className="text-2xl font-bold tracking-tight text-[#101828]">
-            Create Coupon
+    <div className="min-h-full">
+      <div className="mx-auto w-full">
+        <div className="mb-6 flex flex-col justify-between gap-4 border-b border-[#E2E8F0] pb-5 sm:flex-row sm:items-end">
+          <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-[#101828]">
+            <TicketPercent className="text-[#0755E9]" size={24} aria-hidden="true" />
+            Create New Coupon
           </h1>
 
           <p className="mt-1 text-sm text-[#64748B]">
             Create a new discount coupon for ELENZO customers.
           </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/coupons")}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#E2E8F0] bg-white px-4 text-sm font-semibold text-[#101828] transition hover:border-[#0755E9]/40 hover:text-[#0755E9]"
+          >
+            <ArrowLeft size={15} aria-hidden="true" /> Back to Coupons
+          </button>
         </div>
 
         {error && (

@@ -36,10 +36,10 @@ export default function CategoryCard({
       href={categoryHref}
       aria-label={`Explore ${categoryName}`}
       className={`group flex h-full min-w-0 flex-col rounded-2xl border border-[#E2E8F0] bg-white transition-all duration-200 hover:-translate-y-0.5 hover:border-[#0755E9]/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9] focus-visible:ring-offset-2 ${
-        compact ? "p-2.5 sm:p-3.5" : "p-3 sm:p-4"
+        compact ? "p-2 sm:p-3" : "p-2.5 sm:p-3.5"
       }`}
     >
-      <div className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl border border-[#F1F5F9] bg-[#F8FAFC]">
+      <div className="relative flex aspect-[1.08/1] w-full items-center justify-center overflow-hidden rounded-lg border border-[#F1F5F9] bg-[#F8FAFC] sm:aspect-square sm:rounded-xl">
         {imageUrl ? (
           <Image
             src={imageUrl}
@@ -48,7 +48,7 @@ export default function CategoryCard({
             sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 20vw"
             unoptimized
             onError={() => setImageError(true)}
-            className="object-contain p-4 transition-transform duration-300 ease-out group-hover:scale-105 sm:p-5"
+            className="object-contain p-2.5 transition-transform duration-300 ease-out group-hover:scale-105 sm:p-4"
           />
         ) : (
           <Package
@@ -71,14 +71,14 @@ export default function CategoryCard({
         </span>
       </div>
 
-      <div className="flex flex-1 flex-col pt-3">
+        <div className="flex flex-1 flex-col pt-2.5 sm:pt-3">
         <div className="mb-2 h-0.5 w-7 rounded-full bg-[#0755E9] transition-all duration-200 group-hover:w-12" />
 
         <h3 className="line-clamp-1 text-sm font-extrabold tracking-tight text-[#101828] transition-colors group-hover:text-[#0755E9] sm:text-base">
           {categoryName}
         </h3>
 
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#64748B]">
+        <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[#64748B] sm:text-xs sm:leading-5">
           {category.description || "Browse curated electronics and accessories"}
         </p>
 

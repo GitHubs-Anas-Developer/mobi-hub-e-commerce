@@ -35,13 +35,13 @@ export default function DeliveryAddress({
   return (
     <section
       aria-labelledby="checkout-address-heading"
-      className="rounded-2xl border border-[#E2E8F0] bg-white p-5 sm:p-6"
+      className="rounded-xl border border-[#E2E8F0] bg-white p-4 sm:p-5"
     >
       {/* Header */}
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9]">
-            <MapPin size={19} aria-hidden="true" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
+            <MapPin size={17} aria-hidden="true" />
           </div>
 
           <div>
@@ -62,7 +62,7 @@ export default function DeliveryAddress({
             type="button"
             onClick={onOpenAddressForm}
             disabled={addressLoading}
-            className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[#0755E9] px-4 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#0755E9] px-3.5 text-xs font-bold text-white shadow-xs transition hover:bg-[#0645C4] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
           >
             <Plus size={16} aria-hidden="true" />
             <span>Add New Address</span>
