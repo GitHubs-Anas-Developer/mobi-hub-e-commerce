@@ -7,6 +7,7 @@ import { Toaster } from "sonner";
 
 import StoreProvider from "@/store/Provider";
 import AppShell from "@/components/layout/AppShell";
+import GlobalPageSkeleton from "@/components/loading/GlobalPageSkeleton";
 import {
   BRAND_ASSETS,
   BRAND_DESCRIPTION,
@@ -69,7 +70,7 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body>
-        <Suspense fallback={<main className="min-h-screen flex-1 bg-white" />}>
+        <Suspense fallback={<GlobalPageSkeleton />}>
           <AntdRegistry>
             <StoreProvider>
               <AppShell>{children}</AppShell>

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { X, AlertCircle, RefreshCw } from "lucide-react";
 
 import { fetchProducts as fetchProductsThunk } from "@/store/thunks/productThunks";
-import categoryService from "@/services/categoryService";
+import { fetchCategories } from "@/store/thunks/categoryThunks";
 import { fetchCart, addToCart } from "@/store/thunks/cartThunks";
 import {
   fetchWishlist,
@@ -75,14 +75,6 @@ const getPaginationInfo = (response, currentPage, itemCount) => {
   };
 };
 
-const getCategoryList = (response) => {
-  if (Array.isArray(response?.data)) return response.data;
-  if (Array.isArray(response?.categories)) return response.categories;
-  if (Array.isArray(response?.data?.categories)) return response.data.categories;
-  if (Array.isArray(response)) return response;
-  return [];
-};
-
 const getParentId = (cat) => {
   if (!cat?.parentCategory) return "";
   return typeof cat.parentCategory === "object"
@@ -102,6 +94,12 @@ const getWishlistProductId = (item) => {
 function ProductsListingContent({ categoryId = "" }) {
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
+  const allCategories = useSelector(
+    (state) => state.categories?.categories || []
+  );
+  const categoriesLoading = useSelector(
+    (state) => state.categories?.loading || false
+  );
 
   const isAuthenticated = useSelector(
     (state) => state.auth?.isAuthenticated ?? false
@@ -122,7 +120,6 @@ function ProductsListingContent({ categoryId = "" }) {
   // ========================================
   // CATALOG STATE
   // ========================================
-  const [allCategories, setAllCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [knownBrands, setKnownBrands] = useState([]);
   const [pagination, setPagination] = useState({
@@ -152,30 +149,23 @@ function ProductsListingContent({ categoryId = "" }) {
   const [miniCartOpen, setMiniCartOpen] = useState(false);
 
   const requestIdRef = useRef(0);
+  const categoryRequestStartedRef = useRef(false);
 
   // ========================================
-  // LOAD CATEGORIES + INITIAL WISHLIST/CART
+  // LOAD CATEGORIES FROM THE SHARED REDUX CACHE
   // ========================================
   useEffect(() => {
-    let cancelled = false;
+    if (allCategories.length || categoryRequestStartedRef.current) return;
 
-    const loadCategories = async () => {
-      try {
-        const res = await categoryService.getCategories();
-        if (!cancelled) {
-          setAllCategories(getCategoryList(res));
-        }
-      } catch (err) {
-        console.error("Failed to fetch categories:", err);
-      }
-    };
+    // Let an existing consumer's request populate the shared slice.
+    if (categoriesLoading) {
+      categoryRequestStartedRef.current = true;
+      return;
+    }
 
-    loadCategories();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    categoryRequestStartedRef.current = true;
+    dispatch(fetchCategories());
+  }, [allCategories.length, categoriesLoading, dispatch]);
 
   useEffect(() => {
     if (isAuthenticated) {

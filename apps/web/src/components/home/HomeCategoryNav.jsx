@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
-import { Grid2X2, Layers, Package, Sparkles } from "lucide-react";
 
 import { fetchCategories } from "@/store/thunks/categoryThunks";
 
 export default function HomeCategoryNav() {
   const dispatch = useDispatch();
+  const categoryRequestStarted = useRef(false);
 
   const categories = useSelector(
     (state) => state.categories?.categories || []
@@ -18,9 +18,16 @@ export default function HomeCategoryNav() {
   );
 
   useEffect(() => {
-    if (!categories.length && !loading) {
-      dispatch(fetchCategories());
+    if (categories.length || categoryRequestStarted.current) return;
+
+    // Other category surfaces may already own an in-flight request.
+    if (loading) {
+      categoryRequestStarted.current = true;
+      return;
     }
+
+    categoryRequestStarted.current = true;
+    dispatch(fetchCategories());
   }, [dispatch, categories.length, loading]);
 
   const parentCategories = useMemo(
@@ -33,34 +40,37 @@ export default function HomeCategoryNav() {
 
   return (
     <nav
-      aria-label="Category quick navigation"
+      aria-label="Shop categories"
+      aria-busy={loading}
       className="w-full border-b border-[#E2E8F0] bg-white"
     >
-      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+      <div className="flex w-full items-center gap-3 py-3 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-16 lg:pr-6">
         {/* Scrollable Category Strip */}
-        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto overscroll-x-contain py-1 scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link
             href="/products"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#0755E9]/20 bg-[#EFF6FF] px-3.5 py-1.5 text-xs font-semibold text-[#0755E9] transition-colors hover:bg-[#0755E9] hover:text-white"
+            className="inline-flex h-9 shrink-0 items-center rounded-full border border-[#D7E7FF] bg-[#EFF6FF] px-4 text-sm font-medium text-[#0755E9] transition-colors duration-150 hover:bg-[#E4EFFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9]/30"
           >
-            <Grid2X2 size={14} />
             All Gadgets
           </Link>
 
           <Link
             href="/products?isNewArrival=true&sort=newest"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-1.5 text-xs font-semibold text-[#101828] transition-colors hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+            className="inline-flex h-9 shrink-0 items-center rounded-full px-4 text-sm font-medium text-[#344054] transition-colors duration-150 hover:bg-[#F8FAFC] hover:text-[#0755E9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9]/30"
           >
-            <Sparkles size={13} className="text-[#0755E9]" />
             New Arrivals
           </Link>
 
           {loading && parentCategories.length === 0 ? (
-            <div className="flex items-center gap-2">
+            <div
+              className="flex items-center gap-2"
+              role="status"
+              aria-label="Loading categories"
+            >
               {Array.from({ length: 5 }).map((_, index) => (
                 <div
                   key={index}
-                  className="h-8 w-24 shrink-0 animate-pulse rounded-full bg-slate-100"
+                  className="h-8 w-24 shrink-0 animate-pulse rounded-full bg-slate-100 motion-reduce:animate-none"
                 />
               ))}
             </div>
@@ -69,22 +79,9 @@ export default function HomeCategoryNav() {
               <Link
                 key={category._id}
                 href={`/products?category=${category._id}`}
-                className="group inline-flex shrink-0 items-center gap-2 rounded-full border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#101828] transition-colors hover:border-[#0755E9]/40 hover:bg-[#EFF6FF] hover:text-[#0755E9]"
+                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-sm font-medium text-[#344054] transition-colors duration-150 hover:bg-[#F8FAFC] hover:text-[#0755E9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9]/30"
               >
-                {category.image?.url ? (
-                  <img
-                    src={category.image.url}
-                    alt=""
-                    aria-hidden="true"
-                    className="h-4 w-4 shrink-0 rounded-full object-contain"
-                  />
-                ) : (
-                  <Package
-                    size={13}
-                    className="shrink-0 text-[#64748B] group-hover:text-[#0755E9]"
-                  />
-                )}
-                <span className="whitespace-nowrap">{category.name}</span>
+                {category.name}
               </Link>
             ))
           )}
@@ -93,9 +90,8 @@ export default function HomeCategoryNav() {
         {/* Desktop View All Categories */}
         <Link
           href="/categories"
-          className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-1.5 text-xs font-semibold text-[#0755E9] transition-colors hover:border-[#0755E9] hover:bg-[#EFF6FF] md:inline-flex"
+          className="hidden h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-4 text-sm font-medium text-[#344054] transition-colors duration-150 hover:border-[#D7E7FF] hover:bg-[#EFF6FF] hover:text-[#0755E9] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9]/30 md:inline-flex"
         >
-          <Layers size={13} />
           All Categories
         </Link>
       </div>

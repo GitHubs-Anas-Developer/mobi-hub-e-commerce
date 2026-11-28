@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -21,6 +21,10 @@ import formatPrice from "@/utils/formatPrice";
 import "swiper/css";
 import "swiper/css/pagination";
 
+const subscribeToNothing = () => () => {};
+const getMountedSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 const getImageUrl = (image) => {
   if (typeof image === "string") return image;
   return image?.url || image?.secure_url || "";
@@ -36,10 +40,11 @@ function FeaturedSpotlightCard({ product }) {
   const mrp = variant?.mrp ?? 0;
   const discount =
     mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
-  const imageUrl = product.thumbnail?.url || product.images?.[0]?.url || "";
+  const imageUrl =
+    getImageUrl(product.thumbnail) || getImageUrl(product.images?.[0]);
 
   return (
-    <div className="flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#EFF6FF] via-white to-[#F8FAFC] p-5 shadow-xs sm:p-6">
+    <div className="flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-[#E2E8F0] bg-gradient-to-br from-[#EFF6FF] via-white to-[#F8FAFC] p-4 shadow-xs sm:p-5">
       <div>
         <div className="flex items-center justify-between gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-[#0755E9] shadow-xs">
@@ -56,20 +61,23 @@ function FeaturedSpotlightCard({ product }) {
 
         <Link
           href={`/products/${product.slug}`}
-          className="group mt-4 flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0]/70 bg-white p-4 transition hover:border-[#0755E9]/30"
+          className="group mt-3 flex aspect-[5/4] w-full items-center justify-center overflow-hidden rounded-xl border border-[#E2E8F0]/70 bg-white p-2 transition-colors duration-200 hover:border-[#0755E9]/30"
         >
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={product.name}
-              className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105"
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
+              className="h-full w-full object-contain object-center transition-transform duration-300 group-hover:scale-105"
             />
           ) : (
             <Package size={48} className="text-slate-300" />
           )}
         </Link>
 
-        <div className="mt-4">
+        <div className="mt-3">
           <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0755E9]">
             {product.brand || "Featured Tech"}
           </p>
@@ -83,7 +91,7 @@ function FeaturedSpotlightCard({ product }) {
       </div>
 
       <div className="mt-4 border-t border-[#E2E8F0] pt-4">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-xl font-extrabold tracking-tight text-[#101828] tabular-nums">
@@ -128,7 +136,11 @@ export default function HeroBanner({
 
   const [swiper, setSwiper] = useState(null);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(
+    subscribeToNothing,
+    getMountedSnapshot,
+    getServerSnapshot
+  );
 
   useEffect(() => {
     dispatch(
@@ -137,7 +149,6 @@ export default function HeroBanner({
         position: "hero",
       })
     );
-    setIsMounted(true);
   }, [dispatch]);
 
   const validBanners = useMemo(
@@ -169,18 +180,18 @@ export default function HeroBanner({
       className="w-full bg-white pt-4 sm:pt-6"
     >
       <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-stretch lg:gap-5">
+        <div
+          className={`grid grid-cols-1 gap-4 lg:items-stretch lg:gap-5 ${
+            spotlightProduct
+              ? "lg:grid-cols-[minmax(0,2.125fr)_minmax(0,1fr)]"
+              : "lg:grid-cols-1"
+          }`}
+        >
           {/* MAIN HERO STAGE */}
-          <div
-            className={
-              spotlightProduct
-                ? "min-w-0 lg:col-span-8"
-                : "min-w-0 lg:col-span-12"
-            }
-          >
+          <div className="min-w-0">
             {validBanners.length > 0 ? (
               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] shadow-xs">
-                <div className="relative flex-1 overflow-hidden bg-[#EFF6FF]">
+                <div className="relative bg-[#EFF6FF]">
                   {isMounted && (
                     <Swiper
                       modules={[Autoplay, Pagination, A11y]}
@@ -204,7 +215,7 @@ export default function HeroBanner({
                       pagination={{ clickable: true }}
                       a11y={{ enabled: true }}
                       className="
-                        h-full w-full
+                        w-full
                         [&_.swiper-pagination]:!bottom-3
                         [&_.swiper-pagination-bullet]:!h-2
                         [&_.swiper-pagination-bullet]:!w-2
@@ -228,9 +239,9 @@ export default function HeroBanner({
                             <Link
                               href={banner.buttonLink || "/products"}
                               aria-label={imageAlt}
-                              className="block h-full w-full"
+                              className="block w-full"
                             >
-                              <picture className="block h-full w-full">
+                              <picture className="block w-full">
                                 {mobileImage && (
                                   <source
                                     media="(max-width: 767px)"
@@ -243,7 +254,7 @@ export default function HeroBanner({
                                   loading={index === 0 ? "eager" : "lazy"}
                                   fetchPriority={index === 0 ? "high" : "auto"}
                                   decoding="async"
-                                  className="block h-full w-full object-cover"
+                                  className="block h-auto w-full object-contain object-center"
                                 />
                               </picture>
                             </Link>
@@ -287,28 +298,28 @@ export default function HeroBanner({
                           {activeBanner.subtitle}
                         </p>
                       )}
-                      <h1 className="truncate text-base font-extrabold tracking-tight text-[#101828] sm:text-xl">
+                      <h1 className="break-words text-base font-extrabold leading-snug tracking-tight text-[#101828] sm:text-xl">
                         {activeBanner.title}
                       </h1>
                       {activeBanner.description && (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-[#64748B] sm:text-sm">
+                        <p className="mt-1 break-words text-xs leading-5 text-[#64748B] sm:text-sm">
                           {activeBanner.description}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex shrink-0 items-center gap-2.5">
+                    <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto sm:shrink-0">
                       <Link
                         href={activeBanner.buttonLink || "/products"}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 text-xs font-semibold text-white shadow-xs transition hover:bg-[#0645C4] sm:text-sm"
+                        className="inline-flex min-h-10 max-w-full items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-4 py-2 text-left text-xs font-semibold leading-snug text-white shadow-xs transition hover:bg-[#0645C4] sm:text-sm"
                       >
                         {activeBanner.buttonText || "Shop Now"}
-                        <ArrowRight size={15} />
+                        <ArrowRight size={15} aria-hidden="true" />
                       </Link>
 
                       <Link
                         href="/products"
-                        className="hidden h-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white px-4 text-xs font-semibold text-[#101828] transition hover:border-[#0755E9] hover:bg-[#EFF6FF] hover:text-[#0755E9] sm:inline-flex sm:text-sm"
+                        className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-white px-4 py-2 text-xs font-semibold text-[#101828] transition hover:border-[#0755E9] hover:bg-[#EFF6FF] hover:text-[#0755E9] sm:text-sm"
                       >
                         All Products
                       </Link>
@@ -357,7 +368,7 @@ export default function HeroBanner({
 
           {/* RIGHT DESKTOP FEATURED SPOTLIGHT (shown whenever real featured products exist) */}
           {spotlightProduct && (
-            <div className="min-w-0 lg:col-span-4">
+            <div className="min-w-0">
               <FeaturedSpotlightCard product={spotlightProduct} />
             </div>
           )}

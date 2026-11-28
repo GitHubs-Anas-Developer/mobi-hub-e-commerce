@@ -2,75 +2,43 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   ChevronDown,
   ChevronRight,
-  Smartphone,
-  Headphones,
-  BatteryCharging,
-  Cable,
-  ShieldCheck,
-  Watch,
-  Speaker,
-  Gamepad2,
   LayoutGrid,
+  Package,
 } from "lucide-react";
-
-const categories = [
-  {
-    name: "Phone Cases",
-    slug: "phone-cases",
-    icon: Smartphone,
-    description: "Stylish cases and covers",
-  },
-  {
-    name: "Screen Protectors",
-    slug: "screen-protectors",
-    icon: ShieldCheck,
-    description: "Protect your phone screen",
-  },
-  {
-    name: "Chargers & Adapters",
-    slug: "chargers-adapters",
-    icon: BatteryCharging,
-    description: "Fast charging accessories",
-  },
-  {
-    name: "Cables",
-    slug: "cables",
-    icon: Cable,
-    description: "USB-C, Lightning and more",
-  },
-  {
-    name: "Audio & Earphones",
-    slug: "audio-earphones",
-    icon: Headphones,
-    description: "Premium audio experience",
-  },
-  {
-    name: "Smart Watches",
-    slug: "smart-watches",
-    icon: Watch,
-    description: "Smart wearables",
-  },
-  {
-    name: "Speakers",
-    slug: "speakers",
-    icon: Speaker,
-    description: "Portable Bluetooth speakers",
-  },
-  {
-    name: "Gaming Accessories",
-    slug: "gaming-accessories",
-    icon: Gamepad2,
-    description: "Accessories for gaming",
-  },
-];
+import { fetchCategories } from "@/store/thunks/categoryThunks";
 
 export default function CategoryDropdown() {
+  const dispatch = useDispatch();
   const [isOpen, setIsOpen] = useState(false);
+  const categories = useSelector(
+    (state) => state.categories?.categories || []
+  );
+  const loading = useSelector(
+    (state) => state.categories?.loading || false
+  );
+
+  useEffect(() => {
+    if (!categories.length && !loading) {
+      dispatch(fetchCategories());
+    }
+  }, [categories.length, dispatch, loading]);
+
+  const parentCategories = useMemo(
+    () =>
+      categories.filter(
+        (category) =>
+          category?._id &&
+          category.isActive !== false &&
+          !category.parentCategory
+      ),
+    [categories]
+  );
 
   return (
     <div
@@ -135,18 +103,30 @@ export default function CategoryDropdown() {
 
           {/* Categories Grid */}
           <div className="grid grid-cols-2 gap-2">
-            {categories.map((category) => {
-              const Icon = category.icon;
-
-              return (
+            {loading && parentCategories.length === 0 ? (
+              <p
+                className="col-span-2 py-4 text-center text-xs text-slate-500"
+                role="status"
+              >
+                Loading categories…
+              </p>
+            ) : parentCategories.length === 0 ? (
+              <p
+                className="col-span-2 py-4 text-center text-xs text-slate-500"
+                role="status"
+              >
+                No categories are available yet.
+              </p>
+            ) : (
+              parentCategories.slice(0, 8).map((category) => (
                 <Link
-                  key={category.slug}
-                  href={`/category/${category.slug}`}
+                  key={category._id}
+                  href={`/categories/${category._id}`}
                   onClick={() => setIsOpen(false)}
                   className="group flex items-center gap-3 rounded-xl p-3 transition-all duration-200 hover:bg-blue-50"
                 >
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 transition-all duration-200 group-hover:bg-blue-100 group-hover:text-blue-600">
-                    <Icon size={21} strokeWidth={1.8} />
+                    <Package size={21} strokeWidth={1.8} />
                   </div>
 
                   <div className="min-w-0 flex-1">
@@ -155,7 +135,7 @@ export default function CategoryDropdown() {
                     </h4>
 
                     <p className="mt-1 truncate text-[11px] text-slate-400">
-                      {category.description}
+                      {category.description || "Browse this category"}
                     </p>
                   </div>
 
@@ -164,8 +144,8 @@ export default function CategoryDropdown() {
                     className="shrink-0 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:text-blue-600"
                   />
                 </Link>
-              );
-            })}
+              ))
+            )}
           </div>
 
           {/* Footer */}

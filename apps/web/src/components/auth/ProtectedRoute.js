@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { BRAND_ASSETS, BRAND_NAME } from "@/config/brand";
 
 export default function ProtectedRoute({ children }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const { isAuthenticated, isInitialized } = useAuth();
 
@@ -20,9 +22,11 @@ export default function ProtectedRoute({ children }) {
   // Redirect unauthenticated users
   useEffect(() => {
     if (mounted && isInitialized && !isAuthenticated) {
-      router.replace("/login");
+      const query = searchParams.toString();
+      const requestedPath = `${pathname || "/"}${query ? `?${query}` : ""}`;
+      router.replace(`/login?next=${encodeURIComponent(requestedPath)}`);
     }
-  }, [mounted, isInitialized, isAuthenticated, router]);
+  }, [mounted, isInitialized, isAuthenticated, pathname, router, searchParams]);
 
   // Authentication initialization loading
   if (!mounted || !isInitialized) {

@@ -93,7 +93,7 @@ function LoginPageContent() {
       }
 
       // Allow only safe internal redirects
-      const next = searchParams.get("next");
+      const next = searchParams.get("next") || searchParams.get("redirect");
 
       const safeNext =
         next?.startsWith("/") &&
@@ -568,7 +568,7 @@ function LoginPageContent() {
                 </Link>{" "}
                 and{" "}
                 <Link
-                  href="/privacy"
+                  href="/privacy-policy"
                   className="text-blue-600 hover:underline"
                 >
                   Privacy Policy

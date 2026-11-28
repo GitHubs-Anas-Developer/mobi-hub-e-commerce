@@ -2,23 +2,23 @@
 
 import {
   BadgeCheck,
-  Headset,
   RefreshCw,
   ShieldCheck,
+  Truck,
 } from "lucide-react";
 
 const benefits = [
   {
     id: 1,
-    title: "Secure Checkout",
-    description: "Trusted Razorpay & COD payment options",
-    icon: ShieldCheck,
+    title: "Fast Delivery Across India",
+    description: "Reliable delivery to your doorstep",
+    icon: Truck,
   },
   {
     id: 2,
-    title: "Quality Gadgets",
-    description: "Curated electronics & smart accessories",
-    icon: BadgeCheck,
+    title: "Secure Payments",
+    description: "Trusted Razorpay and COD options",
+    icon: ShieldCheck,
   },
   {
     id: 3,
@@ -28,9 +28,9 @@ const benefits = [
   },
   {
     id: 4,
-    title: "Customer Support",
-    description: "Dedicated assistance for every order",
-    icon: Headset,
+    title: "Genuine Products",
+    description: "Authentic tech from trusted brands",
+    icon: BadgeCheck,
   },
 ];
 
@@ -44,14 +44,14 @@ export default function TrustBar() {
             className="group flex min-w-0 items-center gap-3.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5 transition-colors duration-200 hover:border-[#0755E9]/35 hover:bg-white sm:p-4"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EFF6FF] text-[#0755E9] transition-colors duration-200 group-hover:bg-[#0755E9] group-hover:text-white">
-              <Icon size={19} strokeWidth={1.9} />
+              <Icon size={19} strokeWidth={1.9} aria-hidden="true" />
             </div>
 
             <div className="min-w-0">
-              <h3 className="truncate text-xs font-bold text-[#101828] sm:text-sm">
+              <h3 className="text-xs font-semibold leading-snug text-[#101828] sm:text-sm">
                 {title}
               </h3>
-              <p className="mt-0.5 truncate text-[11px] text-[#64748B] sm:text-xs">
+              <p className="mt-1 text-[11px] leading-4 text-[#64748B] sm:text-xs">
                 {description}
               </p>
             </div>

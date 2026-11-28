@@ -192,7 +192,7 @@ export default function ProductDetailClient({ slug }) {
   );
 
   const requireLogin = () => {
-    router.push(`/login?redirect=${encodeURIComponent(`/products/${slug}`)}`);
+    router.push(`/login?next=${encodeURIComponent(`/products/${slug}`)}`);
   };
 
   const handleVariantChange = (variantId) => {

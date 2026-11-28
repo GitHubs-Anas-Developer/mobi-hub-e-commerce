@@ -56,7 +56,7 @@ export default function BottomNavigation() {
 
     if (!isAuthenticated) {
       router.push(
-        `/login?redirect=${encodeURIComponent(item.href)}`
+        `/login?next=${encodeURIComponent(item.href)}`
       );
       return;
     }

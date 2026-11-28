@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -18,11 +18,19 @@ const getImageUrl = (image) => {
   return image?.url || image?.secure_url || "";
 };
 
+const subscribeToNothing = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export default function ShopBanner() {
   const dispatch = useDispatch();
 
   const [swiper, setSwiper] = useState(null);
-  const [isMounted, setIsMounted] = useState(false);
+  const isMounted = useSyncExternalStore(
+    subscribeToNothing,
+    getClientSnapshot,
+    getServerSnapshot
+  );
 
   const banners = useSelector(
     (state) => state.banners?.bannersByPlacement?.products_top || []
@@ -33,8 +41,6 @@ export default function ShopBanner() {
   );
 
   useEffect(() => {
-    setIsMounted(true);
-
     dispatch(
       fetchActiveBanners({
         placement: "products",
@@ -52,10 +58,10 @@ export default function ShopBanner() {
     });
   }, [banners]);
 
-  if (loading && validBanners.length === 0) {
+  if (!isMounted || (loading && validBanners.length === 0)) {
     return (
       <section className="mb-6 w-full" aria-label="Loading promotion banner">
-        <div className="aspect-[16/7] w-full animate-pulse rounded-2xl border border-[#E2E8F0] bg-[#EFF6FF] sm:aspect-[21/6] lg:aspect-[21/5]" />
+        <div className="aspect-[16/7] w-full rounded-2xl border border-[#E2E8F0] bg-[#EFF6FF] sm:aspect-[21/6] lg:aspect-[21/5]" />
       </section>
     );
   }
@@ -132,7 +138,7 @@ export default function ShopBanner() {
                         loading={index === 0 ? "eager" : "lazy"}
                         fetchPriority={index === 0 ? "high" : "auto"}
                         decoding="async"
-                        className="block max-h-[260px] w-full object-cover sm:max-h-[300px]"
+                        className="block h-auto w-full max-w-full object-contain"
                         onError={(event) => {
                           event.currentTarget.style.display = "none";
                         }}

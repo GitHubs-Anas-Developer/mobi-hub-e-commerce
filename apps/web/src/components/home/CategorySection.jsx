@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 import { ArrowUpRight, ChevronRight, Package } from "lucide-react";
-
 import { fetchCategories } from "@/store/thunks/categoryThunks";
 
 function CategoryCardSkeleton() {
@@ -19,7 +18,6 @@ function CategoryCardSkeleton() {
 
 export default function CategorySection() {
   const dispatch = useDispatch();
-
   const categories = useSelector(
     (state) => state.categories?.categories || []
   );
@@ -27,12 +25,6 @@ export default function CategorySection() {
     (state) => state.categories?.loading || false
   );
   const error = useSelector((state) => state.categories?.error || "");
-
-  useEffect(() => {
-    if (!categories.length && !loading) {
-      dispatch(fetchCategories());
-    }
-  }, [dispatch, categories.length, loading]);
 
   const parentCategories = useMemo(
     () =>
@@ -78,8 +70,18 @@ export default function CategorySection() {
           ))}
         </div>
       ) : error && parentCategories.length === 0 ? (
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-xs text-red-600">
-          {String(error)}
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-xs text-red-600"
+        >
+          <span>{String(error)}</span>
+          <button
+            type="button"
+            onClick={() => dispatch(fetchCategories())}
+            className="font-semibold text-[#0755E9] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0755E9]/30"
+          >
+            Try again
+          </button>
         </div>
       ) : parentCategories.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[#E2E8F0] bg-[#F8FAFC] py-10 text-center">

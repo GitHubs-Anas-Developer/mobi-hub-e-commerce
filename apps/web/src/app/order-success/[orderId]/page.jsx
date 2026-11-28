@@ -697,7 +697,7 @@ function OrderSuccessContent() {
         >
           {!isCancelled && order.shipment?.shipmentId && (
             <Link
-              href={`/order-success/${order._id}/tracking`}
+              href={`/account/orders/${order._id}/tracking`}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0755E9] px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#0645C4]"
             >
               <Truck size={17} />

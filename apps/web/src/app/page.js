@@ -191,14 +191,15 @@ export default function Home() {
         <div className="py-8 sm:py-12">
           <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8">
             <ProductSection
-              eyebrow="Just Landed"
-              title="New Arrivals"
-              subtitle="Fresh releases in smart tech, accessories, chargers, and wearables."
+              eyebrow="Latest Releases"
+              title="Latest Tech & New Arrivals"
+              subtitle="Discover the latest smartphones, audio accessories, gadgets and everyday technology."
               viewAllHref="/products?isNewArrival=true&sort=newest"
               products={newArrivals}
               loading={newArrivalsLoading}
               error={newArrivalsError}
               onAddedToCart={openCartDrawer}
+              catalogHeader
             />
           </div>
         </div>

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   01. ELEZIO - GLOBAL DESIGN TOKENS
-   Brand: ELEZIO (Gadget & Electronics E-commerce)
+   01. ELENZO - GLOBAL DESIGN TOKENS
+   Brand: ELENZO (Gadget & Electronics E-commerce)
    ========================================================================== */
 
 :root {
@@ -30,6 +30,20 @@
   --text-secondary: #64748b;
   --text-muted: #94a3b8;
 
+  /* Editorial type scale */
+  --type-display: clamp(2.5rem, 1.55rem + 3.9vw, 4rem);
+  --type-page-title: clamp(1.875rem, 1.5rem + 1.7vw, 2.75rem);
+  --type-section-title: clamp(1.375rem, 1.15rem + 0.8vw, 1.875rem);
+  --type-body: 0.9375rem;
+  --type-caption: 0.75rem;
+
+  /* Shared typography */
+  --font-family-sans:
+    var(--font-geist-sans), system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular,
+    Menlo, Consolas, monospace;
+
   /* Border Colors */
   --border: #e2e8f0;
   --border-hover: #cbd5e1;
@@ -50,11 +64,31 @@
   --info-text: #0369a1;
 
   /* Layout & Spacing */
-  --container-width: 100%;
+  --container-width: 1440px;
   --page-padding: 16px;
-  --section-spacing: 32px;
-  --section-spacing-mobile: 32px;
-  --header-height: 60px;
+  --section-spacing: 28px;
+  --section-spacing-mobile: 28px;
+  --header-height: 62px;
+  --content-prose-width: 68ch;
+
+  /* Admin workspace scale */
+  --admin-page-background: var(--page-background);
+  --admin-surface: var(--surface);
+  --admin-surface-subtle: var(--surface-secondary);
+  --admin-text-primary: var(--text-primary);
+  --admin-text-secondary: var(--text-secondary);
+  --admin-border: var(--border);
+  --admin-primary: var(--primary);
+  --admin-primary-hover: var(--primary-hover);
+  --admin-primary-light: var(--primary-light);
+  --admin-page-padding: 16px;
+  --admin-section-gap: 24px;
+  --admin-card-padding: 20px;
+  --admin-control-height: 40px;
+  --admin-header-height: 68px;
+  --admin-sidebar-width: 256px;
+  --admin-sidebar-collapsed-width: 76px;
+  --admin-content-max-width: 1600px;
 
   /* Border Radius */
   --radius-xs: 4px;
@@ -69,8 +103,12 @@
   --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
   --shadow-card: 0 2px 10px rgba(16, 24, 40, 0.04);
   --shadow-hover: 0 10px 24px rgba(16, 24, 40, 0.08);
+  --shadow-primary: 0 12px 28px rgba(7, 85, 233, 0.16);
   --shadow-modal: 0 20px 44px rgba(16, 24, 40, 0.14);
   --shadow-focus: 0 0 0 3px rgba(7, 85, 233, 0.16);
+
+  /* Shared promotional treatment */
+  --gradient-brand: linear-gradient(125deg, #082b70 0%, #0755e9 100%);
 
   /* Motion & Transitions */
   --transition-fast: 150ms cubic-bezier(0.2, 0, 0, 1);
@@ -96,7 +134,9 @@
 
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
   --color-primary-light: var(--primary-light);
+  --color-primary-soft: var(--primary-soft);
   --color-secondary: var(--secondary);
 
   --color-text-primary: var(--text-primary);
@@ -109,14 +149,64 @@
 
   --color-border: var(--border);
   --color-border-hover: var(--border-hover);
+  --color-border-focus: var(--border-focus);
 
   --color-success: var(--success);
+  --color-success-light: var(--success-light);
+  --color-success-text: var(--success-text);
   --color-danger: var(--danger);
+  --color-danger-light: var(--danger-light);
+  --color-danger-text: var(--danger-text);
   --color-warning: var(--warning);
+  --color-warning-light: var(--warning-light);
+  --color-warning-text: var(--warning-text);
   --color-info: var(--info);
+  --color-info-light: var(--info-light);
+  --color-info-text: var(--info-text);
 
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-family-sans);
+  --font-mono: var(--font-family-mono);
+
+  --text-display: var(--type-display);
+  --text-display--line-height: 1.04;
+  --text-display--letter-spacing: -0.045em;
+  --text-page-title: var(--type-page-title);
+  --text-page-title--line-height: 1.1;
+  --text-page-title--letter-spacing: -0.035em;
+  --text-section-title: var(--type-section-title);
+  --text-section-title--line-height: 1.2;
+  --text-section-title--letter-spacing: -0.025em;
+  --text-body: var(--type-body);
+  --text-caption: var(--type-caption);
+
+  --container-content: var(--container-width);
+  --container-reading: var(--content-prose-width);
+  --spacing-page: var(--page-padding);
+  --spacing-section: var(--section-spacing);
+  --spacing-section-mobile: var(--section-spacing-mobile);
+  --background-image-brand: var(--gradient-brand);
+  --radius-control: var(--radius-md);
+  --radius-card: var(--radius-lg);
+  --radius-panel: var(--radius-xl);
+  --shadow-surface-card: var(--shadow-card);
+  --shadow-surface-hover: var(--shadow-hover);
+  --shadow-brand: var(--shadow-primary);
+
+  --color-admin-background: var(--admin-page-background);
+  --color-admin-surface: var(--admin-surface);
+  --color-admin-surface-subtle: var(--admin-surface-subtle);
+  --color-admin-text: var(--admin-text-primary);
+  --color-admin-text-secondary: var(--admin-text-secondary);
+  --color-admin-border: var(--admin-border);
+  --color-admin-primary: var(--admin-primary);
+  --color-admin-primary-hover: var(--admin-primary-hover);
+  --color-admin-primary-light: var(--admin-primary-light);
+
+  --spacing-admin-page: var(--admin-page-padding);
+  --spacing-admin-section: var(--admin-section-gap);
+  --spacing-admin-card: var(--admin-card-padding);
+  --radius-admin-card: var(--radius-lg);
+  --shadow-admin-card: var(--shadow-card);
 }
 
 /* ==========================================================================
@@ -148,16 +238,9 @@
     min-height: 100dvh;
     margin: 0;
     overflow-x: clip;
-    background-color: var(--page-background);
+    background-color: var(--background);
     color: var(--text-primary);
-    font-family:
-      var(--font-geist-sans),
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      "Segoe UI",
-      Roboto,
-      sans-serif;
+    font-family: var(--font-family-sans);
     font-size: 14px;
     line-height: 1.55;
     text-rendering: optimizeLegibility;
@@ -179,13 +262,13 @@
   }
 
   h1 {
-    font-size: clamp(1.5rem, 1.25rem + 0.9vw, 2rem);
-    letter-spacing: -0.025em;
+    font-size: var(--type-page-title);
+    letter-spacing: -0.035em;
   }
 
   h2 {
-    font-size: clamp(1.25rem, 1.1rem + 0.55vw, 1.5rem);
-    letter-spacing: -0.02em;
+    font-size: var(--type-section-title);
+    letter-spacing: -0.025em;
   }
 
   h3 {
@@ -345,10 +428,20 @@ body::-webkit-scrollbar-thumb:hover {
   .elz-section-title {
     margin-bottom: 16px;
     color: var(--text-primary);
-    font-size: clamp(1.1875rem, 1.05rem + 0.5vw, 1.5rem);
+    font-size: var(--type-section-title);
     font-weight: 700;
-    line-height: 1.25;
-    letter-spacing: -0.02em;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  .elz-section-eyebrow {
+    color: var(--primary);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.3;
+    text-transform: uppercase;
   }
 
   .mh-section-description,
@@ -812,11 +905,7 @@ body::-webkit-scrollbar-thumb:hover {
   }
 
   [data-sonner-toaster] {
-    font-family:
-      var(--font-geist-sans),
-      system-ui,
-      -apple-system,
-      sans-serif;
+    font-family: var(--font-family-sans);
   }
 
   [data-sonner-toast] {
@@ -842,7 +931,7 @@ body::-webkit-scrollbar-thumb:hover {
 
 @media (min-width: 640px) {
   :root {
-    --header-height: 68px;
+    --header-height: 70px;
   }
 }
 
@@ -850,6 +939,8 @@ body::-webkit-scrollbar-thumb:hover {
   :root {
     --page-padding: 24px;
     --section-spacing: 40px;
+    --admin-page-padding: 24px;
+    --admin-section-gap: 28px;
   }
 }
 
@@ -857,13 +948,16 @@ body::-webkit-scrollbar-thumb:hover {
   :root {
     --page-padding: 32px;
     --section-spacing: 48px;
+    --admin-page-padding: 32px;
+    --admin-section-gap: 32px;
   }
 }
 
 @media (min-width: 1440px) {
   :root {
     --page-padding: 40px;
-    --section-spacing: 52px;
+    --section-spacing: 56px;
+    --admin-page-padding: 40px;
   }
 }
 
