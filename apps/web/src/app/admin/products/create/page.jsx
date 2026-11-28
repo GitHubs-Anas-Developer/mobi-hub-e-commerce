@@ -22,6 +22,7 @@ import {
   fetchSubCategories,
 } from "@/store/thunks/categoryThunks";
 import { fetchBrands } from "@/store/thunks/brandThunks";
+import { createProduct as createProductThunk } from "@/store/thunks/productThunks";
 
 import ProductBasicInformation from "@/components/admin/products/create/ProductBasicInformation";
 import ProductImagesSection from "@/components/admin/products/create/ProductImagesSection";
@@ -41,6 +42,19 @@ const initialFormData = {
   isActive: true,
   isFeatured: false,
   isNewArrival: true,
+  seoTitle: "",
+  seoDescription: "",
+  seoKeywords: "",
+  hsnCode: "",
+  gstRate: "",
+  isTaxable: true,
+  weight: "",
+  length: "",
+  width: "",
+  height: "",
+  warranty: "",
+  returnEligible: true,
+  isFreeShipping: false,
 };
 
 const initialVariant = {
@@ -68,6 +82,7 @@ export default function CreateProductPage() {
   const { message } = App.useApp();
 
   const submittingRef = useRef(false);
+  const uploadedPublicIdsRef = useRef([]);
 
   const {
     categories = [],
@@ -609,6 +624,11 @@ export default function CreateProductPage() {
             firstMessage ||
             `Fix highlighted fields in Variant ${idx + 1}.`;
         }
+        if ((v.images || []).some((image) => typeof File !== "undefined" && image instanceof File && !isValidImageFile(image))) {
+          vErr.images = "Variant images must be JPG, PNG, or WEBP and below 5MB.";
+          nextVariantErrors[idx] = vErr;
+          firstMessage = firstMessage || `Fix highlighted fields in Variant ${idx + 1}.`;
+        }
       });
     }
 
@@ -644,7 +664,9 @@ export default function CreateProductPage() {
       },
     );
 
-    return response.data || [];
+    const uploaded = response.data || [];
+    uploadedPublicIdsRef.current.push(...uploaded.map((image) => image.publicId).filter(Boolean));
+    return uploaded;
   };
 
   // Submit handler (supports Publish OR Save as Draft)
@@ -664,6 +686,7 @@ export default function CreateProductPage() {
 
     try {
       submittingRef.current = true;
+      uploadedPublicIdsRef.current = [];
       setLoading(true);
       setLoadingAction(actionMode);
 
@@ -749,9 +772,23 @@ export default function CreateProductPage() {
         isActive: publishActive,
         isFeatured: Boolean(formData.isFeatured),
         isNewArrival: Boolean(formData.isNewArrival),
+        seoTitle: formData.seoTitle,
+        seoDescription: formData.seoDescription,
+        seoKeywords: formData.seoKeywords.split(",").map((item) => item.trim()).filter(Boolean),
+        hsnCode: formData.hsnCode,
+        ...(formData.gstRate !== "" && { gstRate: Number(formData.gstRate) }),
+        isTaxable: Boolean(formData.isTaxable),
+        ...(formData.weight !== "" && { weight: Number(formData.weight) }),
+        ...(formData.length !== "" && { length: Number(formData.length) }),
+        ...(formData.width !== "" && { width: Number(formData.width) }),
+        ...(formData.height !== "" && { height: Number(formData.height) }),
+        warranty: formData.warranty,
+        returnEligible: Boolean(formData.returnEligible),
+        isFreeShipping: Boolean(formData.isFreeShipping),
+        status: publishActive ? "active" : "draft",
       };
 
-      await adminProductService.createProduct(productData);
+      await dispatch(createProductThunk(productData)).unwrap();
 
       setUploadProgress({
         active: true,
@@ -769,6 +806,15 @@ export default function CreateProductPage() {
       router.refresh();
     } catch (err) {
       console.error("Create Product Error:", err);
+
+      if (uploadedPublicIdsRef.current.length) {
+        try {
+          await adminProductService.deleteUploadedImages(uploadedPublicIdsRef.current);
+          uploadedPublicIdsRef.current = [];
+        } catch (cleanupError) {
+          console.error("Unable to clean up unreferenced product uploads:", cleanupError);
+        }
+      }
 
       const backendErrors = err.response?.data?.errors;
       const detailedError = Array.isArray(backendErrors) && backendErrors.length

@@ -30,16 +30,28 @@ const validateCategory = async (categoryId) => {
 const validateVariantSkus = async (variants, currentProductId = null) => {
   if (!variants?.length) return;
 
-  const skus = variants.map((variant) => variant.sku.toUpperCase());
+  const skus = variants.map((variant) => variant.sku.trim().toUpperCase());
 
   // Check duplicate SKUs within the same product
   if (new Set(skus).size !== skus.length) {
     throw createError("Duplicate variant SKU found");
   }
 
+  if (variants.filter((variant) => variant.isActive !== false && variant.isDefault).length > 1) {
+    throw createError("Only one active default variant is allowed");
+  }
+  for (const variant of variants) {
+    if (Number(variant.sellingPrice) > Number(variant.mrp)) {
+      throw createError("Selling price cannot exceed MRP");
+    }
+    if (!Number.isSafeInteger(Number(variant.stock)) || Number(variant.stock) < 0) {
+      throw createError("Stock must be a non-negative whole number");
+    }
+  }
+
   // Check SKU conflicts with other products
   const query = {
-    "variants.sku": { $in: skus },
+    variants: { $elemMatch: { sku: { $in: skus.map((sku) => new RegExp(`^${sku.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i")) } } },
   };
 
   if (currentProductId) {
@@ -53,6 +65,15 @@ const validateVariantSkus = async (variants, currentProductId = null) => {
   }
 };
 
+const mapProductWriteError = (error) => {
+  if (error?.code === 11000) {
+    const key = Object.keys(error.keyPattern || {})[0];
+    if (key === "variants.sku") throw createError("One or more variant SKUs already exist", 409);
+    if (key === "slug") throw createError("Product name already exists", 409);
+  }
+  throw error;
+};
+
 // Generate product slug
 const generateSlug = (name) => {
   return name
@@ -64,7 +85,10 @@ const generateSlug = (name) => {
 
 // 1. Create Product
 export const createProduct = async (productData) => {
-  const { category, variants, name } = productData;
+  const { category, name } = productData;
+  const variants = productData.variants;
+  if (productData.status === "draft") productData.isActive = false;
+  if (productData.status === "active") productData.isActive = true;
 
   await validateCategory(category);
   await validateVariantSkus(variants);
@@ -75,19 +99,30 @@ export const createProduct = async (productData) => {
     throw createError("Invalid product name");
   }
 
+  const activeVariants = variants.filter((variant) => variant.isActive !== false);
+  if (!activeVariants.length) throw createError("At least one variant must be active");
+  if (!variants.some((variant) => variant.isActive !== false && variant.isDefault)) {
+    variants[0].isDefault = true;
+  }
+
   const existingProduct = await Product.findOne({ slug });
 
   if (existingProduct) {
     throw createError("Product already exists", 409);
   }
 
-  return await Product.create(productData);
+  try {
+    return await Product.create(productData);
+  } catch (error) {
+    return mapProductWriteError(error);
+  }
 };
 
 // 2. Get All Active Products (Public)
 export const getAllProducts = async (filters = {}) => {
   const query = {
     isActive: true,
+    status: { $ne: "draft" },
   };
 
   if (typeof filters.isFeatured === "boolean") {
@@ -136,6 +171,9 @@ export const getAllProducts = async (filters = {}) => {
   if (filters.search?.trim()) {
     query.$text = { $search: filters.search.trim() };
   }
+
+  if (filters.inStock === true || filters.inStock === "true") query.totalStock = { $gt: 0 };
+  if (filters.inStock === false || filters.inStock === "false") query.totalStock = 0;
 
   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
     query.basePrice = {};
@@ -347,6 +385,9 @@ export const updateProduct = async (productId, updateData) => {
 
   if (updateData.variants !== undefined) {
     await validateVariantSkus(updateData.variants, productId);
+    const activeVariants = updateData.variants.filter((variant) => variant.isActive !== false);
+    if (!activeVariants.length) throw createError("At least one variant must be active");
+    if (!activeVariants.some((variant) => variant.isDefault)) activeVariants[0].isDefault = true;
   }
 
   if (updateData.name) {
@@ -367,8 +408,13 @@ export const updateProduct = async (productId, updateData) => {
   }
 
   Object.assign(product, updateData);
+  if (updateData.status !== undefined) product.isActive = updateData.status === "active";
 
-  await product.save();
+  try {
+    await product.save();
+  } catch (error) {
+    mapProductWriteError(error);
+  }
 
   return product;
 };

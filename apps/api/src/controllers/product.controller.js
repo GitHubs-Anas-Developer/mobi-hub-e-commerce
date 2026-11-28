@@ -52,6 +52,8 @@ export const getAllProducts = async (req, res, next) => {
       filters.maxPrice = req.query.maxPrice;
     }
 
+    if (req.query.inStock !== undefined) filters.inStock = req.query.inStock === "true";
+
     if (req.query.sort) {
       filters.sort = req.query.sort;
     }

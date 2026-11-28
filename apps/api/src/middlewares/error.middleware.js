@@ -4,6 +4,18 @@ export const errorMiddleware = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || "Something went wrong";
 
+  if (err.name === "ValidationError") {
+    statusCode = 400;
+    message = Object.values(err.errors || {}).map((item) => item.message).join(". ") || "Validation failed";
+  } else if (err.name === "CastError") {
+    statusCode = 400;
+    message = `Invalid ${err.path || "value"}`;
+  } else if (err.code === 11000) {
+    statusCode = 409;
+    const field = Object.keys(err.keyPattern || {})[0];
+    message = field === "slug" ? "A record with this slug already exists" : "A record with this value already exists";
+  }
+
   // Multer file size error
   if (err.code === "LIMIT_FILE_SIZE") {
     statusCode = 400;

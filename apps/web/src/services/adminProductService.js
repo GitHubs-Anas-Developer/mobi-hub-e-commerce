@@ -34,6 +34,11 @@ const adminProductService = {
     return response.data;
   },
 
+  deleteUploadedImages: async (publicIds) => {
+    const response = await axiosInstance.post("/admin/upload/images/delete", { publicIds });
+    return response.data;
+  },
+
   // Create product
   createProduct: async (productData) => {
     const response = await axiosInstance.post("/products", productData);

@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { toast } from "sonner";
 import { X, AlertCircle, RefreshCw } from "lucide-react";
 
-import productService from "@/services/productService";
+import { fetchProducts as fetchProductsThunk } from "@/store/thunks/productThunks";
 import categoryService from "@/services/categoryService";
 import { fetchCart, addToCart } from "@/store/thunks/cartThunks";
 import {
@@ -386,7 +386,7 @@ function ProductsListingContent({ categoryId = "" }) {
       if (isFeatured) params.isFeatured = true;
       if (isNewArrival) params.isNewArrival = true;
 
-      const response = await productService.getProducts(params);
+      const response = await dispatch(fetchProductsThunk(params)).unwrap();
 
       if (requestId !== requestIdRef.current) return;
 
@@ -427,6 +427,7 @@ function ProductsListingContent({ categoryId = "" }) {
     search,
     isFeatured,
     isNewArrival,
+    dispatch,
   ]);
 
   useEffect(() => {

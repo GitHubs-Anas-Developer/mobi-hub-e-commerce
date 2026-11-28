@@ -14,6 +14,7 @@ import newsletterReducer from "./slices/newsletterSlice";
 import trackingReducer from "./slices/trackingSlice";
 import ordersReducer from "./slices/orderSlice";
 import adminReducer from "./slices/adminSlice";
+import productsReducer from "./slices/productSlice";
 
 export const store = configureStore({
   reducer: {
@@ -31,5 +32,6 @@ export const store = configureStore({
     tracking: trackingReducer,
     orders: ordersReducer,
     admin: adminReducer,
+    products: productsReducer,
   },
 });

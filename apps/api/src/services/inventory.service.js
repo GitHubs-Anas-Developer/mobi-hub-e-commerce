@@ -139,7 +139,7 @@ export const updateVariantStock = async ({
     {
       $inc: {
         "variants.$.stock": direction === "IN" ? quantity : -quantity,
-        totalStock: direction === "IN" ? quantity : -quantity,
+        ...(variant.isActive && { totalStock: direction === "IN" ? quantity : -quantity }),
       },
     },
     {

@@ -1,6 +1,6 @@
 import express from "express";
 
-import { uploadImages } from "../controllers/upload.controller.js";
+import { deleteImages, uploadImages } from "../controllers/upload.controller.js";
 
 import upload from "../middlewares/upload.middleware.js";
 
@@ -13,5 +13,6 @@ router.use(authenticate, authorize("admin"));
 
 // Upload multiple images
 router.post("/images", upload.array("images", 7), uploadImages);
+router.post("/images/delete", deleteImages);
 
 export default router;

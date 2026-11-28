@@ -9,6 +9,8 @@ import adminProductService from "@/services/adminProductService";
 import categoryService from "@/services/categoryService";
 import brandService from "@/services/brandService";
 import useAdminProduct from "@/hooks/useAdminProduct";
+import { useDispatch } from "react-redux";
+import { updateProduct as updateProductThunk } from "@/store/thunks/productThunks";
 
 import ProductBasicInformation from "@/components/admin/products/create/ProductBasicInformation";
 import ProductImagesSection from "@/components/admin/products/create/ProductImagesSection";
@@ -25,6 +27,19 @@ const initialFormData = {
   isActive: true,
   isFeatured: false,
   isNewArrival: false,
+  seoTitle: "",
+  seoDescription: "",
+  seoKeywords: "",
+  hsnCode: "",
+  gstRate: "",
+  isTaxable: true,
+  weight: "",
+  length: "",
+  width: "",
+  height: "",
+  warranty: "",
+  returnEligible: true,
+  isFreeShipping: false,
 };
 
 const initialVariant = {
@@ -43,6 +58,7 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.productId;
+  const dispatch = useDispatch();
 
   const {
     product,
@@ -143,10 +159,11 @@ export default function EditProductPage() {
     if (productLoading) return;
 
     if (!product) {
-      setInitializing(false);
+      queueMicrotask(() => setInitializing(false));
       return;
     }
 
+    queueMicrotask(() => {
     setFormData({
       name: product.name || "",
       brand: product.brand || "",
@@ -155,6 +172,20 @@ export default function EditProductPage() {
       isActive: product.isActive ?? true,
       isFeatured: product.isFeatured ?? false,
       isNewArrival: product.isNewArrival ?? false,
+      seoTitle: product.seoTitle || "",
+      seoDescription: product.seoDescription || "",
+      seoKeywords: (product.seoKeywords || []).join(", "),
+      hsnCode: product.hsnCode || "",
+      gstRate: product.gstRate ?? "",
+      isTaxable: product.isTaxable ?? true,
+      weight: product.weight ?? "",
+      length: product.length ?? "",
+      width: product.width ?? "",
+      height: product.height ?? "",
+      warranty: product.warranty || "",
+      returnEligible: product.returnEligible ?? true,
+      isFreeShipping: product.isFreeShipping ?? false,
+      status: product.status || (product.isActive ? "active" : "draft"),
     });
 
     setThumbnail(product.thumbnail || null);
@@ -207,6 +238,7 @@ export default function EditProductPage() {
     );
 
     setInitializing(false);
+    });
   }, [product, productLoading]);
 
   // Basic information
@@ -637,12 +669,23 @@ export default function EditProductPage() {
         images: uploadedGallery,
         specifications: specificationsObject,
         variants: preparedVariants,
+        seoTitle: formData.seoTitle,
+        seoDescription: formData.seoDescription,
+        seoKeywords: formData.seoKeywords.split(",").map((item) => item.trim()).filter(Boolean),
+        hsnCode: formData.hsnCode,
+        ...(formData.gstRate !== "" && { gstRate: Number(formData.gstRate) }),
+        isTaxable: Boolean(formData.isTaxable),
+        ...(formData.weight !== "" && { weight: Number(formData.weight) }),
+        ...(formData.length !== "" && { length: Number(formData.length) }),
+        ...(formData.width !== "" && { width: Number(formData.width) }),
+        ...(formData.height !== "" && { height: Number(formData.height) }),
+        warranty: formData.warranty,
+        returnEligible: Boolean(formData.returnEligible),
+        isFreeShipping: Boolean(formData.isFreeShipping),
+        status: formData.isActive ? "active" : "draft",
       };
 
-      await adminProductService.updateProduct(
-        productId,
-        productData,
-      );
+      await dispatch(updateProductThunk({ productId, data: productData })).unwrap();
 
       router.push("/admin/products");
       router.refresh();

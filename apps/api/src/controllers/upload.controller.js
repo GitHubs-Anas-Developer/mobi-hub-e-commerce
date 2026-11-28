@@ -1,4 +1,4 @@
-import { uploadImage } from "../services/cloudinary.service.js";
+import { deleteImages as deleteCloudinaryImages, uploadImage } from "../services/cloudinary.service.js";
 
 const allowedFolders = {
   products: "mobi-hub/products",
@@ -36,6 +36,21 @@ export const uploadImages = async (req, res, next) => {
       results: uploadedImages.length,
       data: uploadedImages,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteImages = async (req, res, next) => {
+  try {
+    const { publicIds } = req.body;
+    if (!Array.isArray(publicIds) || publicIds.length < 1 || publicIds.length > 30) {
+      const error = new Error("Provide between 1 and 30 product image public IDs");
+      error.statusCode = 400;
+      throw error;
+    }
+    const results = await deleteCloudinaryImages(publicIds);
+    res.status(200).json({ success: true, results });
   } catch (error) {
     next(error);
   }

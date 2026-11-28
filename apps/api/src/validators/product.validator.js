@@ -9,6 +9,26 @@ const imageSchema = z.object({
   publicId: z.string().trim().min(1, "Image public ID is required"),
 });
 
+const optionalProductFields = {
+  seoTitle: z.string().trim().max(180).optional(),
+  seoDescription: z.string().trim().max(320).optional(),
+  seoKeywords: z.array(z.string().trim().min(1).max(80)).max(30).optional(),
+  canonicalSlug: z.string().trim().min(1).max(180).optional(),
+  hsnCode: z.string().trim().max(32).optional(),
+  gstRate: z.coerce.number().min(0).max(100).optional(),
+  isTaxable: z.boolean().optional(),
+  weight: z.coerce.number().min(0).optional(),
+  weightUnit: z.enum(["g", "kg"]).optional(),
+  length: z.coerce.number().min(0).optional(),
+  width: z.coerce.number().min(0).optional(),
+  height: z.coerce.number().min(0).optional(),
+  dimensionUnit: z.enum(["mm", "cm", "m"]).optional(),
+  isFreeShipping: z.boolean().optional(),
+  status: z.enum(["draft", "active", "archived"]).optional(),
+  returnEligible: z.boolean().optional(),
+  warranty: z.string().trim().max(500).optional(),
+};
+
 const variantSchema = z.object({
   sku: z
     .string()
@@ -34,8 +54,12 @@ const variantSchema = z.object({
   images: z.array(imageSchema).default([]),
 
   isActive: z.boolean().default(true),
+  status: z.enum(["draft", "active", "archived"]).optional(),
 
   isDefault: z.boolean().default(false),
+}).refine((variant) => variant.sellingPrice <= variant.mrp, {
+  message: "Selling price cannot exceed MRP",
+  path: ["sellingPrice"],
 });
 
 export const createProductSchema = z.object({
@@ -53,13 +77,25 @@ export const createProductSchema = z.object({
 
   specifications: z.record(z.string(), z.string()).default({}),
 
-  variants: z.array(variantSchema).min(1, "At least one variant is required"),
+  variants: z.array(variantSchema).min(1, "At least one variant is required").superRefine((variants, ctx) => {
+    const skus = new Set();
+    let activeDefaultCount = 0;
+    variants.forEach((variant, index) => {
+      const sku = variant.sku.toUpperCase();
+      if (skus.has(sku)) ctx.addIssue({ code: "custom", path: [index, "sku"], message: "Duplicate variant SKU found" });
+      skus.add(sku);
+      if (variant.isActive && variant.isDefault) activeDefaultCount += 1;
+    });
+    if (activeDefaultCount > 1) ctx.addIssue({ code: "custom", path: ["root"], message: "Only one active default variant is allowed" });
+  }),
 
   isFeatured: z.boolean().default(false),
 
   isNewArrival: z.boolean().default(true),
 
   isActive: z.boolean().default(true),
+
+  ...optionalProductFields,
 });
 
 export const updateProductSchema = createProductSchema.partial();

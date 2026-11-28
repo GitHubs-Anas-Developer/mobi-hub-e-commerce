@@ -136,6 +136,7 @@ export default function ProductInfo({
                 <span>You save {formatPrice(savings)}</span>
               </p>
             )}
+            {product?.warranty && <p className="mt-2 text-xs text-[#475569]">Warranty: {product.warranty}</p>}
 
             <div className="mt-3.5 border-t border-[#E2E8F0] pt-3">
               {canPurchase ? (

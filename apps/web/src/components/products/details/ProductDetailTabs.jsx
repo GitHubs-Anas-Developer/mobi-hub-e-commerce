@@ -36,12 +36,9 @@ export default function ProductDetailTabs({
     [specifications]
   );
 
-  const features = useMemo(() => {
-    if (Array.isArray(product?.features)) {
-      return product.features.filter((f) => typeof f === "string" && f.trim());
-    }
-    return [];
-  }, [product?.features]);
+  const features = Array.isArray(product?.features)
+    ? product.features.filter((feature) => typeof feature === "string" && feature.trim())
+    : [];
 
   const reviewCount = Number(
     product?.ratings?.count ?? product?.rating?.count ?? 0
@@ -67,13 +64,11 @@ export default function ProductDetailTabs({
       label: reviewCount > 0 ? `Reviews (${reviewCount})` : "Reviews",
       icon: MessageSquareText,
     });
-    list.push({
-      id: "shipping",
-      label: "Shipping & Returns",
-      icon: Truck,
-    });
+    if (product?.returnEligible !== undefined || product?.isFreeShipping || product?.weight || product?.length || product?.warranty) {
+      list.push({ id: "shipping", label: "Shipping & Returns", icon: Truck });
+    }
     return list;
-  }, [hasDescription, validSpecs.length, features.length, reviewCount]);
+  }, [hasDescription, validSpecs.length, features.length, reviewCount, product]);
 
   const resolvedTab = tabs.some((t) => t.id === activeTab)
     ? activeTab
@@ -184,19 +179,19 @@ export default function ProductDetailTabs({
             aria-labelledby="tab-shipping"
             className="grid grid-cols-1 gap-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-5 sm:grid-cols-3 sm:p-6"
           >
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            {(product?.isFreeShipping || product?.weight || product?.length || product?.width || product?.height) && <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
                 <Truck size={18} aria-hidden="true" />
               </div>
               <h3 className="mt-3 text-sm font-bold text-[#101828]">
-                Standard Shipping
+                {product?.isFreeShipping ? "Free Shipping" : "Shipping Information"}
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-[#64748B]">
-                Orders are dispatched securely from ELENZO fulfillment centers. Exact delivery address verification happens cleanly during checkout.
+                {product?.weight ? `Weight: ${product.weight} ${product.weightUnit || "g"}. ` : ""}{product?.length || product?.width || product?.height ? `Dimensions: ${[product.length, product.width, product.height].filter((value) => value != null).join(" × ")} ${product.dimensionUnit || "cm"}.` : "Delivery availability is confirmed during checkout."}
               </p>
-            </div>
+            </div>}
 
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            {product?.returnEligible !== undefined && <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
                 <RotateCcw size={18} aria-hidden="true" />
               </div>
@@ -204,21 +199,21 @@ export default function ProductDetailTabs({
                 Return &amp; Support Policy
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-[#64748B]">
-                Eligible defective or damaged items can be raised through your ELENZO Order History for assistance and resolution.
+                {product.returnEligible ? "This product is eligible for returns subject to the return policy shown at checkout." : "This product is not eligible for returns."}
               </p>
-            </div>
+            </div>}
 
-            <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
+            {product?.warranty && <div className="rounded-xl border border-[#E2E8F0] bg-white p-4">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#EFF6FF] text-[#0755E9]">
                 <ShieldCheck size={18} aria-hidden="true" />
               </div>
               <h3 className="mt-3 text-sm font-bold text-[#101828]">
-                Payment Protection
+                Warranty
               </h3>
               <p className="mt-1 text-xs leading-relaxed text-[#64748B]">
-                Every transaction supports encrypted Razorpay online payment as well as Cash on Delivery where eligible.
+                {product.warranty}
               </p>
-            </div>
+            </div>}
           </div>
         )}
       </div>

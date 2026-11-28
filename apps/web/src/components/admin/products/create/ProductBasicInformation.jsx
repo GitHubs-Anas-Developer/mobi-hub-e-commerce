@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { Alert, Card, Collapse, Input, Select, Tag } from "antd";
-import { FolderTree, Globe, Info } from "lucide-react";
+import { Alert, Card, Collapse, Input, Select, Tag, InputNumber, Switch } from "antd";
+import { FolderTree, Globe, Info, Truck } from "lucide-react";
 
 const labelClass =
   "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-[#475569]";
@@ -332,6 +332,27 @@ export default function ProductBasicInformation({
               </p>
             )}
           </div>
+        </div>
+      </Card>
+
+      <Card
+        className="!border-[#E2E8F0] shadow-xs"
+        title={<div className="flex items-center gap-2"><Truck size={16} className="text-[#0755E9]" /><span className="font-bold">SEO, Shipping & Tax</span></div>}
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div><label className={labelClass}>SEO Title</label><Input maxLength={180} showCount value={formData.seoTitle || ""} onChange={(e) => triggerSynthetic("seoTitle", e.target.value)} /></div>
+          <div><label className={labelClass}>SEO Keywords</label><Input value={formData.seoKeywords || ""} onChange={(e) => triggerSynthetic("seoKeywords", e.target.value)} placeholder="Comma separated" /></div>
+          <div className="md:col-span-2"><label className={labelClass}>SEO Description</label><Input.TextArea maxLength={320} showCount rows={2} value={formData.seoDescription || ""} onChange={(e) => triggerSynthetic("seoDescription", e.target.value)} /></div>
+          <div><label className={labelClass}>HSN Code</label><Input value={formData.hsnCode || ""} onChange={(e) => triggerSynthetic("hsnCode", e.target.value)} /></div>
+          <div><label className={labelClass}>GST Rate (%)</label><InputNumber min={0} max={100} className="!w-full" value={formData.gstRate === "" ? null : Number(formData.gstRate)} onChange={(value) => triggerSynthetic("gstRate", value ?? "")} placeholder="Set only after tax review" /></div>
+          <div><label className={labelClass}>Weight (grams)</label><InputNumber min={0} className="!w-full" value={formData.weight === "" ? null : Number(formData.weight)} onChange={(value) => triggerSynthetic("weight", value ?? "")} /></div>
+          <div className="grid grid-cols-3 gap-2"><div><label className={labelClass}>Length (cm)</label><InputNumber min={0} className="!w-full" value={formData.length === "" ? null : Number(formData.length)} onChange={(value) => triggerSynthetic("length", value ?? "")} /></div><div><label className={labelClass}>Width (cm)</label><InputNumber min={0} className="!w-full" value={formData.width === "" ? null : Number(formData.width)} onChange={(value) => triggerSynthetic("width", value ?? "")} /></div><div><label className={labelClass}>Height (cm)</label><InputNumber min={0} className="!w-full" value={formData.height === "" ? null : Number(formData.height)} onChange={(value) => triggerSynthetic("height", value ?? "")} /></div></div>
+          <div><label className={labelClass}>Warranty</label><Input value={formData.warranty || ""} onChange={(e) => triggerSynthetic("warranty", e.target.value)} placeholder="e.g. 1 year manufacturer warranty" /></div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-5">
+          <label className="flex items-center gap-2 text-sm"><Switch checked={formData.isTaxable !== false} onChange={(checked) => triggerSynthetic("isTaxable", checked)} /> Taxable</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={formData.returnEligible !== false} onChange={(checked) => triggerSynthetic("returnEligible", checked)} /> Returns eligible</label>
+          <label className="flex items-center gap-2 text-sm"><Switch checked={Boolean(formData.isFreeShipping)} onChange={(checked) => triggerSynthetic("isFreeShipping", checked)} /> Free shipping</label>
         </div>
       </Card>
 

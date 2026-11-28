@@ -7,7 +7,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Package, RefreshCw, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import productService from "@/services/productService";
+import { fetchProductBySlug } from "@/store/thunks/productThunks";
 import recentlyViewedService from "@/services/recentlyViewed.service";
 import { addToCart } from "@/store/thunks/cartThunks";
 import {
@@ -83,7 +83,7 @@ export default function ProductDetailClient({ slug }) {
     setError("");
 
     try {
-      const response = await productService.getProductBySlug(slug);
+      const response = await dispatch(fetchProductBySlug(slug)).unwrap();
       const fetchedProduct = response?.data;
 
       if (!fetchedProduct) {
@@ -119,10 +119,11 @@ export default function ProductDetailClient({ slug }) {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, dispatch]);
 
   useEffect(() => {
-    fetchProduct();
+    const timer = window.setTimeout(() => fetchProduct(), 0);
+    return () => window.clearTimeout(timer);
   }, [fetchProduct]);
 
   useEffect(() => {
@@ -165,8 +166,8 @@ export default function ProductDetailClient({ slug }) {
 
   const productImages = useMemo(() => {
     const raw = [
-      product?.thumbnail?.url,
       ...(selectedVariant?.images || []).map((image) => image?.url),
+      product?.thumbnail?.url,
       ...(product?.images || []).map((image) => image?.url),
     ].filter(Boolean);
 

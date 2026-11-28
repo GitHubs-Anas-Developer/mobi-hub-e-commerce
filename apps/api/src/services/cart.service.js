@@ -58,6 +58,9 @@ export const getCart = async (userId) => {
 
 // Validate product and variant
 const validateProductVariant = async (productId, variantId, quantity) => {
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    throw createError("Quantity must be a positive whole number");
+  }
   if (
     !mongoose.isValidObjectId(productId) ||
     !mongoose.isValidObjectId(variantId)
