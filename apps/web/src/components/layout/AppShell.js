@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 
 import Navbar from "./Navbar";
@@ -52,13 +51,5 @@ function AppShellContent({ children }) {
 }
 
 export default function AppShell({ children }) {
-  return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen flex-1 bg-white">{children}</main>
-      }
-    >
-      <AppShellContent>{children}</AppShellContent>
-    </Suspense>
-  );
+  return <AppShellContent>{children}</AppShellContent>;
 }

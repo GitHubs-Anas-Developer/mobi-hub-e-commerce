@@ -43,12 +43,21 @@ public Express API base URL so product/category metadata, `sitemap.xml`, and the
 Merchant Center feed can read the live catalog. Do not put private API credentials
 in these public variables.
 
+The API generates missing product SEO titles and descriptions from product details
+and variant SKUs on creation and publication. Product pages use server-rendered
+metadata, canonical URLs, and Product JSON-LD; out-of-stock products remain
+eligible and advertise their actual availability. The sitemap reads the public
+catalog without a Next.js fetch cache, so catalog changes are reflected on its
+next request. Submitting the sitemap helps Google discover URLs but does not
+guarantee that any URL is indexed.
+
 Optional Search Console HTML-tag verification is supported through
 `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`. Add the verification token provided by
 Google to the Vercel production environment, deploy, and then complete verification
 in Search Console. Submit `https://www.elenzo.in/sitemap.xml` after confirming it
 loads. Verification, indexing, and search performance have not been completed by
-this code change.
+this code change. The Google Indexing API is not used because ordinary product
+pages are outside its supported use cases.
 
 The Google Merchant Center RSS feed is available at
 `https://www.elenzo.in/merchant-feed.xml`. Connect it in Merchant Center and

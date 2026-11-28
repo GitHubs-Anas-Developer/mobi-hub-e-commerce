@@ -11,6 +11,7 @@ import {
   getProductBySlug,
   getProductDescription,
   getProductJsonLd,
+  getProductSku,
 } from "@/lib/seo";
 
 export async function generateMetadata({ params }) {
@@ -29,7 +30,10 @@ export async function generateMetadata({ params }) {
         ? customTitle
         : `${product.name} | ${customTitle}`
       ).slice(0, 180)
-    : `${product.name} by ${product.brand} in India`;
+    : `${product.name} | ${getProductSku(product) || product.slug}`.slice(
+        0,
+        180,
+      );
   const description = getProductDescription(product);
   const image = product.thumbnail?.url;
   const url = canonicalUrl(`/products/${product.slug}`);
@@ -52,7 +56,7 @@ export async function generateMetadata({ params }) {
       card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: image ? [{ url: image, alt: product.name }] : undefined,
     },
     robots: { index: true, follow: true },
   };

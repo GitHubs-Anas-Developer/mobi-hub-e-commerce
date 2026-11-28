@@ -19,6 +19,7 @@ export const getSearchSuggestions = async (query) => {
   const [products, brands, categories] = await Promise.all([
     Product.find({
       isActive: true,
+      status: { $in: ["active", null] },
       name: regex,
     })
       .select("name slug brand basePrice thumbnail")
@@ -27,6 +28,7 @@ export const getSearchSuggestions = async (query) => {
 
     Product.distinct("brand", {
       isActive: true,
+      status: { $in: ["active", null] },
       brand: regex,
     }),
 

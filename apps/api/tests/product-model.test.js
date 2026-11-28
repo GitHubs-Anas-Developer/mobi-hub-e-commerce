@@ -22,6 +22,7 @@ test("product validation calculates base price and active total stock", async ()
   await product.validate();
   assert.equal(product.basePrice, 80);
   assert.equal(product.totalStock, 4);
+  assert.equal(product.status, "active");
   assert.equal(product.variants[0].attributes.get("Color"), undefined);
   assert.equal(product.variants[1].isDefault, false);
 });

@@ -1,6 +1,10 @@
 import mongoose from "mongoose";
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
+import {
+  generateProductSeoMetadata,
+  getProductSeoUpdates,
+} from "../utils/product-seo.js";
 
 // Custom service error
 const createError = (message, statusCode = 400) => {
@@ -85,10 +89,11 @@ const generateSlug = (name) => {
 
 // 1. Create Product
 export const createProduct = async (productData) => {
-  const { category, name } = productData;
-  const variants = productData.variants;
-  if (productData.status === "draft") productData.isActive = false;
-  if (productData.status === "active") productData.isActive = true;
+  const data = { ...productData };
+  const { category, name } = data;
+  const variants = data.variants;
+  data.status = data.status || (data.isActive === false ? "draft" : "active");
+  data.isActive = data.status === "active";
 
   await validateCategory(category);
   await validateVariantSkus(variants);
@@ -112,7 +117,14 @@ export const createProduct = async (productData) => {
   }
 
   try {
-    return await Product.create(productData);
+    Object.assign(data, {
+      ...generateProductSeoMetadata(data),
+      ...(data.seoTitle?.trim() ? { seoTitle: data.seoTitle.trim() } : {}),
+      ...(data.seoDescription?.trim()
+        ? { seoDescription: data.seoDescription.trim() }
+        : {}),
+    });
+    return await Product.create(data);
   } catch (error) {
     return mapProductWriteError(error);
   }
@@ -122,7 +134,7 @@ export const createProduct = async (productData) => {
 export const getAllProducts = async (filters = {}) => {
   const query = {
     isActive: true,
-    status: { $ne: "draft" },
+    status: { $in: ["active", null] },
   };
 
   if (typeof filters.isFeatured === "boolean") {
@@ -322,6 +334,7 @@ export const getProductById = async (productId) => {
   const product = await Product.findOne({
     _id: productId,
     isActive: true,
+    status: { $in: ["active", null] },
   }).populate("category", "name slug");
 
   if (!product) {
@@ -358,6 +371,7 @@ export const getProductBySlug = async (slug) => {
   const product = await Product.findOne({
     slug: slug.toLowerCase().trim(),
     isActive: true,
+    status: { $in: ["active", null] },
   }).populate("category", "name slug");
 
   if (!product) {
@@ -390,6 +404,16 @@ export const updateProduct = async (productId, updateData) => {
     if (!activeVariants.some((variant) => variant.isDefault)) activeVariants[0].isDefault = true;
   }
 
+  const productDataForSeo = {
+    ...product.toObject(),
+    ...updateData,
+    variants: updateData.variants ?? product.variants,
+  };
+  Object.assign(
+    updateData,
+    getProductSeoUpdates(product, productDataForSeo, updateData),
+  );
+
   if (updateData.name) {
     const slug = generateSlug(updateData.name);
 
@@ -408,7 +432,11 @@ export const updateProduct = async (productId, updateData) => {
   }
 
   Object.assign(product, updateData);
-  if (updateData.status !== undefined) product.isActive = updateData.status === "active";
+  if (updateData.status !== undefined) {
+    product.isActive = updateData.status === "active";
+  } else if (updateData.isActive !== undefined) {
+    product.status = updateData.isActive ? "active" : "draft";
+  }
 
   try {
     await product.save();
@@ -449,6 +477,8 @@ export const toggleProductStatus = async (productId) => {
   }
 
   product.isActive = !product.isActive;
+  product.status = product.isActive ? "active" : "draft";
+  Object.assign(product, getProductSeoUpdates(product, product, {}));
 
   await product.save();
 
@@ -464,6 +494,7 @@ export const getRelatedProducts = async (productId, limit = 10) => {
   const currentProduct = await Product.findOne({
     _id: productId,
     isActive: true,
+    status: { $in: ["active", null] },
   }).select("_id category brand basePrice");
 
   if (!currentProduct) {
@@ -479,6 +510,7 @@ export const getRelatedProducts = async (productId, limit = 10) => {
     _id: { $ne: currentProduct._id },
     category: currentProduct.category,
     isActive: true,
+    status: { $in: ["active", null] },
     totalStock: { $gt: 0 },
     basePrice: { $gte: minPrice, $lte: maxPrice },
   })

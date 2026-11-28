@@ -85,17 +85,26 @@ export const getActiveProductVideosService = async ({
   limit = 10,
   productId,
 }) => {
-  const filter = { isActive: true };
+  const productFilter = {
+    isActive: true,
+    status: { $in: ["active", null] },
+  };
 
   if (productId) {
-    filter.product = productId;
+    productFilter._id = productId;
   }
 
+  const visibleProductIds = await Product.distinct("_id", productFilter);
+  const filter = { isActive: true, product: { $in: visibleProductIds } };
   const skip = (page - 1) * limit;
 
   const [videos, total] = await Promise.all([
     ProductVideo.find(filter)
-      .populate("product", "name slug price thumbnail images basePrice")
+      .populate({
+        path: "product",
+        match: { isActive: true, status: { $in: ["active", null] } },
+        select: "name slug price thumbnail images basePrice",
+      })
       .sort({ displayOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -105,7 +114,7 @@ export const getActiveProductVideosService = async ({
   ]);
 
   return {
-    videos,
+    videos: videos.filter((video) => video.product),
     pagination: {
       page,
       limit,

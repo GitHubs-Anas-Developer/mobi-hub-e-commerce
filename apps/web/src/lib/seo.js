@@ -3,8 +3,6 @@ import { BRAND_NAME, BRAND_SITE_URL } from "@/config/brand";
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1"
 ).replace(/\/+$/, "");
-const REVALIDATE_SECONDS = 3600;
-
 export function canonicalUrl(path) {
   return new URL(path, BRAND_SITE_URL).toString();
 }
@@ -16,17 +14,44 @@ export function cleanText(value) {
     .trim();
 }
 
+export function getProductSku(product) {
+  const variants = getActiveVariants(product);
+  return (
+    variants.find((variant) => variant?.isDefault)?.sku ||
+    variants[0]?.sku ||
+    ""
+  );
+}
+
 export function getProductDescription(product) {
   const name = cleanText(product?.name) || "This product";
   const brand = cleanText(product?.brand);
-  const source =
-    cleanText(product?.seoDescription) || cleanText(product?.description);
-  const description =
-    source && source.toLowerCase().startsWith(name.toLowerCase())
+  const seoDescription = cleanText(product?.seoDescription);
+  const source = seoDescription || cleanText(product?.description);
+  let description = seoDescription
+    ? seoDescription
+    : source && source.toLowerCase().startsWith(name.toLowerCase())
       ? source
       : `${name}${brand ? ` by ${brand}` : ""}. ${
           source || "Shop online at ELENZO and check current prices and availability."
         }`;
+  const sku = cleanText(getProductSku(product));
+  const identifier = sku
+    ? `SKU ${sku}`
+    : cleanText(product?.slug)
+      ? `Product reference ${cleanText(product.slug)}`
+      : "";
+  if (
+    !seoDescription &&
+    identifier &&
+    !description
+      .slice(0, 300)
+      .toLowerCase()
+      .includes(identifier.toLowerCase())
+  ) {
+    const identifierSuffix = ` ${identifier}.`;
+    description = `${description.slice(0, Math.max(0, 300 - identifierSuffix.length)).trimEnd()}${identifierSuffix}`;
+  }
 
   return description.length > 300
     ? `${description.slice(0, 297).trimEnd()}...`
@@ -52,7 +77,7 @@ export function getCategoryDescription(category) {
 export async function fetchPublicApi(path) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: { Accept: "application/json" },
-    next: { revalidate: REVALIDATE_SECONDS },
+    cache: "no-store",
   });
 
   if (response.status === 404) return null;
@@ -87,7 +112,7 @@ export async function getPublicProducts() {
       `${API_BASE_URL}/products?page=${page}&limit=100`,
       {
         headers: { Accept: "application/json" },
-        next: { revalidate: REVALIDATE_SECONDS },
+        cache: "no-store",
       },
     );
 
@@ -126,8 +151,13 @@ export function getActiveVariants(product) {
 export function getProductJsonLd(product) {
   const productUrl = canonicalUrl(`/products/${product.slug}`);
   const variants = getActiveVariants(product);
+  const sku = getProductSku(product);
   const offers = variants
-    .filter((variant) => Number.isFinite(Number(variant.sellingPrice)))
+    .filter(
+      (variant) =>
+        Number.isFinite(Number(variant.sellingPrice)) &&
+        Number(variant.sellingPrice) >= 0,
+    )
     .map((variant) => ({
       "@type": "Offer",
       url: productUrl,
@@ -140,7 +170,12 @@ export function getProductJsonLd(product) {
       sku: variant.sku || undefined,
     }));
 
-  if (offers.length === 0 && Number.isFinite(Number(product.basePrice))) {
+  if (
+    offers.length === 0 &&
+    variants.length > 0 &&
+    Number.isFinite(Number(product.basePrice)) &&
+    Number(product.basePrice) >= 0
+  ) {
     offers.push({
       "@type": "Offer",
       url: productUrl,
@@ -150,26 +185,28 @@ export function getProductJsonLd(product) {
         Number(product.totalStock) > 0
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
+      sku: sku || undefined,
     });
   }
 
+  const images = [
+    product.thumbnail?.url,
+    ...(product.images || []).map((image) => image?.url),
+  ].filter(Boolean);
   const productSchema = {
     "@context": "https://schema.org",
     "@type": "Product",
+    url: productUrl,
     name: product.name,
     description: getProductDescription(product),
-    image: [
-      product.thumbnail?.url,
-      ...(product.images || []).map((image) => image?.url),
-    ].filter(Boolean),
-    sku:
-      variants.find((variant) => variant.isDefault)?.sku ||
-      variants[0]?.sku ||
-      undefined,
+    ...(images.length ? { image: images } : {}),
+    sku: sku || undefined,
     brand: product.brand
       ? { "@type": "Brand", name: product.brand }
       : undefined,
-    offers: offers.length === 1 ? offers[0] : offers,
+    ...(offers.length
+      ? { offers: offers.length === 1 ? offers[0] : offers }
+      : {}),
   };
 
   const average = Number(product.ratings?.average);

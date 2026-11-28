@@ -29,7 +29,13 @@ export default async function sitemap() {
   ]);
 
   for (const product of products) {
-    if (!product?.slug || product.isActive === false) continue;
+    if (
+      !product?.slug ||
+      product.isActive === false ||
+      (product.status && product.status !== "active")
+    ) {
+      continue;
+    }
     const url = canonicalUrl(`/products/${product.slug}`);
     entries.set(url, {
       url,

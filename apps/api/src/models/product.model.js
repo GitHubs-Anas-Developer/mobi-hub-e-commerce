@@ -49,6 +49,7 @@ const productSchema = new mongoose.Schema(
     isFeatured: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: true },
     isActive: { type: Boolean, default: true, index: true },
+    status: { type: String, enum: ["draft", "active", "archived"], default: "active", index: true },
     seoTitle: { type: String, trim: true, maxlength: titleMaxLength },
     seoDescription: { type: String, trim: true, maxlength: 320 },
     seoKeywords: { type: [String], default: [] },
