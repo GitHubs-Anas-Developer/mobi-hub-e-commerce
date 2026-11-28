@@ -20,6 +20,7 @@ import { BRAND_ASSETS, BRAND_NAME } from "@/config/brand";
 export const metadata = {
   title: "About Us",
   description: `Learn about ${BRAND_NAME}, our mission, vision, and approach to making everyday gadgets and electronics simple to shop.`,
+  alternates: { canonical: "/about" },
 };
 
 const WHY_CHOOSE_FEATURES = [

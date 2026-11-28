@@ -34,3 +34,25 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Production SEO
+
+The public site URL defaults to `https://www.elenzo.in`. Set `NEXT_PUBLIC_SITE_URL`
+to the canonical production origin in Vercel and set `NEXT_PUBLIC_API_URL` to the
+public Express API base URL so product/category metadata, `sitemap.xml`, and the
+Merchant Center feed can read the live catalog. Do not put private API credentials
+in these public variables.
+
+Optional Search Console HTML-tag verification is supported through
+`NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`. Add the verification token provided by
+Google to the Vercel production environment, deploy, and then complete verification
+in Search Console. Submit `https://www.elenzo.in/sitemap.xml` after confirming it
+loads. Verification, indexing, and search performance have not been completed by
+this code change.
+
+The Google Merchant Center RSS feed is available at
+`https://www.elenzo.in/merchant-feed.xml`. Connect it in Merchant Center and
+review all diagnostics before enabling listings. The current product model does
+not store GTIN/MPN or product condition, so provide those attributes or confirm
+applicable exemptions before relying on the feed for Shopping ads. Configure
+shipping, tax, returns, and business details directly in Merchant Center.

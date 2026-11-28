@@ -5,6 +5,7 @@ import { BRAND_NAME } from "@/config/brand";
 export const metadata = {
   title: "Return & Refund Policy",
   description: `Review ${BRAND_NAME} eligibility criteria, inspection steps, cancellation rules, and refund methods for orders.`,
+  alternates: { canonical: "/return-policy" },
 };
 
 export default function ReturnPolicyPage() {

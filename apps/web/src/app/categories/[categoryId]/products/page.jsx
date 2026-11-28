@@ -1,12 +1,39 @@
 import { Suspense } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
 import ProductsPage from "@/app/products/page";
 import ProductsPageSkeleton from "@/components/loading/skeletons/ProductsPageSkeleton";
+import JsonLd from "@/components/seo/JsonLd";
+import {
+  canonicalUrl,
+  getBreadcrumbJsonLd,
+  getCategoryDescription,
+  getCategoryById,
+} from "@/lib/seo";
 
-export const metadata = {
-  title: "Category Products",
-  description:
-    "Discover premium electronics, gadgets, and tech accessories by category on ELENZO.",
-};
+export async function generateMetadata({ params, searchParams }) {
+  const { categoryId } = await params;
+  const query = await searchParams;
+  const category = await getCategoryById(categoryId);
+  if (!category) {
+    return {
+      title: "Category Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${category.name} Products`;
+  const description = `Shop ${getCategoryDescription(category)}`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl(`/categories/${category._id}/products`),
+    },
+    openGraph: { title, description, type: "website" },
+    robots: { index: !Object.keys(query || {}).length, follow: true },
+  };
+}
 
 function CategoryProductsFallback() {
   return (
@@ -29,10 +56,28 @@ async function CategoryProductsContent({ params }) {
   return <ProductsPage categoryId={categoryId} />;
 }
 
-export default function CategoryProductsPage({ params }) {
+export default async function CategoryProductsPage({ params }) {
+  const { categoryId } = await params;
+  const category = await getCategoryById(categoryId);
+  if (!category) notFound();
+  if (categoryId !== String(category._id)) {
+    permanentRedirect(`/categories/${category._id}/products`);
+  }
+
+  const path = `/categories/${categoryId}/products`;
+  const breadcrumbItems = [
+    { name: "Home", path: "/" },
+    { name: "Categories", path: "/categories" },
+    { name: category.name, path: `/categories/${categoryId}` },
+    { name: "Products", path },
+  ];
+
   return (
-    <Suspense fallback={<CategoryProductsFallback />}>
-      <CategoryProductsContent params={params} />
-    </Suspense>
+    <>
+      <JsonLd data={getBreadcrumbJsonLd(breadcrumbItems)} />
+      <Suspense fallback={<CategoryProductsFallback />}>
+        <CategoryProductsContent params={params} />
+      </Suspense>
+    </>
   );
 }

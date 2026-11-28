@@ -18,6 +18,16 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "elenzo.in" }],
+        destination: "https://www.elenzo.in/:path*",
+        permanent: true,
+      },
+    ];
+  },
 
   turbopack: {
     rules: {

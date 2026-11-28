@@ -8,6 +8,7 @@ export const metadata = {
   title: "All Categories",
   description:
     "Explore electronics, gadgets, and smart accessories organized across ELENZO departments.",
+  alternates: { canonical: "/categories" },
 };
 
 export default function CategoriesPage() {

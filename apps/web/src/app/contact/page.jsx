@@ -18,6 +18,7 @@ import { BRAND_NAME, BRAND_SUPPORT_EMAIL } from "@/config/brand";
 export const metadata = {
   title: "Contact Us",
   description: `Get in touch with ${BRAND_NAME} support for questions about gadgets, electronics orders, returns, and assistance.`,
+  alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {

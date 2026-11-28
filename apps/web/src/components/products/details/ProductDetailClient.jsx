@@ -47,7 +47,7 @@ const getWishlistItemId = (item) => {
   );
 };
 
-export default function ProductDetailClient({ slug }) {
+export default function ProductDetailClient({ slug, initialProduct = null }) {
   const router = useRouter();
   const dispatch = useDispatch();
 
@@ -64,11 +64,22 @@ export default function ProductDetailClient({ slug }) {
     (state) => state.wishlist?.products || []
   );
 
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [product, setProduct] = useState(initialProduct);
+  const [loading, setLoading] = useState(!initialProduct);
   const [error, setError] = useState("");
-  const [selectedVariantId, setSelectedVariantId] = useState("");
-  const [selectedImage, setSelectedImage] = useState("");
+  const [selectedVariantId, setSelectedVariantId] = useState(() => {
+    const activeVariants = (initialProduct?.variants || []).filter(
+      (variant) => variant?.isActive !== false
+    );
+    return (
+      activeVariants.find((variant) => variant?.isDefault)?._id ||
+      activeVariants[0]?._id ||
+      ""
+    );
+  });
+  const [selectedImage, setSelectedImage] = useState(
+    initialProduct?.thumbnail?.url || initialProduct?.images?.[0]?.url || ""
+  );
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState("description");
 
@@ -122,9 +133,11 @@ export default function ProductDetailClient({ slug }) {
   }, [slug, dispatch]);
 
   useEffect(() => {
+    if (initialProduct) return;
+
     const timer = window.setTimeout(() => fetchProduct(), 0);
     return () => window.clearTimeout(timer);
-  }, [fetchProduct]);
+  }, [fetchProduct, initialProduct]);
 
   useEffect(() => {
     if (isAuthenticated && wishlistProducts.length === 0) {

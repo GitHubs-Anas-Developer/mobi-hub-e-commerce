@@ -9,6 +9,7 @@ import { BRAND_NAME } from "@/config/brand";
 export const metadata = {
   title: "Frequently Asked Questions",
   description: `Find quick answers about shopping, orders, payments, shipping, returns, cancellations, and accounts at ${BRAND_NAME}.`,
+  alternates: { canonical: "/faq" },
 };
 
 function FaqFallback() {

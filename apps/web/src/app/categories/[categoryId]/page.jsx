@@ -1,12 +1,43 @@
 import { Suspense } from "react";
+import { notFound, permanentRedirect } from "next/navigation";
 import SubcategoryPageClient from "@/components/categories/SubcategoryPageClient";
 import { CategoryDetailsSkeleton } from "@/components/categories/CategorySkeleton";
+import JsonLd from "@/components/seo/JsonLd";
+import {
+  canonicalUrl,
+  getBreadcrumbJsonLd,
+  getCategoryDescription,
+  getCategoryById,
+} from "@/lib/seo";
 
-export const metadata = {
-  title: "Explore Category",
-  description:
-    "Browse gadget categories, subcategories, child categories, and tech accessories on ELENZO.",
-};
+export async function generateMetadata({ params }) {
+  const { categoryId } = await params;
+  const category = await getCategoryById(categoryId);
+  if (!category) {
+    return {
+      title: "Category Not Found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  const title = `${category.name} Gadgets & Electronics`;
+  const description = getCategoryDescription(category);
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl(`/categories/${category._id}`) },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: category.image?.url
+        ? [{ url: category.image.url, alt: category.name }]
+        : undefined,
+    },
+    robots: { index: true, follow: true },
+  };
+}
 
 function SubcategoryLoadingFallback() {
   return (
@@ -16,10 +47,27 @@ function SubcategoryLoadingFallback() {
   );
 }
 
-export default function SubcategoryPage({ params }) {
+export default async function SubcategoryPage({ params }) {
+  const { categoryId } = await params;
+  const category = await getCategoryById(categoryId);
+  if (!category) notFound();
+  if (categoryId !== String(category._id)) {
+    permanentRedirect(`/categories/${category._id}`);
+  }
+
+  const path = `/categories/${categoryId}`;
+  const breadcrumbItems = [
+    { name: "Home", path: "/" },
+    { name: "Categories", path: "/categories" },
+    { name: category.name, path },
+  ];
+
   return (
-    <Suspense fallback={<SubcategoryLoadingFallback />}>
-      <SubcategoryPageClient params={params} />
-    </Suspense>
+    <>
+      <JsonLd data={getBreadcrumbJsonLd(breadcrumbItems)} />
+      <Suspense fallback={<SubcategoryLoadingFallback />}>
+        <SubcategoryPageClient params={params} />
+      </Suspense>
+    </>
   );
 }

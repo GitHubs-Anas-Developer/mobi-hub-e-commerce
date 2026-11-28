@@ -5,6 +5,7 @@ import { BRAND_NAME } from "@/config/brand";
 export const metadata = {
   title: "Shipping & Delivery Policy",
   description: `Understand ${BRAND_NAME} delivery availability, logistics partners, order tracking, and shipment handling.`,
+  alternates: { canonical: "/shipping-policy" },
 };
 
 export default function ShippingPolicyPage() {

@@ -2,7 +2,7 @@ export const BRAND_NAME = "ELENZO";
 export const BRAND_TAGLINE = "Online Gadget & Electronics Store";
 export const BRAND_SHORT_TAGLINE = "Gadgets & Electronics";
 export const BRAND_DESCRIPTION =
-  "Discover premium gadgets, electronics, and tech accessories at ELENZO. Shop quality smart devices and everyday technology.";
+  "Shop gadgets, electronics, and tech accessories online in India at ELENZO. Discover smart devices and everyday technology with current prices and availability.";
 
 export const BRAND_PRIMARY_COLOR = "#0755E9";
 export const BRAND_SECONDARY_COLOR = "#082B70";
@@ -23,5 +23,6 @@ export const BRAND_ASSETS = {
   ogImage: "/brand/elenzo-og.png",
 };
 
-export const BRAND_SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+export const BRAND_SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL || "https://www.elenzo.in"
+).replace(/\/+$/, "");

@@ -5,6 +5,7 @@ import { BRAND_NAME } from "@/config/brand";
 export const metadata = {
   title: "Terms & Conditions",
   description: `Read the Terms & Conditions governing browsing, accounts, pricing, orders, payments, and cancellations on ${BRAND_NAME}.`,
+  alternates: { canonical: "/terms" },
 };
 
 export default function TermsPage() {

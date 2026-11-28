@@ -6,6 +6,7 @@ import AdminLayoutShell from "@/components/admin/layout/AdminLayoutShell";
 
 export const metadata = {
   title: "Admin Panel",
+  robots: { index: false, follow: false },
 };
 
 function AdminLoadingFallback() {
